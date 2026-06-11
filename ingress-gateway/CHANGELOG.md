@@ -19,6 +19,11 @@
 
 ---
 
+## [3.2.4] - 2026-06-11
+
+### Changed
+- `xroutes[].enabled`, `xroutes[].hostnames` и `xroutes[].parentRefs[].gateway` помечены `ui:widget: hidden` в `values.schema.json`: при единственном Gateway чарт сам создаёт Route при отсутствии `enabled`, выводит `hostnames` из listener'ов по `sectionName` и подставляет имя Gateway в `parentRefs[].gateway`, поэтому в форме эти поля не показываются. На рендер не влияет.
+
 ## [3.2.3] — 2026-06-09
 
 ### Removed

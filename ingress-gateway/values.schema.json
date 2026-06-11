@@ -784,7 +784,8 @@
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = создавать Route; false = пропустить.",
+          "description": "true = создавать Route; false = пропустить. Скрыто: по умолчанию true, форма не показывает это поле (чарт создаёт Route при отсутствии enabled).",
+          "ui:widget": "hidden",
           "type": "boolean",
           "default": true
         },
@@ -812,7 +813,8 @@
         },
         "hostnames": {
           "title": "hostnames",
-          "description": "Hostname'ы Route (для TLSRoute — SNI). Можно опустить при единственном Gateway: берутся из listener'ов по sectionName. Для TCP/UDP не поддерживаются.",
+          "description": "Hostname'ы Route (для TLSRoute это SNI). Скрыто: при единственном Gateway чарт выводит их из listener'ов по sectionName. Для TCP/UDP не поддерживаются.",
+          "ui:widget": "hidden",
           "type": "array",
           "items": {
             "type": "string"
@@ -906,7 +908,8 @@
       "properties": {
         "gateway": {
           "title": "gateway",
-          "description": "Имя Gateway из gateways[].name. Можно опустить при единственном Gateway — подставится автоматически.",
+          "description": "Имя Gateway из gateways[].name. Скрыто: при единственном Gateway чарт подставляет его имя автоматически.",
+          "ui:widget": "hidden",
           "$ref": "#/definitions/shortToken"
         },
         "sectionName": {
