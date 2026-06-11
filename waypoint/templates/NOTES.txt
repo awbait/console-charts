@@ -1,0 +1,18 @@
+waypoint ({{ .Chart.Version }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+Конвенция имён: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+
+{{ $hasWp := false -}}
+{{- range .Values.waypoints }}{{ if eq (include "waypoint.helpers.app.enabled" .) "true" }}{{ $hasWp = true }}{{ end }}{{ end -}}
+{{- if $hasWp }}
+Waypoint-прокси (Gateway, класс istio-waypoint):
+{{- range $wp := .Values.waypoints }}
+{{- if eq (include "waypoint.helpers.app.enabled" $wp) "true" }}
+{{- $name := include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $wp.name "context" $) }}
+  • {{ $name }} (waypoint-for: {{ $wp.for | default "service" }})
+    привязка: kubectl label ns {{ $.Release.Namespace }} istio.io/use-waypoint={{ $name }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+Проверка:
+  kubectl -n {{ .Release.Namespace }} get gateway -l app.kubernetes.io/instance={{ .Release.Name }}

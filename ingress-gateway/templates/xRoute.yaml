@@ -1,0 +1,115 @@
+{{/*
+Route-ресурсы (Gateway API) — по одному на элемент списка xroutes.
+kind задаётся в values (HTTPRoute/GRPCRoute/TLSRoute/TCPRoute/UDPRoute),
+apiVersion выбирается автоматически по kind. matches/filters поддерживаются
+только для HTTPRoute/GRPCRoute. backendRefs обязательны.
+
+Упрощения при ЕДИНСТВЕННОМ включённом Gateway:
+  - parentRefs[].gateway можно не указывать — подставляется имя этого Gateway;
+  - hostnames можно не указывать — берутся из listener'ов, на которые ссылается
+    route через parentRefs[].sectionName (для HTTP/GRPC/TLS).
+Элемент пропускается при enabled: false.
+*/}}
+{{- $root := . -}}
+{{- $enabledGateways := list -}}
+{{- range $g := $root.Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $g) "true" }}{{- $enabledGateways = append $enabledGateways $g }}{{- end }}
+{{- end -}}
+{{- $soleGateway := "" -}}
+{{- $soleGatewayObj := dict -}}
+{{- if eq (len $enabledGateways) 1 -}}
+{{- $soleGatewayObj = index $enabledGateways 0 -}}
+{{- $soleGateway = $soleGatewayObj.name -}}
+{{- end -}}
+{{- range $index, $route := $root.Values.xroutes }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" }}
+{{- $routeName := required (printf "xroutes[%d].name is required" $index) $route.name }}
+{{- $routeKind := include "ingress-gateway.helpers.app.xRouteKind" (dict "kind" ($route.kind | default "HTTPRoute") "name" $routeName) }}
+{{- $apiVersion := include "ingress-gateway.helpers.app.xRouteApiVersion" (dict "kind" $routeKind "name" $routeName) }}
+{{- $supportsMatches := or (eq $routeKind "HTTPRoute") (eq $routeKind "GRPCRoute") }}
+{{- $supportsFilters := $supportsMatches }}
+{{- $supportsHostnames := or $supportsMatches (eq $routeKind "TLSRoute") }}
+{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
+{{- if not $route.parentRefs }}
+{{- fail (printf "xroutes[%d].parentRefs is required for route %s" $index $routeName) }}
+{{- end }}
+{{- if not $route.rules }}
+{{- fail (printf "xroutes[%d].rules is required for route %s" $index $routeName) }}
+{{- end }}
+{{- range $ruleIndex, $rule := $route.rules }}
+{{- if and (not $supportsMatches) $rule.matches }}
+{{- fail (printf "xroutes[%d].rules[%d].matches is not supported for %s; для TLSRoute используйте hostnames (SNI)" $index $ruleIndex $routeKind) }}
+{{- end }}
+{{- if and (not $supportsFilters) $rule.filters }}
+{{- fail (printf "xroutes[%d].rules[%d].filters is not supported for %s" $index $ruleIndex $routeKind) }}
+{{- end }}
+{{- end }}
+{{- /* hostnames: явные из values или авто из listener'ов единственного Gateway по sectionName */ -}}
+{{- $effectiveHostnames := $route.hostnames | default list }}
+{{- if and $supportsHostnames (not $route.hostnames) $soleGateway }}
+{{- $sectionNames := list }}
+{{- range $p := $route.parentRefs }}{{- with $p.sectionName }}{{- $sectionNames = append $sectionNames . }}{{- end }}{{- end }}
+{{- range $l := ($soleGatewayObj.listeners | default list) }}
+{{- if and $l.hostname (has $l.name $sectionNames) }}{{- $effectiveHostnames = append $effectiveHostnames $l.hostname }}{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: {{ $apiVersion | quote }}
+kind: {{ $routeKind }}
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" $routeKind "name" $routeName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- range $parent := $route.parentRefs }}
+    {{- $gwRef := $parent.gateway | default $soleGateway }}
+    {{- if not $gwRef }}
+    {{- fail (printf "xroutes[%d].parentRefs[].gateway is required (Gateway'ев несколько — укажите явно)" $index) }}
+    {{- end }}
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gwRef "context" $root) }}
+      {{- with $parent.sectionName }}
+      sectionName: {{ . | quote }}
+      {{- end }}
+    {{- end }}
+  {{- if and $supportsHostnames $effectiveHostnames }}
+  hostnames:
+    {{- range $hostname := $effectiveHostnames }}
+    - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $hostname "context" $root) | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $ruleIndex, $rule := $route.rules }}
+    -
+      {{- if and $supportsMatches $rule.matches }}
+      matches:
+        {{- toYaml $rule.matches | nindent 8 }}
+      {{- end }}
+      {{- if and $supportsFilters $rule.filters }}
+      filters:
+        {{- toYaml $rule.filters | nindent 8 }}
+      {{- end }}
+      {{- if not $rule.backendRefs }}
+      {{- fail (printf "xroutes[%d].rules[%d].backendRefs is required for route %s" $index $ruleIndex $routeName) }}
+      {{- end }}
+      backendRefs:
+        {{- range $backendIndex, $backend := $rule.backendRefs }}
+        - name: {{ required (printf "xroutes[%d].rules[%d].backendRefs[%d].name is required" $index $ruleIndex $backendIndex) $backend.name | quote }}
+          port: {{ required (printf "xroutes[%d].rules[%d].backendRefs[%d].port is required" $index $ruleIndex $backendIndex) $backend.port }}
+          {{- with $backend.namespace }}
+          namespace: {{ . | quote }}
+          {{- end }}
+          {{- with $backend.weight }}
+          weight: {{ . }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

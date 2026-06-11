@@ -1,0 +1,72 @@
+{{/*
+Ingress Gateway (Gateway API, класс istio) — по одному на элемент списка
+gateways. infrastructure.parametersRef ссылается на ConfigMap (см.
+configmap.yaml), который носит то же имя, что и Gateway (kindShort cm).
+Для HTTPS/TLS listener'ов блок tls добавляется автоматически: Terminate
+требует tlsSecretName или certificateRefs, иначе Passthrough.
+Элемент пропускается при enabled: false.
+*/}}
+{{- $root := . -}}
+{{- range $index, $gateway := $root.Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
+{{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gatewayName "context" $root) }}
+{{- $configMapName := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ConfigMap" "name" $gatewayName "context" $root) }}
+{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gatewayFullname }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: istio
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ $configMapName }}
+  listeners:
+    {{- range $listenerIndex, $listener := $gateway.listeners }}
+    - name: {{ $listener.name | default (printf "listener-%d" $listenerIndex) | quote }}
+      port: {{ required (printf "gateways[%d].listeners[%d].port is required" $index $listenerIndex) $listener.port }}
+      protocol: {{ required (printf "gateways[%d].listeners[%d].protocol is required" $index $listenerIndex) $listener.protocol | quote }}
+      {{- with $listener.hostname }}
+      hostname: {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | quote }}
+      {{- end }}
+      {{- $protocol := upper ($listener.protocol | toString) }}
+      {{- if or (eq $protocol "HTTPS") (eq $protocol "TLS") }}
+      tls:
+        {{- /* Passthrough by default; secret name is always auto-derived (no user tlsSecretName). */}}
+        {{- $tlsMode := $listener.tlsMode | default "Passthrough" }}
+        mode: {{ $tlsMode | quote }}
+        {{- if eq $tlsMode "Terminate" }}
+        {{- $autoSecret := include "ingress-gateway.helpers.app.tlsSecretName" (dict "hostname" $listener.hostname "context" $root) }}
+        certificateRefs:
+          {{- if $listener.certificateRefs }}
+          {{- toYaml $listener.certificateRefs | nindent 10 }}
+          {{- else }}
+          - name: {{ $autoSecret | quote }}
+            kind: Secret
+            group: ""
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- /* namespaces is hidden from users and pinned to "Same" for now; only kinds is user-supplied. */}}
+      {{- $ar := $listener.allowedRoutes | default dict }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+        {{- with $ar.kinds }}
+        kinds:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

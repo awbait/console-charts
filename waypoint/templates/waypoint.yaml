@@ -1,0 +1,34 @@
+{{/*
+Waypoint proxy (Gateway API, класс istio-waypoint) — по одному на элемент
+списка waypoints. Слушает mesh-трафик (HBONE, порт 15008). Label
+istio.io/waypoint-for определяет область перехвата (service|workload|all).
+Pod'ы/сервисы привязываются к waypoint через label
+istio.io/use-waypoint: <имя этого Gateway>. Элемент пропускается при enabled: false.
+*/}}
+{{- $root := . -}}
+{{- range $index, $waypoint := $root.Values.waypoints }}
+{{- if eq (include "waypoint.helpers.app.enabled" $waypoint) "true" }}
+{{- $waypointName := required (printf "waypoints[%d].name is required" $index) $waypoint.name }}
+{{- $for := include "waypoint.helpers.app.for" $waypoint.for }}
+{{- $genericAnnotations := include "waypoint.helpers.app.genericAnnotations" $root }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "waypoint.helpers.app.labels" $root | nindent 4 }}
+    istio.io/waypoint-for: {{ $for | quote }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+{{- end }}
+{{- end }}

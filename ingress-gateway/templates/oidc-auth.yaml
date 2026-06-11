@@ -1,0 +1,158 @@
+{{/*
+OIDC-аутентификация через oauth2-proxy, Keycloak и Istio external authorization
+(при oidcAuth.enabled). Создаёт: HTTPRoute для /oauth2, ReferenceGrant,
+AuthorizationPolicy (CUSTOM ext_authz и проверка групп) и RequestAuthentication.
+Ресурсы располагаются в namespace приложения / Gateway / oauth2-proxy и носят
+заданные пользователем имена (вне 5-частной конвенции; уточняется при доработке).
+*/}}
+{{- if .Values.oidcAuth }}
+{{- if (.Values.oidcAuth.enabled | default false) }}
+{{- $root := . -}}
+{{- $auth := .Values.oidcAuth -}}
+{{- $oauth2Route := $auth.oauth2Route | default dict -}}
+{{- $oauth2Proxy := $auth.oauth2Proxy | default dict -}}
+{{- $oauth2ProxyService := $oauth2Proxy.service | default dict -}}
+{{- $referenceGrant := $auth.referenceGrant | default dict -}}
+{{- $externalAuthPolicy := $auth.externalAuthPolicy | default dict -}}
+{{- $groupsPolicy := $auth.groupsPolicy | default dict -}}
+{{- $requestAuthentication := $auth.requestAuthentication | default dict -}}
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $oauth2Route.name | default "oauth2-route" }}
+  namespace: {{ $auth.application.namespace | default .Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+spec:
+  hostnames:
+    {{- range $host := $auth.application.hostnames }}
+    - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $host "context" $root) | quote }}
+    {{- end }}
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ required "oidcAuth.gateway.name is required" $auth.gateway.name }}
+      namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
+      sectionName: {{ $auth.gateway.sectionName | default "https" }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ $oauth2Route.pathPrefix | default "/oauth2" | quote }}
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: "oauth2-proxy"
+          namespace: "oauth2-proxy"
+          port: 80
+          weight: {{ $oauth2ProxyService.weight | default 100 }}
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ $referenceGrant.name | default .Release.Namespace | quote }}
+  namespace: oauth2-proxy
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ $auth.application.namespace | default .Release.Namespace }}
+  to:
+    - group: ""
+      kind: Service
+      name: oauth2-proxy
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $externalAuthPolicy.name | default "redirect-to-oauth2-proxy" }}
+  namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+spec:
+  action: CUSTOM
+  provider:
+    name: oauth2-proxy
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ required "oidcAuth.gateway.name is required" $auth.gateway.name }}
+  rules:
+    - to:
+        - operation:
+            hosts:
+              {{- range $host := $auth.application.hostnames }}
+              - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $host "context" $root) | quote }}
+              {{- end }}
+            notPaths:
+              {{- range $path := ($externalAuthPolicy.notPaths | default (list "/oauth2/*")) }}
+              - {{ $path | quote }}
+              {{- end }}
+
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $groupsPolicy.name | default "groups-whitelist" }}
+  namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+spec:
+  action: ALLOW
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ required "oidcAuth.gateway.name is required" $auth.gateway.name }}
+  rules:
+    - to:
+        - operation:
+            hosts:
+              {{- range $host := $auth.application.hostnames }}
+              - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $host "context" $root) | quote }}
+              {{- end }}
+            paths:
+              {{- range $path := ($groupsPolicy.publicPaths | default (list "/oauth2/*")) }}
+              - {{ $path | quote }}
+              {{- end }}
+    - to:
+        - operation:
+            hosts:
+              {{- range $host := $auth.application.hostnames }}
+              - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $host "context" $root) | quote }}
+              {{- end }}
+            notPaths:
+              {{- range $path := ($groupsPolicy.publicPaths | default (list "/oauth2/*")) }}
+              - {{ $path | quote }}
+              {{- end }}
+      when:
+        - key: {{ $groupsPolicy.claimKey | default "request.auth.claims[groups]" | quote }}
+          values:
+            {{- range $group := $groupsPolicy.allowedGroups }}
+            - {{ $group | quote }}
+            {{- end }}
+
+---
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: {{ $requestAuthentication.name | default "keycloak-jwt" }}
+  namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ required "oidcAuth.gateway.name is required" $auth.gateway.name }}
+  jwtRules:
+    - issuer: {{ required "oidcAuth.keycloak.issuer is required" $auth.keycloak.issuer | quote }}
+      jwksUri: {{ required "oidcAuth.keycloak.jwksUri is required" $auth.keycloak.jwksUri | quote }}
+      forwardOriginalToken: {{ $requestAuthentication.forwardOriginalToken | default true }}
+{{- end }}
+{{- end }}

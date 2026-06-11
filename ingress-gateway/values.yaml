@@ -1,0 +1,30 @@
+# Safe, empty defaults. The chart auto-loads this file on every `helm template`,
+# so it must NOT contain example gateways/xroutes (they would be merged into every
+# order that omits those keys). The full annotated reference lives in
+# values.example.yaml. An order supplies its own values; naming.* is required
+# (enforced by values.schema.json).
+generic:
+  labels: {}
+  annotations: {}
+
+# Optional sections OFF by default — an order turns on only what it needs.
+authorizationPolicy:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+oidcAuth:
+  enabled: false
+
+# Predefined platform wildcard TLS certs, used to populate the auto-generated
+# secret of a Terminate listener whose hostname matches the domain
+# (*.idp.ecpk.ru -> *-idptls, *.edp.ecpk.ru -> *-edptls). base64 tls.crt/tls.key;
+# empty here = placeholder (set by the platform/ops). Non-matching hostnames get
+# an empty "*-tls" secret to fill in.
+tlsWildcards:
+  idp: { crt: "", key: "" }
+  edp: { crt: "", key: "" }
+
+# gateways / xroutes are intentionally NOT defaulted here — an order supplies
+# its own. The example reference lives in values.example.yaml.

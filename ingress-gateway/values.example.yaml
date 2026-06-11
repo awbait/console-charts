@@ -1,0 +1,394 @@
+# ============================================================================
+#  Helm chart: ingress-gateway — reference values.yaml
+#  Все параметры с описанием. Чарт разворачивает ingress на базе Istio /
+#  Gateway API. Независимые секции (можно использовать любую комбинацию):
+#
+#    gateways[]           — Gateway (Gateway API) + infrastructure ConfigMap
+#                           (Deployment/Service/HPA авто-создаваемого workload).
+#    xroutes[]            — Route (HTTP/GRPC/TLS/TCP/UDP) к backend-сервисам.
+#    networkPolicy        — NetworkPolicy для workload каждого Gateway.
+#    authorizationPolicy  — AuthorizationPolicy (Istio) для workload Gateway.
+#    oidcAuth             — OIDC через oauth2-proxy + Keycloak (опционально).
+#
+#  Конвенция именования ресурсов:
+#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# naming — общие теги для имён ресурсов (см. конвенцию выше)
+# ----------------------------------------------------------------------------
+# instanceTag / clusterTag / projectTag задаются один раз на релиз.
+# kindShort подставляется автоматически по типу ресурса:
+#   igw — Gateway              hr  — HTTPRoute        tr  — TLSRoute
+#   cm  — ConfigMap            gr  — GRPCRoute        tcr — TCPRoute
+#   np  — NetworkPolicy        ur  — UDPRoute
+#   ap  — AuthorizationPolicy
+# name задаётся на каждый Gateway/Route (2..6 символов, DNS-формат).
+naming:
+  # Тег инстанса (таблица 50). Required, DNS-формат lower-case.
+  instanceTag: ru1
+
+  # Тег кластера (таблица 52). Required, DNS-формат lower-case.
+  clusterTag: k8s1
+
+  # Тег проекта. Required, 2..6 символов, DNS-формат lower-case.
+  projectTag: nbox
+
+generic:
+  # Общие labels для всех ресурсов чарта.
+  labels:
+    environment: production
+    team: platform
+
+  # Общие annotations для всех ресурсов чарта.
+  annotations:
+    owner: platform-team
+    monitoring: "true"
+
+
+# ============================================================================
+# authorizationPolicy — Istio AuthorizationPolicy для workload Gateway
+# ============================================================================
+# enabled: true → на каждый включённый Gateway создаётся AuthorizationPolicy
+# (по умолчанию ALLOW для 0.0.0.0/0). Тонкая настройка правил — в фазе доработки.
+authorizationPolicy:
+  enabled: true
+
+
+# ============================================================================
+# networkPolicy — Kubernetes NetworkPolicy для workload Gateway
+# ============================================================================
+# enabled: true → на каждый включённый Gateway создаётся NetworkPolicy.
+# Ingress по умолчанию разрешён на служебные порты Istio (80/443/15020/15021/
+# 15090). egress задаётся пользователем и ОБЯЗАТЕЛЕН при enabled: true.
+networkPolicy:
+  enabled: true
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
+      ports:
+        - port: 80
+          protocol: TCP
+
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: TCP
+        - port: 53
+          protocol: UDP
+
+
+# ============================================================================
+# gateways — список Gateway (Gateway + ConfigMap на каждый элемент)
+# ============================================================================
+#   name        — required, 2..6 символов; {name} в имени Gateway/ConfigMap,
+#                 ссылка из xroutes[].parentRefs[].gateway
+#   enabled     — default true; false → Gateway + ConfigMap не создаются
+#   ipAddress   — статический IP LoadBalancer (→ аннотация MetalLB в ConfigMap)
+#   hpa         — HorizontalPodAutoscaler для авто-создаваемого Deployment
+#   resources   — resources контейнера istio-proxy (→ ConfigMap.data.deployment)
+#   listeners[] — список listener'ов:
+#     name          — имя listener (sectionName в parentRefs); не ограничено 2..6
+#     port/protocol — required (HTTP/HTTPS/TCP/UDP/TLS)
+#     hostname      — для HTTPS/TLS обязателен
+#     tlsMode       — Terminate (HTTPS по умолч.) | Passthrough (TLS по умолч.)
+#     tlsSecretName — Secret с сертификатом для tlsMode: Terminate. НЕ обязателен,
+#                     если hostname подходит под авто-генерацию секрета (ниже).
+#     allowedRoutes — правила допуска Route к listener
+#
+# Авто-генерация TLS-секрета (tlsMode: Terminate): по hostname listener'а
+# создаётся Secret type kubernetes.io/tls (cert/key подставляете сами):
+#   *.idp.ecpk.ru → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls
+#   *edp.ecpk.ru  → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls
+#   прочие hostname → секрет не создаётся, нужен tlsSecretName/certificateRefs.
+gateways:
+  - name: main
+    enabled: true
+
+    ipAddress: 127.0.0.1
+
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      averageUtilization: 80
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    listeners:
+      - name: http
+        port: 80
+        protocol: HTTP
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+      - name: https
+        port: 443
+        protocol: HTTPS
+        hostname: app.example.ru
+        tlsMode: Terminate
+        tlsSecretName: app-example-ru-tls
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+            - kind: GRPCRoute
+
+      - name: grpc
+        port: 8443
+        protocol: HTTPS
+        hostname: grpc.example.ru
+        tlsMode: Terminate
+        tlsSecretName: grpc-example-ru-tls
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: GRPCRoute
+
+      # tlsSecretName не задан: hostname *.idp.ecpk.ru → авто-секрет
+      # {instanceTag}-{clusterTag}-secret-{projectTag}-idptls.
+      - name: idp
+        port: 8444
+        protocol: HTTPS
+        hostname: "*.idp.ecpk.ru"
+        tlsMode: Terminate
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+      - name: tls-kf
+        port: 9443
+        protocol: TLS
+        hostname: kafka.example.ru
+        tlsMode: Passthrough
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: TLSRoute
+
+      - name: tcp-pg
+        port: 5432
+        protocol: TCP
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: TCPRoute
+
+      - name: udp-dns
+        port: 53
+        protocol: UDP
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: UDPRoute
+
+  - name: intnl
+    enabled: true
+    listeners:
+      - name: http-int
+        port: 8080
+        protocol: HTTP
+        hostname: gtw-test2.ecpk-test.sibintek.ru
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+
+# ============================================================================
+# xroutes — список Route (kind задаёт тип; apiVersion выбирается автоматически)
+# ============================================================================
+#   name        — required, 2..6 символов; {name} в имени Route
+#   enabled     — default true
+#   kind        — HTTPRoute (default) | GRPCRoute | TLSRoute | TCPRoute | UDPRoute
+#   parentRefs[] — gateway (= gateways[].name) + sectionName (= listener.name)
+#   hostnames[] — для HTTP/GRPC/TLS (для TLS — SNI)
+#   rules[]     — matches/filters только для HTTP/GRPC; backendRefs обязательны
+#                 (name/port; namespace и weight опционально)
+#
+# Упрощения при ЕДИНСТВЕННОМ включённом Gateway (в этом примере их два, поэтому
+# здесь gateway указывается явно):
+#   - parentRefs[].gateway можно опустить — подставится имя этого Gateway;
+#   - hostnames можно опустить — берутся из listener'ов по parentRefs[].sectionName.
+xroutes:
+  - name: app
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      - gateway: main
+        sectionName: http
+      - gateway: main
+        sectionName: https
+    hostnames:
+      - app.example.ru
+      - www.app.example.ru
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        filters:
+          - type: RequestHeaderModifier
+            requestHeaderModifier:
+              add:
+                - name: x-routed-by
+                  value: gateway-chart
+        backendRefs:
+          - name: app
+            port: 80
+            weight: 100
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /api
+        backendRefs:
+          - name: api
+            port: 8080
+            weight: 100
+
+  - name: ugrpc
+    enabled: true
+    kind: GRPCRoute
+    parentRefs:
+      - gateway: main
+        sectionName: grpc
+    hostnames:
+      - grpc.example.ru
+    rules:
+      - matches:
+          - method:
+              service: users.UsersService
+              method: GetUser
+        backendRefs:
+          - name: users-grpc
+            port: 9090
+            weight: 100
+
+  - name: kafka
+    enabled: true
+    kind: TLSRoute
+    parentRefs:
+      - gateway: main
+        sectionName: tls-kf
+    hostnames:
+      - kafka.example.ru
+    rules:
+      - backendRefs:
+          - name: kafka
+            port: 9093
+            weight: 100
+
+  - name: pg
+    enabled: true
+    kind: TCPRoute
+    parentRefs:
+      - gateway: main
+        sectionName: tcp-pg
+    rules:
+      - backendRefs:
+          - name: postgres
+            port: 5432
+            weight: 100
+
+  - name: dns
+    enabled: true
+    kind: UDPRoute
+    parentRefs:
+      - gateway: main
+        sectionName: udp-dns
+    rules:
+      - backendRefs:
+          - name: dns-service
+            port: 53
+            weight: 100
+
+  - name: intapp
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      - gateway: intnl
+        sectionName: http-int
+    hostnames:
+      - gtw-test2.ecpk-test.sibintek.ru
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        backendRefs:
+          - name: nginx-service
+            port: 80
+            namespace: ecpk-core-bolotov-test
+
+
+# ============================================================================
+# oidcAuth — OIDC через oauth2-proxy + Keycloak (опционально)
+# ============================================================================
+# enabled: false по умолчанию. Имена ресурсов — пользовательские (вне 5-частной
+# конвенции; уточняется при доработке). При enabled: true обязательны
+# application, gateway, groupsPolicy.allowedGroups, keycloak.{issuer,jwksUri}.
+oidcAuth:
+  enabled: false
+
+  application:
+    namespace: sm-netbox-core
+    hostnames:
+      - sm-netbox.idp.ecpk.ru
+
+  gateway:
+    name: gateway-main
+    namespace: sm-netbox-ingress
+    sectionName: https
+
+  oauth2Route:
+    pathPrefix: /oauth2
+
+  referenceGrant:
+    name: allow-netbox-to-oauth2proxy
+
+  externalAuthPolicy:
+    name: redirect-to-oauth2-proxy
+    notPaths:
+      - /oauth2/*
+
+  groupsPolicy:
+    name: groups-whitelist
+    publicPaths:
+      - /oauth2/*
+    claimKey: request.auth.claims[groups]
+    allowedGroups:
+      - idp_ecpk_dev_acp_dev-core_admin
+
+  requestAuthentication:
+    name: keycloak-jwt
+    forwardOriginalToken: true
+
+  keycloak:
+    issuer: https://kc.idp.ecpk.ru/realms/ecpk-dev
+    jwksUri: https://kc.idp.ecpk.ru/realms/ecpk-dev/protocol/openid-connect/certs

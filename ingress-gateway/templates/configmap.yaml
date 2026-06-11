@@ -1,0 +1,78 @@
+{{/*
+Infrastructure ConfigMap для Istio Gateway controller — по одному на элемент
+списка gateways. Носит то же имя, что и Gateway (kindShort cm); на него
+ссылается Gateway через parametersRef (см. gateway.yaml).
+data.deployment — патч авто-создаваемого Deployment (securityContext, resources
+контейнера istio-proxy). data.service — патч Service (LoadBalancer, выключение
+NodePort, удаление порта 15021; при ipAddress — аннотация MetalLB).
+data.horizontalPodAutoscaler — добавляется при hpa.enabled.
+Элемент пропускается при enabled: false.
+*/}}
+{{- $root := . -}}
+{{- range $index, $gateway := $root.Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
+{{- $ipAddress := "" -}}
+{{- if hasKey $gateway "ipAddress" -}}
+{{- $ipAddress = include "ingress-gateway.helpers.tplvalues.render" (dict "value" (index $gateway "ipAddress") "context" $root) | trim -}}
+{{- end }}
+{{- $hpa := $gateway.hpa | default dict -}}
+{{- $hpaEnabled := $hpa.enabled | default false -}}
+{{/* resources is hidden in the order form; apply a sane istio-proxy default when omitted (editable later from the product card). */}}
+{{- $defaultResources := dict "requests" (dict "cpu" "100m" "memory" "128Mi") "limits" (dict "cpu" "2000m" "memory" "1024Mi") -}}
+{{- $resources := $gateway.resources | default $defaultResources -}}
+{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ConfigMap" "name" $gatewayName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+data:
+  {{- if $hpaEnabled }}
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ $hpa.minReplicas | default 2 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 5 }}
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: {{ $hpa.averageUtilization | default 80 }}
+  {{- end }}
+  deployment: |
+    spec:
+      template:
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          {{- if $resources }}
+          containers:
+            - name: istio-proxy
+              resources:
+                {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" $resources "context" $root) | nindent 16 }}
+          {{- end }}
+  service: |
+    {{- if $ipAddress }}
+    metadata:
+      annotations:
+        metallb.io/loadBalancerIPs: {{ $ipAddress | quote }}
+    {{- end }}
+    spec:
+      allocateLoadBalancerNodePorts: false
+      type: LoadBalancer
+      externalTrafficPolicy: Cluster
+      ports:
+        - $patch: delete
+          port: 15021
+{{- end }}
+{{- end }}

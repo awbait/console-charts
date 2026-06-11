@@ -1,0 +1,10 @@
+# Helm packaging artifacts
+*.tgz
+
+# Fetched chart dependencies
+**/charts/
+**/Chart.lock
+
+# Editor / OS
+.DS_Store
+*.swp

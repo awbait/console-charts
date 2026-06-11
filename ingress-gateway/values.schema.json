@@ -1,0 +1,1842 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/gateway/values.schema.json",
+  "title": "Gateway API Helm chart values",
+  "description": "Editor-oriented schema for Gateway API Helm chart values. Gateways and xRoutes are configured as lists.",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyOrder": [
+    "naming",
+    "generic",
+    "authorizationPolicy",
+    "networkPolicy",
+    "gateways",
+    "xroutes",
+    "oidcAuth"
+  ],
+  "required": [
+    "naming"
+  ],
+  "properties": {
+    "naming": {
+      "title": "Naming tags",
+      "description": "Общие теги для генерации имён ресурсов по конвенции {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}.",
+      "$ref": "#/definitions/naming"
+    },
+    "generic": {
+      "title": "Generic settings",
+      "description": "Общие labels/annotations, которые применяются ко всем ресурсам chart.",
+      "$ref": "#/definitions/generic",
+      "ui:widget": "hidden"
+    },
+    "authorizationPolicy": {
+      "title": "AuthorizationPolicy",
+      "description": "Настройки генерации Istio AuthorizationPolicy для Gateway workload.",
+      "$ref": "#/definitions/authorizationPolicy",
+      "ui:widget": "hidden"
+    },
+    "networkPolicy": {
+      "title": "NetworkPolicy",
+      "description": "Настройки генерации Kubernetes NetworkPolicy для Gateway workload.",
+      "$ref": "#/definitions/networkPolicy",
+      "ui:widget": "hidden"
+    },
+    "gateways": {
+      "title": "Gateways",
+      "description": "Список Gateway ресурсов. Каждый элемент списка создаёт отдельный Gateway и связанный ConfigMap.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/gateway"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Gateway HTTP",
+          "body": [
+            {
+              "name": "main",
+              "enabled": true,
+              "listeners": [
+                {
+                  "name": "http",
+                  "port": 80,
+                  "protocol": "HTTP",
+                  "hostname": "example.test.ru",
+                  "allowedRoutes": {
+                    "namespaces": {
+                      "from": "Same"
+                    },
+                    "kinds": [
+                      {
+                        "kind": "HTTPRoute"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "xroutes": {
+      "title": "xRoutes",
+      "description": "Список Route ресурсов: HTTPRoute, GRPCRoute, TLSRoute, TCPRoute или UDPRoute. apiVersion не задаётся в values и выбирается шаблоном по kind. Может быть пустым: Gateway допустимо развернуть без маршрутов.",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/definitions/xroute"
+      },
+      "defaultSnippets": [
+        {
+          "label": "HTTPRoute",
+          "body": [
+            {
+              "name": "app",
+              "enabled": true,
+              "kind": "HTTPRoute",
+              "parentRefs": [
+                {
+                  "gateway": "main",
+                  "sectionName": "http"
+                }
+              ],
+              "hostnames": [
+                "example.test.ru"
+              ],
+              "rules": [
+                {
+                  "matches": [
+                    {
+                      "path": {
+                        "type": "PathPrefix",
+                        "value": "/"
+                      }
+                    }
+                  ],
+                  "backendRefs": [
+                    {
+                      "name": "nginx-service",
+                      "port": 80
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "oidcAuth": {
+      "title": "OIDC Auth",
+      "description": "Настройки OIDC-аутентификации через oauth2-proxy, Keycloak и Istio AuthorizationPolicy.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/oidcAuth"
+    },
+    "tlsWildcards": {
+      "title": "TLS wildcards",
+      "description": "Предзаданные платформой wildcard TLS-сертификаты для *.idp.ecpk.ru / *.edp.ecpk.ru (заполняет платформа/ops, не пользователь). Скрыто.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/tlsWildcards"
+    }
+  },
+  "definitions": {
+    "tlsWildcards": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "idp": { "$ref": "#/definitions/tlsCertPair" },
+        "edp": { "$ref": "#/definitions/tlsCertPair" }
+      }
+    },
+    "tlsCertPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "crt": { "type": "string" },
+        "key": { "type": "string" }
+      }
+    },
+    "k8sName": {
+      "type": "string",
+      "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$",
+      "description": "Kubernetes DNS-1035 label: must START WITH A LETTER, then lowercase letters/digits/dashes; cannot start/end with a dash. (Service names derived from these tags require a leading letter.)"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "tplStringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "instanceTag",
+        "clusterTag",
+        "projectTag"
+      ],
+      "properties": {
+        "instanceTag": {
+          "title": "instanceTag",
+          "description": "Тег инстанса (таблица 50). Required, DNS-формат lower-case.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "clusterTag": {
+          "title": "clusterTag",
+          "description": "Тег кластера (таблица 52). Required, DNS-формат lower-case.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "projectTag": {
+          "title": "projectTag",
+          "description": "Тег проекта. Required, 2..6 символов, DNS-формат lower-case.",
+          "$ref": "#/definitions/shortToken"
+        }
+      },
+      "required": [
+        "instanceTag",
+        "clusterTag",
+        "projectTag"
+      ]
+    },
+    "shortToken": {
+      "type": "string",
+      "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 6,
+      "description": "DNS-токен 2..6 символов: начинается с буквы, далее строчные буквы/цифры/дефисы; без дефиса в начале/конце."
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "labels",
+        "annotations"
+      ],
+      "properties": {
+        "labels": {
+          "title": "Common labels",
+          "description": "Общие labels для всех ресурсов chart. Результат: metadata.labels.",
+          "$ref": "#/definitions/tplStringMap"
+        },
+        "annotations": {
+          "title": "Common annotations",
+          "description": "Общие annotations для всех ресурсов chart. Результат: metadata.annotations.",
+          "$ref": "#/definitions/tplStringMap"
+        }
+      }
+    },
+    "authorizationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "description": "true = создавать AuthorizationPolicy; false = не создавать.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "title": "Enabled",
+          "description": "true = создавать NetworkPolicy; false = не создавать.",
+          "type": "boolean",
+          "default": true
+        },
+        "egress": {
+          "title": "Egress rules",
+          "description": "Список правил разрешённого исходящего трафика. Результат: spec.egress у NetworkPolicy.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/networkPolicyEgressRule"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "egress"
+            ],
+            "properties": {
+              "egress": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "networkPolicyEgressRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "title": "To peers",
+          "description": "Список получателей egress-трафика.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/networkPolicyPeer"
+          }
+        },
+        "ports": {
+          "title": "Port",
+          "description": "Один конечный порт и протокол для egress-правила.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/networkPolicyPort"
+          }
+        }
+      },
+      "required": [
+        "to",
+        "ports"
+      ]
+    },
+    "networkPolicyPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "podSelector": {
+          "title": "podSelector",
+          "description": "Выбор pod'ов по labels.",
+          "$ref": "#/definitions/labelSelector"
+        },
+        "namespaceSelector": {
+          "title": "namespaceSelector",
+          "description": "Выбор namespace по labels.",
+          "$ref": "#/definitions/labelSelector"
+        },
+        "ipBlock": {
+          "title": "ipBlock",
+          "description": "CIDR-блок для NetworkPolicy. Скрыто в editor UI.",
+          "ui:widget": "hidden",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cidr": {
+              "type": "string"
+            },
+            "except": {
+              "title": "except",
+              "description": "Исключения из CIDR-блока. Скрыто в editor UI.",
+              "ui:widget": "hidden",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "cidr"
+          ]
+        }
+      }
+    },
+    "networkPolicyPort": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "title": "port",
+          "description": "Конечный порт назначения.",
+          "$ref": "#/definitions/port"
+        },
+        "protocol": {
+          "title": "protocol",
+          "description": "Протокол конечного порта.",
+          "type": "string",
+          "enum": [
+            "TCP",
+            "UDP",
+            "SCTP"
+          ],
+          "default": "TCP"
+        }
+      },
+      "required": [
+        "port",
+        "protocol"
+      ]
+    },
+    "labelSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "matchLabels": {
+          "title": "matchLabels",
+          "description": "Labels для выбора pod или namespace.",
+          "$ref": "#/definitions/stringMap"
+        }
+      }
+    },
+    "labelSelectorRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "In",
+            "NotIn",
+            "Exists",
+            "DoesNotExist"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator"
+      ]
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "ipAddress",
+        "listeners",
+        "hpa",
+        "resources"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя Gateway, 2..6 символов. Используется для metadata.name, ConfigMap parametersRef и ссылок parentRefs[].gateway.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "enabled",
+          "description": "true = создавать этот Gateway и его ConfigMap; false = пропустить.",
+          "type": "boolean",
+          "ui:widget": "hidden",
+          "default": true
+        },
+        "ipAddress": {
+          "title": "ipAddress",
+          "description": "Статический IP-адрес LoadBalancer для MetalLB. Если задан, шаблон добавит metallb.io/loadBalancerIPs в ConfigMap.data.service.metadata.annotations.",
+          "type": "string",
+          "minLength": 1,
+          "ui:widget": "hidden"
+        },
+        "listeners": {
+          "title": "Listeners",
+          "description": "Список listener'ов Gateway. Результат: spec.listeners.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/gatewayListener"
+          }
+        },
+        "hpa": {
+          "title": "HorizontalPodAutoscaler",
+          "description": "Настройки HPA для автоматически создаваемого Istio Gateway Deployment. Рендерится в ConfigMap.data.horizontalPodAutoscaler.",
+          "$ref": "#/definitions/gatewayHpa"
+        },
+        "resources": {
+          "title": "Gateway resources",
+          "description": "Resources для контейнера istio-proxy в автоматически создаваемом Deployment. Рендерится в ConfigMap.data.deployment. Скрыто в форме нового заказа: создаётся со значением по умолчанию, правка — позже из карточки продукта.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/containerResources",
+          "default": {
+            "requests": { "cpu": "100m", "memory": "128Mi" },
+            "limits": { "cpu": "2000m", "memory": "1024Mi" }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "listeners"
+      ]
+    },
+    "gatewayHpa": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "minReplicas",
+        "maxReplicas",
+        "averageUtilization"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "enabled",
+          "description": "true = создать HorizontalPodAutoscaler для gateway deployment; false = не создавать.",
+          "type": "boolean",
+          "default": false
+        },
+        "minReplicas": {
+          "title": "minReplicas",
+          "description": "Минимальное количество реплик gateway deployment.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 2
+        },
+        "maxReplicas": {
+          "title": "maxReplicas",
+          "description": "Максимальное количество реплик gateway deployment.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "averageUtilization": {
+          "title": "averageUtilization",
+          "description": "Целевая средняя загрузка CPU в процентах.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80
+        }
+      }
+    },
+    "resourceQuantityMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "title": "cpu",
+          "description": "Количество CPU, например 100m, 500m, 1.",
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "title": "memory",
+          "description": "Количество памяти, например 128Mi, 512Mi, 1Gi.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "containerResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "requests",
+        "limits"
+      ],
+      "properties": {
+        "requests": {
+          "title": "requests",
+          "description": "Запрашиваемые ресурсы контейнера istio-proxy. Для CPU-based HPA обязательно задавать requests.cpu.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        },
+        "limits": {
+          "title": "limits",
+          "description": "Лимиты ресурсов контейнера istio-proxy.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        }
+      }
+    },
+    "gatewayListener": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "port",
+        "protocol",
+        "hostname",
+        "tlsMode",
+        "tlsSecretName",
+        "certificateRefs",
+        "allowedRoutes"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя listener. Используется в xroutes[].parentRefs[].sectionName.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "port": {
+          "title": "port",
+          "description": "Номер порта listener. Обязательное поле.",
+          "$ref": "#/definitions/port"
+        },
+        "protocol": {
+          "title": "protocol",
+          "description": "Протокол listener. Допустимые значения: HTTP, HTTPS, TCP, UDP, TLS.",
+          "type": "string",
+          "enum": [
+            "HTTP",
+            "HTTPS",
+            "TCP",
+            "UDP",
+            "TLS"
+          ]
+        },
+        "hostname": {
+          "title": "hostname",
+          "description": "Домен listener. Для HTTP/TCP/UDP необязателен, для HTTPS/TLS обязателен. Подсказка: если tlsMode=Terminate и hostname содержит *.idp.ecpk.ru или *.edp.ecpk.ru — будет использован предзаданный wildcard-сертификат платформы; иначе создаётся пустой TLS-секрет, который нужно заполнить.",
+          "type": "string",
+          "minLength": 1
+        },
+        "tlsMode": {
+          "title": "tlsMode",
+          "description": "Режим TLS. Passthrough (по умолчанию) — TLS проходит насквозь, сертификат не нужен. Terminate — TLS терминируется на Gateway; имя Secret генерируется автоматически по hostname (idp/edp → предзаданный cert; иначе — пустой секрет *-tls для заполнения). tlsSecretName задавать не нужно.",
+          "type": "string",
+          "default": "Passthrough",
+          "enum": [
+            "Terminate",
+            "Passthrough"
+          ]
+        },
+        "tlsSecretName": {
+          "ui:widget": "hidden",
+          "title": "tlsSecretName",
+          "description": "Генерируется автоматически по hostname (см. tlsMode); пользователем не задаётся. Скрыто.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "certificateRefs": {
+          "ui:widget": "hidden",
+          "title": "certificateRefs",
+          "description": "Явные certificateRefs для tls.certificateRefs. Альтернатива tlsSecretName/авто-секрету.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "allowedRoutes": {
+          "title": "allowedRoutes",
+          "description": "Правила допуска Route к listener. Необязательное поле. Если не задано, Gateway API применит поведение по умолчанию.",
+          "$ref": "#/definitions/allowedRoutes"
+        }
+      },
+      "required": [
+        "name",
+        "port",
+        "protocol"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "protocol": {
+                "enum": [
+                  "HTTPS",
+                  "TLS"
+                ]
+              }
+            },
+            "required": [
+              "protocol"
+            ]
+          },
+          "then": {
+            "required": [
+              "hostname"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protocol": {
+                "const": "HTTPS"
+              }
+            },
+            "required": [
+              "protocol"
+            ]
+          },
+          "then": {
+            "required": [
+              "tlsMode"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protocol": {
+                "const": "TLS"
+              }
+            },
+            "required": [
+              "protocol"
+            ]
+          },
+          "then": {
+            "required": [
+              "tlsMode"
+            ]
+          }
+        }
+      ]
+    },
+    "allowedRoutes": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "namespaces",
+        "kinds"
+      ],
+      "properties": {
+        "namespaces": {
+          "title": "namespaces",
+          "description": "Из каких namespace разрешены Route. Скрыто от пользователя: пока всегда Same (только namespace Gateway).",
+          "ui:widget": "hidden",
+          "default": { "from": "Same" },
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "title": "from",
+              "description": "Same = только namespace Gateway, All = любые namespace, Selector = namespace по selector.",
+              "type": "string",
+              "default": "Same",
+              "enum": [
+                "Same",
+                "All",
+                "Selector"
+              ]
+            },
+            "selector": {
+              "$ref": "#/definitions/labelSelector"
+            }
+          },
+          "required": [
+            "from"
+          ]
+        },
+        "kinds": {
+          "title": "kinds",
+          "description": "Типы Route, которым разрешено привязываться к listener.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "title": "kind",
+                "description": "Тип Route.",
+                "type": "string",
+                "enum": [
+                  "HTTPRoute",
+                  "GRPCRoute",
+                  "TLSRoute",
+                  "TCPRoute",
+                  "UDPRoute"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        }
+      }
+    },
+    "xroute": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "kind",
+        "parentRefs",
+        "hostnames",
+        "rules"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя Route, 2..6 символов. Используется для metadata.name.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "enabled",
+          "description": "true = создавать Route; false = пропустить.",
+          "type": "boolean",
+          "default": true
+        },
+        "kind": {
+          "title": "kind",
+          "description": "Тип Route. apiVersion будет автоматически выбран шаблоном на основе kind.",
+          "type": "string",
+          "enum": [
+            "HTTPRoute",
+            "GRPCRoute",
+            "TLSRoute",
+            "TCPRoute",
+            "UDPRoute"
+          ],
+          "default": "HTTPRoute"
+        },
+        "parentRefs": {
+          "title": "parentRefs",
+          "description": "Ссылки на Gateway/listener. gateway можно опустить при единственном Gateway (подставится автоматически).",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/routeParentRef"
+          }
+        },
+        "hostnames": {
+          "title": "hostnames",
+          "description": "Hostname'ы Route (для TLSRoute — SNI). Можно опустить при единственном Gateway: берутся из listener'ов по sectionName. Для TCP/UDP не поддерживаются.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "title": "rules",
+          "description": "Правила маршрутизации. Результат: spec.rules route-ресурса.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/routeRule"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "parentRefs",
+        "rules"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "TLSRoute",
+                  "TCPRoute",
+                  "UDPRoute"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rules": {
+                "items": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "matches"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "filters"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "TCPRoute",
+                  "UDPRoute"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "hostnames"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "routeParentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "gateway",
+        "sectionName"
+      ],
+      "properties": {
+        "gateway": {
+          "title": "gateway",
+          "description": "Имя Gateway из gateways[].name. Можно опустить при единственном Gateway — подставится автоматически.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "sectionName": {
+          "title": "sectionName",
+          "description": "Имя listener этого Gateway.",
+          "$ref": "#/definitions/k8sName"
+        }
+      },
+      "required": [
+        "sectionName"
+      ]
+    },
+    "routeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "matches",
+        "filters",
+        "backendRefs"
+      ],
+      "properties": {
+        "matches": {
+          "title": "matches",
+          "description": "Список match-условий для HTTPRoute / GRPCRoute. Не использовать для TLSRoute/TCPRoute/UDPRoute.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeMatch"
+          }
+        },
+        "filters": {
+          "title": "filters",
+          "description": "Фильтры Gateway API. Поддерживаются для HTTPRoute / GRPCRoute.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/routeFilter"
+          }
+        },
+        "backendRefs": {
+          "title": "backendRefs",
+          "description": "Список backend сервисов, куда будет направляться трафик.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/backendRef"
+          }
+        }
+      },
+      "required": [
+        "backendRefs"
+      ]
+    },
+    "routeMatch": {
+      "title": "Match",
+      "description": "Одно match-условие для HTTPRoute или GRPCRoute. Выбери один тип: Path, Headers, QueryParams или Method.",
+      "oneOf": [
+        {
+          "title": "Path",
+          "description": "HTTP path match.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/pathMatch"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "title": "Headers",
+          "description": "HTTP headers match.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headers": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/nameValueMatch"
+              }
+            }
+          },
+          "required": [
+            "headers"
+          ]
+        },
+        {
+          "title": "QueryParams",
+          "description": "HTTP query parameters match.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "queryParams": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/nameValueMatch"
+              }
+            }
+          },
+          "required": [
+            "queryParams"
+          ]
+        },
+        {
+          "title": "Method",
+          "description": "gRPC method match для GRPCRoute.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "$ref": "#/definitions/grpcMethodMatch"
+            }
+          },
+          "required": [
+            "method"
+          ]
+        }
+      ]
+    },
+    "pathMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "title": "type",
+          "description": "Тип сравнения пути.",
+          "type": "string",
+          "enum": [
+            "Exact",
+            "PathPrefix",
+            "RegularExpression"
+          ],
+          "default": "PathPrefix"
+        },
+        "value": {
+          "title": "value",
+          "description": "Значение пути.",
+          "type": "string",
+          "default": "/"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ]
+    },
+    "nameValueMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "title": "type",
+          "description": "Тип сравнения.",
+          "type": "string",
+          "enum": [
+            "Exact",
+            "RegularExpression"
+          ],
+          "default": "Exact"
+        },
+        "name": {
+          "title": "name",
+          "description": "Имя header/query parameter.",
+          "type": "string"
+        },
+        "value": {
+          "title": "value",
+          "description": "Значение header/query parameter.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ]
+    },
+    "grpcMethodMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "title": "service",
+          "description": "Полное имя gRPC service, например users.UsersService.",
+          "type": "string"
+        },
+        "method": {
+          "title": "method",
+          "description": "Имя gRPC method, например GetUser.",
+          "type": "string"
+        }
+      },
+      "minProperties": 1
+    },
+    "routeFilter": {
+      "title": "filter",
+      "description": "Фильтр Gateway API для HTTPRoute / GRPCRoute. Поддерживаются RequestHeaderModifier, RequestRedirect, URLRewrite и CORS.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/requestHeaderModifierFilter"
+        },
+        {
+          "$ref": "#/definitions/requestRedirectFilter"
+        },
+        {
+          "$ref": "#/definitions/urlRewriteFilter"
+        },
+        {
+          "$ref": "#/definitions/corsFilter"
+        }
+      ]
+    },
+    "requestHeaderModifierFilter": {
+      "title": "RequestHeaderModifier",
+      "description": "Изменение request headers. Доступные методы: Set, Add, Remove.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "title": "type",
+          "type": "string",
+          "const": "RequestHeaderModifier",
+          "default": "RequestHeaderModifier",
+          "ui:widget": "hidden"
+        },
+        "requestHeaderModifier": {
+          "title": "method",
+          "description": "Выбери действие над request header: Set, Add или Remove.",
+          "oneOf": [
+            {
+              "title": "Set",
+              "description": "Set перезаписывает header указанным значением.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "set": {
+                  "title": "Set",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/definitions/httpHeader"
+                  }
+                }
+              },
+              "required": [
+                "set"
+              ]
+            },
+            {
+              "title": "Add",
+              "description": "Add добавляет значение к существующему header.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "add": {
+                  "title": "Add",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/definitions/httpHeader"
+                  }
+                }
+              },
+              "required": [
+                "add"
+              ]
+            },
+            {
+              "title": "Remove",
+              "description": "Remove удаляет header по имени.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "remove": {
+                  "title": "Remove",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "title": "headerName",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "remove"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "requestHeaderModifier"
+      ]
+    },
+    "httpHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "headerName",
+          "description": "Имя header.",
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "title": "headerValue",
+          "description": "Значение header.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ]
+    },
+    "requestRedirectFilter": {
+      "title": "RequestRedirect",
+      "description": "Redirect запроса. Доступные методы: Scheme, Domain, FullPath, Port, StatusCode.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "title": "type",
+          "type": "string",
+          "const": "RequestRedirect",
+          "default": "RequestRedirect",
+          "ui:widget": "hidden"
+        },
+        "requestRedirect": {
+          "title": "method",
+          "description": "Выбери, какая часть redirect будет изменена.",
+          "oneOf": [
+            {
+              "title": "Scheme",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "scheme": {
+                  "title": "value",
+                  "description": "Схема redirect.",
+                  "type": "string",
+                  "enum": [
+                    "http",
+                    "https"
+                  ],
+                  "default": "https"
+                }
+              },
+              "required": [
+                "scheme"
+              ]
+            },
+            {
+              "title": "Domain",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hostname": {
+                  "title": "value",
+                  "description": "Точный домен redirect.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "hostname"
+              ]
+            },
+            {
+              "title": "FullPath",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "title": "value",
+                  "description": "Полная замена пути запроса.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ReplaceFullPath",
+                      "default": "ReplaceFullPath",
+                      "ui:widget": "hidden"
+                    },
+                    "replaceFullPath": {
+                      "title": "value",
+                      "type": "string",
+                      "pattern": "^/",
+                      "default": "/"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "replaceFullPath"
+                  ]
+                }
+              },
+              "required": [
+                "path"
+              ]
+            },
+            {
+              "title": "Port",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "port": {
+                  "title": "value",
+                  "$ref": "#/definitions/port"
+                }
+              },
+              "required": [
+                "port"
+              ]
+            },
+            {
+              "title": "StatusCode",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "statusCode": {
+                  "title": "value",
+                  "type": "integer",
+                  "enum": [
+                    301,
+                    302
+                  ],
+                  "default": 301
+                }
+              },
+              "required": [
+                "statusCode"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "requestRedirect"
+      ]
+    },
+    "urlRewriteFilter": {
+      "title": "URLRewrite",
+      "description": "Переписывание URL перед отправкой в backend. Доступные методы: Domain, FullPath.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "title": "type",
+          "type": "string",
+          "const": "URLRewrite",
+          "default": "URLRewrite",
+          "ui:widget": "hidden"
+        },
+        "urlRewrite": {
+          "title": "method",
+          "description": "Выбери, какая часть URL будет переписана.",
+          "oneOf": [
+            {
+              "title": "Domain",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hostname": {
+                  "title": "value",
+                  "description": "Точный домен, на который нужно переписать hostname.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "hostname"
+              ]
+            },
+            {
+              "title": "FullPath",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "title": "value",
+                  "description": "Полная замена пути запроса.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ReplaceFullPath",
+                      "default": "ReplaceFullPath",
+                      "ui:widget": "hidden"
+                    },
+                    "replaceFullPath": {
+                      "title": "value",
+                      "type": "string",
+                      "pattern": "^/",
+                      "default": "/"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "replaceFullPath"
+                  ]
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "urlRewrite"
+      ]
+    },
+    "corsFilter": {
+      "title": "CORS",
+      "description": "CORS filter для HTTPRoute. Выбери один CORS-параметр для настройки.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "CORS",
+          "default": "CORS",
+          "ui:widget": "hidden"
+        },
+        "cors": {
+          "title": "Method",
+          "description": "Выбери CORS-параметр.",
+          "oneOf": [
+            {
+              "title": "AllowOrigins",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allowOrigins": {
+                  "title": "value",
+                  "description": "Список разрешённых Origin. Например: https://example.ru или *.",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "title": "value",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "allowOrigins"
+              ]
+            },
+            {
+              "title": "AllowCredentials",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allowCredentials": {
+                  "title": "value",
+                  "description": "Всегда true. Разрешает credentials в CORS-запросах.",
+                  "type": "boolean",
+                  "const": true,
+                  "default": true
+                }
+              },
+              "required": [
+                "allowCredentials"
+              ]
+            },
+            {
+              "title": "AllowMethods",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allowMethods": {
+                  "title": "value",
+                  "description": "Список разрешённых HTTP-методов.",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "title": "value",
+                    "type": "string",
+                    "enum": [
+                      "GET",
+                      "HEAD",
+                      "POST",
+                      "PUT",
+                      "DELETE",
+                      "CONNECT",
+                      "OPTIONS",
+                      "TRACE",
+                      "PATCH",
+                      "*"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "allowMethods"
+              ]
+            },
+            {
+              "title": "AllowHeaders",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allowHeaders": {
+                  "title": "value",
+                  "description": "Список разрешённых request headers.",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "title": "value",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "allowHeaders"
+              ]
+            },
+            {
+              "title": "ExposeHeaders",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "exposeHeaders": {
+                  "title": "value",
+                  "description": "Список response headers, доступных клиентскому коду.",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "title": "value",
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "exposeHeaders"
+              ]
+            },
+            {
+              "title": "MaxAge",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxAge": {
+                  "title": "value",
+                  "description": "Время кеширования preflight-ответа в секундах.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 600
+                }
+              },
+              "required": [
+                "maxAge"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "cors"
+      ]
+    },
+    "backendRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "namespace",
+        "port",
+        "weight"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя backend Service. Обязательное поле. Не будет автоматически префиксоваться именем chart.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "namespace": {
+          "title": "namespace",
+          "description": "Namespace backend Service. Необязательно.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "port": {
+          "title": "port",
+          "description": "Порт backend Service. Обязательное поле.",
+          "$ref": "#/definitions/port",
+          "default": 80
+        },
+        "weight": {
+          "title": "weight",
+          "description": "Вес backend при балансировке между несколькими backendRefs.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 100
+        }
+      },
+      "required": [
+        "name",
+        "port"
+      ]
+    },
+    "oidcAuth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "application": {
+          "$ref": "#/definitions/oidcApplication"
+        },
+        "gateway": {
+          "$ref": "#/definitions/oidcGateway"
+        },
+        "oauth2Route": {
+          "$ref": "#/definitions/oidcOauth2Route"
+        },
+        "oauth2Proxy": {
+          "$ref": "#/definitions/oidcOauth2Proxy"
+        },
+        "referenceGrant": {
+          "$ref": "#/definitions/oidcReferenceGrant"
+        },
+        "externalAuthPolicy": {
+          "$ref": "#/definitions/oidcExternalAuthPolicy"
+        },
+        "groupsPolicy": {
+          "$ref": "#/definitions/oidcGroupsPolicy"
+        },
+        "requestAuthentication": {
+          "$ref": "#/definitions/oidcRequestAuthentication"
+        },
+        "keycloak": {
+          "$ref": "#/definitions/oidcKeycloak"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "application",
+              "gateway",
+              "groupsPolicy",
+              "keycloak"
+            ]
+          }
+        }
+      ]
+    },
+    "oidcApplication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "hostnames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "hostnames"
+      ]
+    },
+    "oidcGateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "sectionName": {
+          "$ref": "#/definitions/k8sName"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "oidcOauth2Route": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "pathPrefix": {
+          "type": "string",
+          "pattern": "^/",
+          "default": "/oauth2"
+        }
+      }
+    },
+    "oidcOauth2Proxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "weight": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 100
+            }
+          }
+        }
+      }
+    },
+    "oidcReferenceGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/k8sName"
+        }
+      }
+    },
+    "oidcExternalAuthPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "notPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "/oauth2/*"
+          ]
+        }
+      }
+    },
+    "oidcGroupsPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "publicPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "/oauth2/*"
+          ]
+        },
+        "claimKey": {
+          "type": "string",
+          "default": "request.auth.claims[groups]"
+        },
+        "allowedGroups": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "allowedGroups"
+      ]
+    },
+    "oidcRequestAuthentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/definitions/k8sName"
+        },
+        "forwardOriginalToken": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "oidcKeycloak": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issuer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "jwksUri": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "issuer",
+        "jwksUri"
+      ]
+    }
+  }
+}

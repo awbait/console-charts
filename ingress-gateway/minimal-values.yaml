@@ -1,0 +1,61 @@
+# Минимальный пример: один Gateway с одним HTTP listener и один HTTPRoute.
+# Плюс NetworkPolicy и AuthorizationPolicy для workload Gateway.
+#
+# Имена ресурсов по конвенции: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# На выходе (при naming ниже):
+# - Gateway             ru1-k8s1-igw-nbox-main
+# - ConfigMap           ru1-k8s1-cm-nbox-main
+# - NetworkPolicy       ru1-k8s1-np-nbox-main
+# - AuthorizationPolicy ru1-k8s1-ap-nbox-main
+# - HTTPRoute           ru1-k8s1-hr-nbox-app
+
+naming:
+  instanceTag: ru1     # required, DNS-формат
+  clusterTag: k8s1     # required, DNS-формат
+  projectTag: nbox     # required, 2..6 символов
+
+generic:
+  labels: {}
+  annotations: {}
+
+authorizationPolicy:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: app
+      ports:
+        - port: 80
+          protocol: TCP
+
+gateways:
+  - name: main
+    enabled: true
+    listeners:
+      - name: http
+        port: 80
+        protocol: HTTP
+        hostname: example.test.ru
+
+xroutes:
+  - name: app
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      - gateway: main
+        sectionName: http
+    hostnames:
+      - example.test.ru
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        backendRefs:
+          - name: nginx-service
+            port: 80
+            namespace: ecpk-core-bolotov-test
