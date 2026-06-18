@@ -71,10 +71,11 @@ portal:
 
 ### Аутентификация
 
-Чарт рассчитан на прод: аутентификация только через OIDC (Keycloak). Задайте
-`OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_REDIRECT_URL` в `portal.config` и
-`OIDC_CLIENT_SECRET` в `portal.secrets`. `AUTH_MODE` держите `oidc` (дефолт
-`config.go` - `dev`, поэтому значение задаётся явно).
+Аутентификация только через OIDC (Keycloak). Задайте `OIDC_ISSUER`,
+`OIDC_CLIENT_ID`, `OIDC_REDIRECT_URL` в `portal.config` и `OIDC_CLIENT_SECRET` в
+`portal.secrets`. `AUTH_MODE` по умолчанию `oidc` (это единственный валидный
+режим - dev-режим убран и отклоняется при старте), значение в `config` оставлено
+явно для наглядности.
 
 ## Проверка рендера
 

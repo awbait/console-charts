@@ -35,14 +35,14 @@ portal:
 
   # Несекретные переменные окружения портала. Ключи соответствуют env-тегам
   # internal/config/config.go. Пустые значения не рендерятся (применяется дефолт
-  # из config.go). Полный список переменных см. в .env.example репозитория idp.
+  # из config.go). Полный список переменных см. в .env.example репозитория console.
   config:
     HTTP_PORT: "8080"
     PUBLIC_URL: "https://console.example.com"
     # Хранилища: postgres|memory, redis|memory.
     STORE: postgres
     CACHE: redis
-    # Аутентификация: oidc|dev.
+    # Аутентификация: только oidc (dev-режим убран, отклоняется при старте).
     AUTH_MODE: oidc
     OIDC_ISSUER: "https://keycloak.example.com/realms/internal"
     OIDC_CLIENT_ID: portal

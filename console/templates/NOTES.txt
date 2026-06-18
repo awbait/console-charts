@@ -2,15 +2,5 @@ console ({{ .Chart.Version }}, app {{ .Chart.AppVersion }}) развёрнут �
 
 portal (API + SPA) - Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}
 
-Вход публикуется снаружи отдельно. Для локальной проверки пробросьте порт:
-  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.portal.fullname" . }} 8080:{{ .Values.portal.service.port }}
-  затем откройте http://localhost:8080
-
-{{- if ne (toString (.Values.portal.config.AUTH_MODE | default "oidc")) "oidc" }}
-
-ВНИМАНИЕ: AUTH_MODE={{ .Values.portal.config.AUTH_MODE }} - чарт рассчитан на прод
-с OIDC. Установите portal.config.AUTH_MODE=oidc.
-{{- end }}
-
 Проверка:
   kubectl -n {{ .Release.Namespace }} get deploy,svc -l app.kubernetes.io/instance={{ .Release.Name }}
