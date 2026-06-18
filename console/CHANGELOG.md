@@ -19,6 +19,18 @@
 
 ---
 
+## [0.2.0] - 2026-06-18
+
+### Changed
+- Один компонент вместо двух: portal теперь сам отдаёт и API, и встроенный SPA
+  (бэкенд `console` собирается с SPA через `go:embed`). Соответственно `appVersion`
+  поднят до `0.2.0`.
+
+### Removed
+- Компонент `web` (nginx): Deployment, Service и ConfigMap с nginx-конфигом, а
+  также секция `web` в `values.yaml`. Прокси `/api` больше не нужен - вход идёт
+  напрямую на Service `portal` (:8080).
+
 ## [0.1.0] - 2026-06-18
 
 ### Added

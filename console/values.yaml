@@ -1,11 +1,9 @@
 # Значения по умолчанию для чарта console.
-# console состоит из двух компонентов:
-#   - portal - Go-бэкенд (cmd/portal), слушает :8080;
-#   - web    - nginx, отдаёт SPA и проксирует /api на portal.
-# Внешний трафик идёт на web (входная точка), portal наружу не публикуется.
+# console - один компонент: portal (Go-бэкенд), который слушает :8080 и сам
+# отдаёт и API, и встроенный SPA. Отдельного web/nginx больше нет.
 
-# Префикс реестра для обоих образов (например registry.example.com).
-# Пусто - образы тянутся как есть (repository:tag).
+# Префикс реестра для образа (например registry.example.com).
+# Пусто - образ тянется как есть (repository:tag).
 imageRegistry: ""
 imagePullSecrets: []
 
@@ -17,11 +15,11 @@ serviceAccount:
   name: ""
   annotations: {}
 
-# Бэкенд: Go-портал.
+# Portal: API + встроенный SPA.
 portal:
   replicaCount: 1
   image:
-    repository: idp/console-portal
+    repository: console
     # tag по умолчанию = .Chart.AppVersion
     tag: ""
     pullPolicy: IfNotPresent
@@ -80,22 +78,5 @@ portal:
     GITLAB_TOKEN: ""
     ARGOCD_TOKEN: ""
 
-# Фронтенд: nginx + собранный SPA.
-web:
-  replicaCount: 1
-  image:
-    repository: idp/console-web
-    tag: ""
-    pullPolicy: IfNotPresent
-  service:
-    port: 80
-  resources: {}
-  podAnnotations: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  podSecurityContext: {}
-  securityContext: {}
-
 # Ingress чарт не создаёт: вход в console публикуется снаружи (например через
-# отдельный ingress-gateway), маршрутизируя трафик на Service компонента web.
+# отдельный ingress-gateway), маршрутизируя трафик на Service portal (:8080).

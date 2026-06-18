@@ -35,9 +35,6 @@
 {{- define "console.portal.fullname" -}}
 {{- printf "%s-portal" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
-{{- define "console.web.fullname" -}}
-{{- printf "%s-web" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
 
 {{/*
 Имя Secret портала: внешний (existingSecret) либо генерируемый.
@@ -80,11 +77,6 @@ Selector-метки компонентов (стабильны между рел
 app.kubernetes.io/name: {{ include "console.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: portal
-{{- end -}}
-{{- define "console.web.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "console.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: web
 {{- end -}}
 
 {{/*

@@ -1,11 +1,9 @@
 console ({{ .Chart.Version }}, app {{ .Chart.AppVersion }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
 
-Компоненты:
-  • portal (backend) - Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}
-  • web (frontend)   - Service {{ include "console.web.fullname" . }}:{{ .Values.web.service.port }}
+portal (API + SPA) - Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}
 
-Вход (web) публикуется снаружи отдельно. Для локальной проверки пробросьте порт:
-  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.web.fullname" . }} 8080:{{ .Values.web.service.port }}
+Вход публикуется снаружи отдельно. Для локальной проверки пробросьте порт:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.portal.fullname" . }} 8080:{{ .Values.portal.service.port }}
   затем откройте http://localhost:8080
 
 {{- if ne (toString (.Values.portal.config.AUTH_MODE | default "oidc")) "oidc" }}

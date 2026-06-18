@@ -1,6 +1,6 @@
 apiVersion: v2
 name: console
-description: "Helm chart for the IDP Console (self-service developer portal): Go backend (portal) + nginx-served SPA frontend (web)"
+description: "Helm chart for Console (self-service developer portal): a single Go service serving the API and the embedded SPA"
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.2.0
+appVersion: "0.2.0"

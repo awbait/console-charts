@@ -1,24 +1,16 @@
 # console - usage
 
-Чарт разворачивает IDP Console - портал самообслуживания. Состоит из двух
-компонентов:
+Чарт разворачивает Console - портал самообслуживания. Один компонент: `portal`
+(Go-бэкенд, :8080), который отдаёт и API, и встроенный SPA. Отдельного web/nginx
+нет.
 
-| Компонент | Что это                                  | Порт |
-|-----------|------------------------------------------|------|
-| `portal`  | Go-бэкенд (`cmd/portal`)                 | 8080 |
-| `web`     | nginx: отдаёт SPA и проксирует `/api`    | 80   |
-
-Внешний трафик идёт на `web` (входная точка): статика отдаётся напрямую, а
-запросы `/api` nginx проксирует на Service портала. `portal` наружу не
-публикуется. Сам Ingress чарт не создаёт - вход публикуется снаружи (например
-через отдельный `ingress-gateway`), маршрутизируя трафик на Service `web`.
+Ingress чарт не создаёт - вход публикуется снаружи (например через отдельный
+`ingress-gateway`), маршрутизируя трафик на Service `portal`.
 
 ```
    внешний вход (ingress-gateway / LB)
                |
-            web (nginx) --/api--> portal --> Postgres / Redis / Keycloak / upstreams
-               |
-          SPA (static)
+            portal (SPA + /api) --> Postgres / Redis / Keycloak / upstreams
 ```
 
 ## Установка
@@ -29,15 +21,15 @@ helm upgrade --install console ./console \
   -f my-values.yaml
 ```
 
-Минимально нужно задать образы, адрес и секреты:
+Минимально нужно задать образ, адрес и секреты:
 
 ```yaml
 imageRegistry: registry.example.com
 
 portal:
   image:
-    repository: idp/console-portal
-    tag: "0.1.0"
+    repository: console
+    tag: "0.2.0"
   config:
     PUBLIC_URL: https://console.example.com
     OIDC_ISSUER: https://keycloak.example.com/realms/internal
@@ -52,28 +44,23 @@ portal:
     OIDC_CLIENT_SECRET: change-me
     GITLAB_TOKEN: change-me
     ARGOCD_TOKEN: change-me
-
-web:
-  image:
-    repository: idp/console-web
-    tag: "0.1.0"
 ```
 
-Публикацию входа (Ingress / Gateway на Service `web`) настройте отдельно -
+Публикацию входа (Ingress / Gateway на Service `portal`) настройте отдельно -
 чарт его не создаёт.
 
 ## Конфигурация
 
 | Секция            | Что задаёт                                                        |
 |-------------------|------------------------------------------------------------------|
-| `imageRegistry`   | Общий префикс реестра для обоих образов                          |
+| `imageRegistry`   | Префикс реестра для образа                                       |
 | `portal.config`   | Несекретные env портала (см. `internal/config/config.go`)        |
 | `portal.secrets`  | Секретные env (рендерятся в `Secret`)                            |
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
 | `serviceAccount`  | Создание/имя ServiceAccount                                     |
 
 Переменные окружения портала соответствуют env-тегам `config.go`; полный список
-с дефолтами - в `.env.example` репозитория idp. Пустые значения в `config`/
+с дефолтами - в `.env.example` репозитория console. Пустые значения в `config`/
 `secrets` не рендерятся, поэтому применяются дефолты из `config.go`.
 
 ### Зависимости
