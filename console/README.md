@@ -70,7 +70,6 @@ web:
 | `portal.config`   | Несекретные env портала (см. `internal/config/config.go`)        |
 | `portal.secrets`  | Секретные env (рендерятся в `Secret`)                            |
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
-| `web.devAuth`     | Инъекция `X-Dev-*` в nginx (только для `AUTH_MODE=dev`)          |
 | `serviceAccount`  | Создание/имя ServiceAccount                                     |
 
 Переменные окружения портала соответствуют env-тегам `config.go`; полный список
@@ -83,12 +82,12 @@ web:
 (Harbor / GitLab / ArgoCD) считаются внешними - их адреса и токены задаются через
 `portal.config` и `portal.secrets`.
 
-### Режим аутентификации
+### Аутентификация
 
-- **OIDC (прод):** `portal.config.AUTH_MODE: oidc`, заполните `OIDC_*` и
-  `OIDC_CLIENT_SECRET`; `web.devAuth.enabled: false`.
-- **dev (демо/тест):** `portal.config.AUTH_MODE: dev`; при желании
-  `web.devAuth.enabled: true`, чтобы nginx подставлял `X-Dev-Teams`/`X-Dev-Role`.
+Чарт рассчитан на прод: аутентификация только через OIDC (Keycloak). Задайте
+`OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_REDIRECT_URL` в `portal.config` и
+`OIDC_CLIENT_SECRET` в `portal.secrets`. `AUTH_MODE` держите `oidc` (дефолт
+`config.go` - `dev`, поэтому значение задаётся явно).
 
 ## Проверка рендера
 

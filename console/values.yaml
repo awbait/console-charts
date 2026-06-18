@@ -96,12 +96,6 @@ web:
   affinity: {}
   podSecurityContext: {}
   securityContext: {}
-  # Инъекция заголовков X-Dev-* в nginx (только для AUTH_MODE=dev, без Keycloak).
-  # Для OIDC держите выключенным - иначе сессия подменяется dev-пользователем.
-  devAuth:
-    enabled: false
-    teams: core
-    role: member
 
 # Ingress чарт не создаёт: вход в console публикуется снаружи (например через
 # отдельный ingress-gateway), маршрутизируя трафик на Service компонента web.

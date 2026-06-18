@@ -13,16 +13,11 @@ data:
       root /usr/share/nginx/html;
       index index.html;
 
-      # Проксирование API на portal. В dev-режиме инжектим X-Dev-*, чтобы SPA и
-      # SSE (которые не могут ставить заголовки) аутентифицировались без Keycloak.
-      # Для OIDC заголовки не добавляются - проходит session cookie.
+      # Проксирование API на portal. Аутентификация - OIDC (Keycloak): наружу
+      # проходит session cookie, заголовки запроса не подменяются.
       location /api/ {
         proxy_pass http://{{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }};
         proxy_set_header Host $host;
-        {{- if .Values.web.devAuth.enabled }}
-        proxy_set_header X-Dev-Teams "{{ .Values.web.devAuth.teams }}";
-        proxy_set_header X-Dev-Role "{{ .Values.web.devAuth.role }}";
-        {{- end }}
 
         # SSE-friendly
         proxy_http_version 1.1;

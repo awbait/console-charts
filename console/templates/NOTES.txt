@@ -8,14 +8,10 @@ console ({{ .Chart.Version }}, app {{ .Chart.AppVersion }}) развёрнут �
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.web.fullname" . }} 8080:{{ .Values.web.service.port }}
   затем откройте http://localhost:8080
 
-{{- if eq (toString (.Values.portal.config.AUTH_MODE | default "")) "dev" }}
+{{- if ne (toString (.Values.portal.config.AUTH_MODE | default "oidc")) "oidc" }}
 
-ВНИМАНИЕ: AUTH_MODE=dev - аутентификация отключена (dev-пользователь). Не для прод.
-{{- end }}
-{{- if and .Values.web.devAuth.enabled (ne (toString (.Values.portal.config.AUTH_MODE | default "")) "dev") }}
-
-ВНИМАНИЕ: web.devAuth.enabled=true при AUTH_MODE!=dev - nginx подменяет пользователя
-заголовками X-Dev-*, перекрывая OIDC-сессию. Для прод выключите web.devAuth.
+ВНИМАНИЕ: AUTH_MODE={{ .Values.portal.config.AUTH_MODE }} - чарт рассчитан на прод
+с OIDC. Установите portal.config.AUTH_MODE=oidc.
 {{- end }}
 
 Проверка:

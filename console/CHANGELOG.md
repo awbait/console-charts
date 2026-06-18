@@ -33,4 +33,4 @@
 - `ServiceAccount` (создание управляется `serviceAccount.create`).
 - Проби: `portal` - `/health` (liveness) и `/ready` (readiness); `web` - `/`.
 - Перекат подов при изменении конфигов через аннотации checksum.
-- Переключатель `web.devAuth` для инъекции заголовков `X-Dev-*` (только dev-режим).
+- Аутентификация только через OIDC (чарт рассчитан на прод).
