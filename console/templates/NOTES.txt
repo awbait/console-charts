@@ -4,16 +4,9 @@ console ({{ .Chart.Version }}, app {{ .Chart.AppVersion }}) развёрнут �
   • portal (backend) - Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}
   • web (frontend)   - Service {{ include "console.web.fullname" . }}:{{ .Values.web.service.port }}
 
-{{- if .Values.ingress.enabled }}
-
-Доступ к консоли:
-  http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}
-{{- else }}
-
-Ingress выключен. Пробросьте порт для проверки:
+Вход (web) публикуется снаружи отдельно. Для локальной проверки пробросьте порт:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.web.fullname" . }} 8080:{{ .Values.web.service.port }}
   затем откройте http://localhost:8080
-{{- end }}
 
 {{- if eq (toString (.Values.portal.config.AUTH_MODE | default "")) "dev" }}
 
@@ -26,4 +19,4 @@ Ingress выключен. Пробросьте порт для проверки:
 {{- end }}
 
 Проверка:
-  kubectl -n {{ .Release.Namespace }} get deploy,svc,ingress -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl -n {{ .Release.Namespace }} get deploy,svc -l app.kubernetes.io/instance={{ .Release.Name }}

@@ -103,14 +103,5 @@ web:
     teams: core
     role: member
 
-ingress:
-  enabled: true
-  className: ""
-  annotations: {}
-  host: console.example.com
-  # Путь и тип пути для правила (вся маршрутизация, включая /api, идёт через web).
-  path: /
-  pathType: Prefix
-  tls:
-    enabled: false
-    secretName: ""
+# Ingress чарт не создаёт: вход в console публикуется снаружи (например через
+# отдельный ingress-gateway), маршрутизируя трафик на Service компонента web.

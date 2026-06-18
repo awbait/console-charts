@@ -10,10 +10,11 @@
 
 Внешний трафик идёт на `web` (входная точка): статика отдаётся напрямую, а
 запросы `/api` nginx проксирует на Service портала. `portal` наружу не
-публикуется.
+публикуется. Сам Ingress чарт не создаёт - вход публикуется снаружи (например
+через отдельный `ingress-gateway`), маршрутизируя трафик на Service `web`.
 
 ```
-            Ingress
+   внешний вход (ingress-gateway / LB)
                |
             web (nginx) --/api--> portal --> Postgres / Redis / Keycloak / upstreams
                |
@@ -56,14 +57,10 @@ web:
   image:
     repository: idp/console-web
     tag: "0.1.0"
-
-ingress:
-  host: console.example.com
-  className: nginx
-  tls:
-    enabled: true
-    secretName: console-tls
 ```
+
+Публикацию входа (Ingress / Gateway на Service `web`) настройте отдельно -
+чарт его не создаёт.
 
 ## Конфигурация
 
@@ -74,7 +71,6 @@ ingress:
 | `portal.secrets`  | Секретные env (рендерятся в `Secret`)                            |
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
 | `web.devAuth`     | Инъекция `X-Dev-*` в nginx (только для `AUTH_MODE=dev`)          |
-| `ingress`         | Хост, класс, путь, TLS для входной точки `web`                   |
 | `serviceAccount`  | Создание/имя ServiceAccount                                     |
 
 Переменные окружения портала соответствуют env-тегам `config.go`; полный список

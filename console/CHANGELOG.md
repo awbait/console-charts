@@ -28,8 +28,8 @@
     токены апстримов); поддержка внешнего Secret через `portal.existingSecret`.
   - `web` - nginx с собранным SPA (Deployment + Service, :80); прокси `/api` на
     Service портала задаётся через ConfigMap (переопределяет образный nginx.conf).
-- `Ingress` на компонент `web` (входная точка; portal наружу не публикуется),
-  опциональный TLS.
+    Это входная точка; portal наружу не публикуется. Ingress чарт не создаёт -
+    вход настраивается снаружи на Service `web`.
 - `ServiceAccount` (создание управляется `serviceAccount.create`).
 - Проби: `portal` - `/health` (liveness) и `/ready` (readiness); `web` - `/`.
 - Перекат подов при изменении конфигов через аннотации checksum.
