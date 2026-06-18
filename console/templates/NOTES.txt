@@ -1,0 +1,29 @@
+console ({{ .Chart.Version }}, app {{ .Chart.AppVersion }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+
+Компоненты:
+  • portal (backend) - Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}
+  • web (frontend)   - Service {{ include "console.web.fullname" . }}:{{ .Values.web.service.port }}
+
+{{- if .Values.ingress.enabled }}
+
+Доступ к консоли:
+  http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+
+Ingress выключен. Пробросьте порт для проверки:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "console.web.fullname" . }} 8080:{{ .Values.web.service.port }}
+  затем откройте http://localhost:8080
+{{- end }}
+
+{{- if eq (toString (.Values.portal.config.AUTH_MODE | default "")) "dev" }}
+
+ВНИМАНИЕ: AUTH_MODE=dev - аутентификация отключена (dev-пользователь). Не для прод.
+{{- end }}
+{{- if and .Values.web.devAuth.enabled (ne (toString (.Values.portal.config.AUTH_MODE | default "")) "dev") }}
+
+ВНИМАНИЕ: web.devAuth.enabled=true при AUTH_MODE!=dev - nginx подменяет пользователя
+заголовками X-Dev-*, перекрывая OIDC-сессию. Для прод выключите web.devAuth.
+{{- end }}
+
+Проверка:
+  kubectl -n {{ .Release.Namespace }} get deploy,svc,ingress -l app.kubernetes.io/instance={{ .Release.Name }}

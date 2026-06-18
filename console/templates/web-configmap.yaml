@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "console.web.fullname" . }}-nginx
+  labels:
+    {{- include "console.labels" . | nindent 4 }}
+    {{- include "console.web.selectorLabels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+      root /usr/share/nginx/html;
+      index index.html;
+
+      # Проксирование API на portal. В dev-режиме инжектим X-Dev-*, чтобы SPA и
+      # SSE (которые не могут ставить заголовки) аутентифицировались без Keycloak.
+      # Для OIDC заголовки не добавляются - проходит session cookie.
+      location /api/ {
+        proxy_pass http://{{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }};
+        proxy_set_header Host $host;
+        {{- if .Values.web.devAuth.enabled }}
+        proxy_set_header X-Dev-Teams "{{ .Values.web.devAuth.teams }}";
+        proxy_set_header X-Dev-Role "{{ .Values.web.devAuth.role }}";
+        {{- end }}
+
+        # SSE-friendly
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+      }
+
+      # SPA fallback
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+    }

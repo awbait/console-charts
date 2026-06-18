@@ -1,0 +1,116 @@
+# Значения по умолчанию для чарта console.
+# console состоит из двух компонентов:
+#   - portal - Go-бэкенд (cmd/portal), слушает :8080;
+#   - web    - nginx, отдаёт SPA и проксирует /api на portal.
+# Внешний трафик идёт на web (входная точка), portal наружу не публикуется.
+
+# Префикс реестра для обоих образов (например registry.example.com).
+# Пусто - образы тянутся как есть (repository:tag).
+imageRegistry: ""
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Бэкенд: Go-портал.
+portal:
+  replicaCount: 1
+  image:
+    repository: idp/console-portal
+    # tag по умолчанию = .Chart.AppVersion
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    port: 8080
+  resources: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podSecurityContext: {}
+  securityContext: {}
+
+  # Несекретные переменные окружения портала. Ключи соответствуют env-тегам
+  # internal/config/config.go. Пустые значения не рендерятся (применяется дефолт
+  # из config.go). Полный список переменных см. в .env.example репозитория idp.
+  config:
+    HTTP_PORT: "8080"
+    PUBLIC_URL: "https://console.example.com"
+    # Хранилища: postgres|memory, redis|memory.
+    STORE: postgres
+    CACHE: redis
+    # Аутентификация: oidc|dev.
+    AUTH_MODE: oidc
+    OIDC_ISSUER: "https://keycloak.example.com/realms/internal"
+    OIDC_CLIENT_ID: portal
+    OIDC_REDIRECT_URL: "https://console.example.com/api/v1/auth/callback"
+    OIDC_SCOPES: "openid,profile,email,groups"
+    # RBAC: группы Keycloak для ролей.
+    RBAC_ADMIN_GROUPS: platform-admins
+    RBAC_SUPPORT_GROUPS: support
+    RBAC_SECURITY_GROUPS: security
+    RBAC_TEAM_GROUP_PREFIX: team-
+    # Апстримы: real|fake.
+    HARBOR_MODE: real
+    GITLAB_MODE: real
+    ARGOCD_MODE: real
+    HARBOR_URL: ""
+    GITLAB_URL: ""
+    ARGOCD_URL: ""
+    # Наблюдаемость.
+    LOG_LEVEL: info
+    LOG_FORMAT: json
+
+  # Секретные переменные. Рендерятся в Secret (пустые значения пропускаются).
+  # Чтобы использовать заранее созданный Secret - задайте existingSecret, тогда
+  # эти значения игнорируются.
+  existingSecret: ""
+  secrets:
+    DATABASE_URL: ""
+    REDIS_URL: ""
+    SESSION_SECRET: ""
+    OIDC_CLIENT_SECRET: ""
+    HARBOR_ROBOT_USER: ""
+    HARBOR_ROBOT_TOKEN: ""
+    GITLAB_TOKEN: ""
+    ARGOCD_TOKEN: ""
+
+# Фронтенд: nginx + собранный SPA.
+web:
+  replicaCount: 1
+  image:
+    repository: idp/console-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    port: 80
+  resources: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podSecurityContext: {}
+  securityContext: {}
+  # Инъекция заголовков X-Dev-* в nginx (только для AUTH_MODE=dev, без Keycloak).
+  # Для OIDC держите выключенным - иначе сессия подменяется dev-пользователем.
+  devAuth:
+    enabled: false
+    teams: core
+    role: member
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  host: console.example.com
+  # Путь и тип пути для правила (вся маршрутизация, включая /api, идёт через web).
+  path: /
+  pathType: Prefix
+  tls:
+    enabled: false
+    secretName: ""
