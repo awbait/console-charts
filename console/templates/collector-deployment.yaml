@@ -1,0 +1,65 @@
+{{- if .Values.collector.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "console.collector.fullname" . }}
+  labels:
+    {{- include "console.labels" . | nindent 4 }}
+    {{- include "console.collector.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.collector.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "console.collector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Перекатываем под при изменении конфигурации/секрета.
+        checksum/config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/collector-secret.yaml") . | sha256sum }}
+        {{- with .Values.collector.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "console.labels" . | nindent 8 }}
+        {{- include "console.collector.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "console.collector.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collector.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: collector
+          image: {{ include "console.image" (dict "image" .Values.collector.image "registry" .Values.imageRegistry "defaultTag" .Chart.AppVersion) }}
+          imagePullPolicy: {{ .Values.collector.image.pullPolicy }}
+          {{- with .Values.collector.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "console.collector.fullname" . }}-config
+            - secretRef:
+                name: {{ include "console.collector.secretName" . }}
+          {{- with .Values.collector.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.collector.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collector.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collector.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
