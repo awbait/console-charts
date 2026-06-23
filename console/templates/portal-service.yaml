@@ -12,5 +12,11 @@ spec:
       port: {{ .Values.portal.service.port }}
       targetPort: http
       protocol: TCP
+    {{- if .Values.portal.metrics.enabled }}
+    - name: metrics
+      port: {{ .Values.portal.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}
   selector:
     {{- include "console.portal.selectorLabels" . | nindent 4 }}

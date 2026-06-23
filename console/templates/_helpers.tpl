@@ -36,6 +36,10 @@
 {{- printf "%s-portal" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{- define "console.collector.fullname" -}}
+{{- printf "%s-collector" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
 {{/*
 Имя Secret портала: внешний (existingSecret) либо генерируемый.
 */}}
@@ -48,13 +52,35 @@
 {{- end -}}
 
 {{/*
-Имя ServiceAccount.
+Имя Secret коллектора: внешний (existingSecret) либо генерируемый.
+*/}}
+{{- define "console.collector.secretName" -}}
+{{- if .Values.collector.existingSecret -}}
+{{- .Values.collector.existingSecret -}}
+{{- else -}}
+{{- printf "%s-secrets" (include "console.collector.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Имя ServiceAccount портала.
 */}}
 {{- define "console.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
 {{- default (include "console.fullname" .) .Values.serviceAccount.name -}}
 {{- else -}}
 {{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Имя ServiceAccount коллектора (отдельный SA: ему нужен read-only RBAC на кластер).
+*/}}
+{{- define "console.collector.serviceAccountName" -}}
+{{- if .Values.collector.serviceAccount.create -}}
+{{- default (include "console.collector.fullname" .) .Values.collector.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.collector.serviceAccount.name -}}
 {{- end -}}
 {{- end -}}
 
@@ -77,6 +103,12 @@ Selector-метки компонентов (стабильны между рел
 app.kubernetes.io/name: {{ include "console.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: portal
+{{- end -}}
+
+{{- define "console.collector.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "console.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: collector
 {{- end -}}
 
 {{/*

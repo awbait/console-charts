@@ -19,12 +19,22 @@ serviceAccount:
 portal:
   replicaCount: 1
   image:
-    repository: console
+    # Образ портала: {imageRegistry}/console/portal. imageRegistry задаёт префикс
+    # реестра (например ghcr.io/awbait).
+    repository: console/portal
     # tag по умолчанию = .Chart.AppVersion
     tag: ""
     pullPolicy: IfNotPresent
   service:
     port: 8080
+  # Метрики Prometheus отдаются на отдельном порту (config METRICS_PORT ниже).
+  # enabled добавляет порт в Service и containerPort; scrapeAnnotations проставляет
+  # prometheus.io/* на под (скрейп без ServiceMonitor). port должен совпадать с
+  # config METRICS_PORT.
+  metrics:
+    enabled: true
+    port: 2112
+    scrapeAnnotations: true
   resources: {}
   podAnnotations: {}
   nodeSelector: {}
@@ -42,7 +52,7 @@ portal:
     # Хранилища: postgres|memory, redis|memory.
     STORE: postgres
     CACHE: redis
-    # Аутентификация: только oidc (dev-режим убран, отклоняется при старте).
+    # Аутентификация: только oidc (единственный валидный режим).
     AUTH_MODE: oidc
     OIDC_ISSUER: "https://keycloak.example.com/realms/internal"
     OIDC_CLIENT_ID: portal
@@ -53,16 +63,37 @@ portal:
     RBAC_SUPPORT_GROUPS: support
     RBAC_SECURITY_GROUPS: security
     RBAC_TEAM_GROUP_PREFIX: team-
-    # Апстримы: real|fake.
-    HARBOR_MODE: real
-    GITLAB_MODE: real
-    ARGOCD_MODE: real
     HARBOR_URL: ""
     GITLAB_URL: ""
     ARGOCD_URL: ""
-    # Наблюдаемость.
+    # Наблюдаемость. Метрики Prometheus - на отдельном порту (должен совпадать
+    # с portal.metrics.port выше).
+    METRICS_PORT: "2112"
     LOG_LEVEL: info
     LOG_FORMAT: json
+    # Сессии и cookie.
+    SESSION_TTL: "24h"
+    SESSION_COOKIE_NAME: idp_session
+    COOKIE_SECURE: "true"
+    OIDC_POST_LOGIN_REDIRECT: "/"
+    # GitLab GitOps: группа, шаблон подгруппы команды, ветка, автомерж MR.
+    GITLAB_GITOPS_GROUP: managed-services
+    GITLAB_TEAM_SUBGROUP_TEMPLATE: "team-{{.Team}}"
+    GITLAB_DEFAULT_BRANCH: main
+    GITLAB_AUTO_MERGE: "false"
+    # Harbor: проекты для сканирования каталога.
+    HARBOR_PROJECTS: "platform,managed-services"
+    # ArgoCD: проект, кластер, шаблон имени Application.
+    ARGOCD_PROJECT: portal-managed
+    ARGOCD_DEFAULT_CLUSTER: in-cluster
+    ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.ServiceName}}"
+    # Статусы: режим обновления и интервал поллинга.
+    STATUS_UPDATE_MODE: polling
+    STATUS_POLL_INTERVAL: "15s"
+    # Фиче-флаги каталога и дрейфа.
+    DRIFT_DETECTION_ENABLED: "true"
+    IMPORT_DISCOVERY_ENABLED: "false"
+    CATALOG_AUTODISCOVER: "false"
 
   # Секретные переменные. Рендерятся в Secret (пустые значения пропускаются).
   # Чтобы использовать заранее созданный Secret - задайте existingSecret, тогда
@@ -78,5 +109,88 @@ portal:
     GITLAB_TOKEN: ""
     ARGOCD_TOKEN: ""
 
-# Ingress чарт не создаёт: вход в console публикуется снаружи (например через
-# отдельный ingress-gateway), маршрутизируя трафик на Service portal (:8080).
+# Collector: фоновый сбор каталога workload'ов кластера в Valkey/Redis. Раз в
+# POLL_INTERVAL обходит namespace по метке, собирает контроллеры
+# (Deployment/StatefulSet/DaemonSet) и пишет снимок в Redis; портал читает снимок
+# из того же Redis и в Kubernetes API не ходит. HTTP и метрик у коллектора нет -
+# поэтому ни Service, ни проб. enabled=false полностью отключает компонент.
+collector:
+  enabled: true
+  replicaCount: 1
+  image:
+    # Образ коллектора: {imageRegistry}/console/collector.
+    repository: console/collector
+    # tag по умолчанию = .Chart.AppVersion
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Отдельный ServiceAccount: коллектору нужен read-only RBAC на кластер.
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+  # ClusterRole + ClusterRoleBinding (read-only: namespaces + apps-контроллеры).
+  # Выключите create, если права выдаются снаружи.
+  rbac:
+    create: true
+  resources: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podSecurityContext: {}
+  securityContext: {}
+  # Несекретные env (collector/config.go). Пустые значения не рендерятся.
+  config:
+    # Селектор namespace для сканирования (пусто = все namespace).
+    NS_LABEL_SELECTOR: "idp.scan=true"
+    # Период обхода.
+    POLL_INTERVAL: "30s"
+    # Имя кластера - входит в префикс ключа снимка в Redis.
+    CLUSTER_NAME: default
+    # Префикс ключей снимка в Redis.
+    KEY_PREFIX: "k8s:catalog"
+  # Секреты. existingSecret (с ключом REDIS_URL) отключает рендер secrets.
+  existingSecret: ""
+  secrets:
+    # Подключение к Valkey/Redis (обязательно). Тот же Redis, что у портала.
+    REDIS_URL: ""
+
+# Вход. По умолчанию чарт его не создаёт: трафик публикуется снаружи (отдельный
+# инстанс ingress-gateway) на Service portal (:8080).
+#
+# Опционально можно поднять вход прямо из этого чарта - сабчартом ingress-gateway
+# (Istio Gateway API). Включение требует Istio + Gateway API CRDs в кластере и
+# поднимает Gateway + HTTPRoute на Service портала. Значения повторяют чарт
+# ingress-gateway (см. charts/ingress-gateway/values.yaml); ниже - рабочий пример.
+ingressGateway:
+  enabled: false
+  naming:
+    instanceTag: ru1
+    clusterTag: k8s1
+    projectTag: cnsl
+  gateways:
+    - name: main
+      enabled: true
+      listeners:
+        - name: http
+          port: 80
+          protocol: HTTP
+          hostname: console.example.com
+  xroutes:
+    - name: portal
+      enabled: true
+      kind: HTTPRoute
+      parentRefs:
+        - gateway: main
+          sectionName: http
+      hostnames:
+        - console.example.com
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            # Имя Service портала: {release}-portal (по умолчанию console-portal).
+            - name: console-portal
+              port: 8080

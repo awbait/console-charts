@@ -16,6 +16,11 @@ spec:
         # Перекатываем поды при изменении конфигурации/секрета.
         checksum/config: {{ include (print $.Template.BasePath "/portal-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/portal-secret.yaml") . | sha256sum }}
+        {{- if and .Values.portal.metrics.enabled .Values.portal.metrics.scrapeAnnotations }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.portal.metrics.port | quote }}
+        prometheus.io/path: /metrics
+        {{- end }}
         {{- with .Values.portal.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -44,6 +49,11 @@ spec:
             - name: http
               containerPort: {{ .Values.portal.service.port }}
               protocol: TCP
+            {{- if .Values.portal.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.portal.metrics.port }}
+              protocol: TCP
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "console.portal.fullname" . }}-config

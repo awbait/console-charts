@@ -138,6 +138,18 @@
       "description": "Предзаданные платформой wildcard TLS-сертификаты для *.idp.ecpk.ru / *.edp.ecpk.ru (заполняет платформа/ops, не пользователь). Скрыто.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/tlsWildcards"
+    },
+    "global": {
+      "title": "Global values",
+      "description": "Глобальные значения Helm, инжектируются автоматически при использовании чарта как сабчарта. Шаблонами чарта не используются.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Флаг condition родительского чарта при подключении сабчартом. Шаблонами чарта не используется.",
+      "type": "boolean",
+      "ui:widget": "hidden"
     }
   },
   "definitions": {
