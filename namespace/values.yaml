@@ -10,6 +10,7 @@ namespace:
   projectName: project
   clusterName: common
   displayName: "Managed by ECPK"
+  creator: lk
   annotations: {}
   labels: {}
 

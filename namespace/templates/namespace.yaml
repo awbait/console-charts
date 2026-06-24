@@ -4,7 +4,7 @@ kind: Namespace
 metadata:
   annotations:
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
-    cpaas.io/creator: lk
+    cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
     cpaas.io/project-inner-namespace: {{ .Values.namespace.projectName }}
     {{- with .Values.namespace.annotations }}
       {{- toYaml . | nindent 4 }}
