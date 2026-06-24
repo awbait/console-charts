@@ -19,7 +19,7 @@ oidcAuth:
 
 # Predefined platform wildcard TLS certs, used to populate the auto-generated
 # secret of a Terminate listener whose hostname matches the domain
-# (*.idp.ecpk.ru -> *-idptls, *.edp.ecpk.ru -> *-edptls). base64 tls.crt/tls.key;
+# (*.idp.ecpk.test -> *-idptls, *.edp.ecpk.test -> *-edptls). base64 tls.crt/tls.key;
 # empty here = placeholder (set by the platform/ops). Non-matching hostnames get
 # an empty "*-tls" secret to fill in.
 tlsWildcards:

@@ -58,4 +58,4 @@ xroutes:
         backendRefs:
           - name: nginx-service
             port: 80
-            namespace: ecpk-core-bolotov-test
+            namespace: demo-core-test

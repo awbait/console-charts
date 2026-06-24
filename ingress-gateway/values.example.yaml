@@ -107,8 +107,8 @@ networkPolicy:
 #
 # Авто-генерация TLS-секрета (tlsMode: Terminate): по hostname listener'а
 # создаётся Secret type kubernetes.io/tls (cert/key подставляете сами):
-#   *.idp.ecpk.ru → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls
-#   *edp.ecpk.ru  → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls
+#   *.idp.ecpk.test → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls
+#   *edp.ecpk.test  → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls
 #   прочие hostname → секрет не создаётся, нужен tlsSecretName/certificateRefs.
 gateways:
   - name: main
@@ -165,12 +165,12 @@ gateways:
           kinds:
             - kind: GRPCRoute
 
-      # tlsSecretName не задан: hostname *.idp.ecpk.ru → авто-секрет
+      # tlsSecretName не задан: hostname *.idp.ecpk.test → авто-секрет
       # {instanceTag}-{clusterTag}-secret-{projectTag}-idptls.
       - name: idp
         port: 8444
         protocol: HTTPS
-        hostname: "*.idp.ecpk.ru"
+        hostname: "*.idp.ecpk.test"
         tlsMode: Terminate
         allowedRoutes:
           namespaces:
@@ -213,7 +213,7 @@ gateways:
       - name: http-int
         port: 8080
         protocol: HTTP
-        hostname: gtw-test2.ecpk-test.sibintek.ru
+        hostname: gtw-test2.example.test
         allowedRoutes:
           namespaces:
             from: Same
@@ -335,7 +335,7 @@ xroutes:
       - gateway: intnl
         sectionName: http-int
     hostnames:
-      - gtw-test2.ecpk-test.sibintek.ru
+      - gtw-test2.example.test
     rules:
       - matches:
           - path:
@@ -344,7 +344,7 @@ xroutes:
         backendRefs:
           - name: nginx-service
             port: 80
-            namespace: ecpk-core-bolotov-test
+            namespace: demo-core-test
 
 
 # ============================================================================
@@ -359,7 +359,7 @@ oidcAuth:
   application:
     namespace: sm-netbox-core
     hostnames:
-      - sm-netbox.idp.ecpk.ru
+      - sm-netbox.idp.ecpk.test
 
   gateway:
     name: gateway-main
@@ -383,12 +383,12 @@ oidcAuth:
       - /oauth2/*
     claimKey: request.auth.claims[groups]
     allowedGroups:
-      - idp_ecpk_dev_acp_dev-core_admin
+      - demo_dev_core_admin
 
   requestAuthentication:
     name: keycloak-jwt
     forwardOriginalToken: true
 
   keycloak:
-    issuer: https://kc.idp.ecpk.ru/realms/ecpk-dev
-    jwksUri: https://kc.idp.ecpk.ru/realms/ecpk-dev/protocol/openid-connect/certs
+    issuer: https://kc.idp.ecpk.test/realms/ecpk-dev
+    jwksUri: https://kc.idp.ecpk.test/realms/ecpk-dev/protocol/openid-connect/certs

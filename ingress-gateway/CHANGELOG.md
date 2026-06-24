@@ -19,6 +19,21 @@
 
 ---
 
+## [3.3.0] - 2026-06-24
+
+### Changed
+- Демо-домен заменён с `*.ecpk.ru` на `*.ecpk.test` (зарезервированный тестовый
+  TLD) во всех местах: логике авто-подбора wildcard TLS-секретов
+  (`_helpers.tpl`, `secret.yaml`), `values.schema.json`, `README.md` и примерах.
+  Авто-секрет теперь срабатывает на `*.idp.ecpk.test` / `*.edp.ecpk.test`. Если
+  использовались хосты `*.ecpk.ru`, задайте `tlsSecretName`/`certificateRefs`
+  явно или поправьте hostname.
+- Обезличены демо-данные в примерах: hostname `gtw-test2.example.test`, namespace
+  `demo-core-test`, OIDC-группа `demo_dev_core_admin`. Майнтейнер в `Chart.yaml`
+  заменён на `platform-team`. На рендер не влияет.
+
+---
+
 ## [3.2.5] - 2026-06-23
 
 ### Added
@@ -63,7 +78,7 @@
 ### Added
 - **Авто-генерация TLS-секретов** — для listener'а с `tlsMode: Terminate`
   (`HTTPS`/`TLS`) по `hostname` создаётся `Secret` `type: kubernetes.io/tls`:
-  `*.idp.ecpk.ru` → `…-secret-…-idptls`, `*edp.ecpk.ru` → `…-secret-…-edptls`,
+  `*.idp.ecpk.test` → `…-secret-…-idptls`, `*edp.ecpk.test` → `…-secret-…-edptls`,
   прочие hostname → секрет не создаётся (нужен `tlsSecretName`/`certificateRefs`).
   Имя — по конвенции (kindShort `secret`); дубли по имени схлопываются;
   `certificateRefs` listener'а проставляются автоматически. `tls.crt`/`tls.key`
