@@ -25,6 +25,10 @@ namespace:
   # Отображаемое имя (annotation cpaas.io/display-name).
   displayName: "Managed by ECPK"
 
+  # Создатель namespace (annotation cpaas.io/creator). Default "lk".
+  # Скрыто в форме портала; при заказе из консоли подставляется "console".
+  creator: lk
+
   # Дополнительные annotations на Namespace.
   annotations: {}
 

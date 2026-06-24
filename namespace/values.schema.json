@@ -46,6 +46,13 @@
           "title": "Отображаемое имя Namespace",
           "type": "string"
         },
+        "creator": {
+          "description": "Создатель Namespace (annotation cpaas.io/creator). При заказе из консоли подставляется console",
+          "default": "lk",
+          "title": "Создатель",
+          "type": "string",
+          "ui:widget": "hidden"
+        },
         "annotations": {
           "description": "Словарь аннотаций ресурса Namespace",
           "default": {},
