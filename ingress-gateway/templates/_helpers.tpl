@@ -64,15 +64,15 @@ tcr (TCPRoute), ur (UDPRoute), secret (Secret). Неизвестный kind → 
 {{/*
 Имя TLS-секрета для listener по hostname (tlsMode: Terminate). Параметры: .hostname, .context.
 Имя ВСЕГДА генерируется автоматически (пользователь не задаёт tlsSecretName):
-  содержит "idp.ecpk.ru" → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls (предзаданный wildcard-cert)
-  содержит "edp.ecpk.ru" → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls (предзаданный wildcard-cert)
+  содержит "idp.ecpk.test" → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls (предзаданный wildcard-cert)
+  содержит "edp.ecpk.test" → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls (предзаданный wildcard-cert)
   иначе                  → {instanceTag}-{clusterTag}-secret-{projectTag}-tls   (пустой секрет / change me)
 */}}
 {{- define "ingress-gateway.helpers.app.tlsSecretName" -}}
 {{- $hostname := .hostname | default "" | toString | lower -}}
 {{- $token := "tls" -}}
-{{- if contains "idp.ecpk.ru" $hostname -}}{{- $token = "idptls" -}}
-{{- else if contains "edp.ecpk.ru" $hostname -}}{{- $token = "edptls" -}}
+{{- if contains "idp.ecpk.test" $hostname -}}{{- $token = "idptls" -}}
+{{- else if contains "edp.ecpk.test" $hostname -}}{{- $token = "edptls" -}}
 {{- end -}}
 {{- include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" $token "context" .context) -}}
 {{- end -}}

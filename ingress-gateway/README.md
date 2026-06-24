@@ -99,13 +99,13 @@ helm install  release-name . -f minimal-values.yaml
 
 | hostname           | Имя секрета (kindShort `secret`)                       |
 |--------------------|--------------------------------------------------------|
-| `*.idp.ecpk.ru`    | `{instanceTag}-{clusterTag}-secret-{projectTag}-idptls` |
-| `*edp.ecpk.ru`     | `{instanceTag}-{clusterTag}-secret-{projectTag}-edptls` |
+| `*.idp.ecpk.test`    | `{instanceTag}-{clusterTag}-secret-{projectTag}-idptls` |
+| `*edp.ecpk.test`     | `{instanceTag}-{clusterTag}-secret-{projectTag}-edptls` |
 | прочие             | секрет не создаётся → нужен `tlsSecretName`/`certificateRefs` |
 
 Секрет рендерится как `type: kubernetes.io/tls` с пустыми `tls.crt`/`tls.key` —
 сертификат и ключ (base64) подставляете сами. Несколько listener'ов с одним
-паттерном (`*.idp.ecpk.ru`, `auth.idp.ecpk.ru`, …) дают **один** секрет.
+паттерном (`*.idp.ecpk.test`, `auth.idp.ecpk.test`, …) дают **один** секрет.
 
 ### `xroutes[]`
 

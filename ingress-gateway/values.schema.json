@@ -135,7 +135,7 @@
     },
     "tlsWildcards": {
       "title": "TLS wildcards",
-      "description": "Предзаданные платформой wildcard TLS-сертификаты для *.idp.ecpk.ru / *.edp.ecpk.ru (заполняет платформа/ops, не пользователь). Скрыто.",
+      "description": "Предзаданные платформой wildcard TLS-сертификаты для *.idp.ecpk.test / *.edp.ecpk.test (заполняет платформа/ops, не пользователь). Скрыто.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/tlsWildcards"
     },
@@ -615,7 +615,7 @@
         },
         "hostname": {
           "title": "hostname",
-          "description": "Домен listener. Для HTTP/TCP/UDP необязателен, для HTTPS/TLS обязателен. Подсказка: если tlsMode=Terminate и hostname содержит *.idp.ecpk.ru или *.edp.ecpk.ru — будет использован предзаданный wildcard-сертификат платформы; иначе создаётся пустой TLS-секрет, который нужно заполнить.",
+          "description": "Домен listener. Для HTTP/TCP/UDP необязателен, для HTTPS/TLS обязателен. Подсказка: если tlsMode=Terminate и hostname содержит *.idp.ecpk.test или *.edp.ecpk.test — будет использован предзаданный wildcard-сертификат платформы; иначе создаётся пустой TLS-секрет, который нужно заполнить.",
           "type": "string",
           "minLength": 1
         },
