@@ -1,0 +1,23 @@
+{{- if .Values.global.enable }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .Values.resourceQuotas.name | default "default" }}
+  namespace: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+spec:
+  hard:
+    limits.cpu: {{ .Values.resourceQuotas.limits.cpu }}
+    limits.memory: {{ .Values.resourceQuotas.limits.memory }}
+    pods: {{ .Values.resourceQuotas.podsAmount }}
+    requests.cpu: {{ .Values.resourceQuotas.requests.cpu | default .Values.resourceQuotas.limits.cpu }}
+    requests.memory: {{ .Values.resourceQuotas.requests.memory | default .Values.resourceQuotas.limits.memory }}
+    {{- if .Values.resourceQuotas.storage.storages }}
+    {{- $storageQuotas := dict }}
+    {{- range $storageClass, $quota := .Values.resourceQuotas.storage.storages }}
+    {{- $_ := set $storageQuotas (printf "%s.storageclass.storage.k8s.io/requests.storage" $storageClass) $quota }}
+    {{- end }}
+    {{- if $storageQuotas }}
+    {{- $storageQuotas | toYaml | nindent 4 }}
+    {{- end }}
+    {{- end }}
+{{- end -}}

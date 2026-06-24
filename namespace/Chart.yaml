@@ -1,0 +1,9 @@
+apiVersion: v2
+
+name: managed-namespace
+
+description: A Helm chart for providing namespace, resource quotas and subnet
+
+type: application
+
+version: "1.0.0"
