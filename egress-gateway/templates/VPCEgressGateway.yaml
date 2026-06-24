@@ -1,0 +1,56 @@
+{{/*
+VpcEgressGateway (kube-ovn) — по одному на элемент списка vpcEgressGateway.
+
+Захардкожены в шаблоне (не настраиваются через values):
+  vpc, externalSubnet, trafficPolicy, nodeSelector, policies.
+Пользователь задаёт: name, externalIPs, selectors, (опционально) replicas.
+
+- К VpcEgressGateway обращается только Istio Waypoint.
+- replicas по умолчанию = числу externalIPs.
+*/}}
+{{- if .Values.vpcEgressGateway }}
+{{- $root := . }}
+{{- range $index, $gw := .Values.vpcEgressGateway }}
+{{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $gw.externalIPs }}
+---
+apiVersion: kubeovn.io/v1
+kind: VpcEgressGateway
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" (required (printf "vpcEgressGateway[%d].name is required" $index) $gw.name) "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $root | nindent 4 }}
+spec:
+  vpc: ovn-cluster
+  replicas: {{ $gw.replicas | default (len $externalIPs) }}
+  externalSubnet: egress-vip
+  externalIPs:
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $externalIPs "context" $root) | nindent 4 }}
+  nodeSelector:
+    - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+            - worker-node-3
+            - worker-node-5
+  {{- $nsSelectors := ($gw.selectors | default dict).namespaceSelectors }}
+  {{- $podSelectors := ($gw.selectors | default dict).podSelectors }}
+  {{- if or $nsSelectors $podSelectors }}
+  selectors:
+  {{- with $nsSelectors }}
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
+  {{- end }}
+  {{- with $podSelectors }}
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  policies:
+    - snat: true
+      subnets:
+        - ovn-default
+    - snat: false
+      ipblocks:
+        - 172.30.10.0/28
+  trafficPolicy: Cluster
+{{- end }}
+{{- end }}

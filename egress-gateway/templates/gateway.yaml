@@ -1,0 +1,53 @@
+{{/*
+Egress Gateway (Gateway API, класс istio-waypoint) — по одному на элемент
+списка egressGateway.
+infrastructure.parametersRef ссылается на ConfigMap (см. configmap.yaml),
+который носит то же имя, что и Gateway (kindShort egw).
+listeners — TLS Passthrough; allowedRoutes ограничены текущим namespace.
+Элемент пропускается при enabled: false.
+*/}}
+{{- range $gwIndex, $gw := .Values.egressGateway }}
+{{- if ($gw.enabled | default true) }}
+{{- $gwName := required (printf "egressGateway[%d].name is required" $gwIndex) $gw.name }}
+{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
+{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gwFullname }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
+  annotations:
+    networking.istio.io/service-type: ClusterIP
+    istio.io/waypoint-for: service
+    {{- if $genericAnnotations }}
+    {{- $genericAnnotations | nindent 4 }}
+    {{- end }}
+spec:
+  gatewayClassName: istio-waypoint
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ $gwFullname }}
+  listeners:
+    {{- range $index, $listener := $gw.listeners }}
+    - name: {{ $listener.name | default (printf "listener-%d" $index) }}
+      hostname: {{ required (printf "egressGateway[%d].listeners[%d].hostname is required" $gwIndex $index) $listener.hostname | quote }}
+      port: {{ required (printf "egressGateway[%d].listeners[%d].port is required" $gwIndex $index) $listener.port }}
+      protocol: {{ $listener.protocol | default "TLS" }}
+      tls:
+        mode: {{ $listener.tlsMode | default "Passthrough" }}
+      allowedRoutes:
+        kinds:
+          - kind: TLSRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}

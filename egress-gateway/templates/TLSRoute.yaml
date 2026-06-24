@@ -1,0 +1,68 @@
+{{/*
+TLSRoute — задаётся явным списком tlsRoutes.
+parentRefs НЕ указываются пользователем, а генерируются: маршрут привязывается
+к тем egressGateway, у которых есть listener с hostname из route.hostnames.
+
+На КАЖДЫЙ совпавший Gateway создаётся отдельный TLSRoute (с одним parentRef),
+имя — по конвенции с parentGatewayName:
+  {instanceTag}-{clusterTag}-egw-{parentGatewayName}-{projectTag}-{routeName}
+Если ни один listener не совпал — рендер падает.
+Поля: name (2..6), hostnames[], rules[].backendRefs[] (name/port — обязательны,
+weight — опционально). enabled: false → маршрут пропускается.
+*/}}
+{{- range $routeIndex, $route := .Values.tlsRoutes }}
+{{- if ($route.enabled | default true) }}
+{{- $routeName := required (printf "tlsRoutes[%d].name is required" $routeIndex) $route.name }}
+{{- $hostnames := required (printf "tlsRoutes[%d].hostnames is required" $routeIndex) $route.hostnames }}
+{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+{{- $matched := false }}
+{{- range $gw := $.Values.egressGateway }}
+{{- if ($gw.enabled | default true) }}
+{{- $match := false }}
+{{- range $listener := $gw.listeners }}
+{{- if has $listener.hostname $hostnames }}
+{{- $match = true }}
+{{- end }}
+{{- end }}
+{{- if $match }}
+{{- $matched = true }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: TLSRoute
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "parent" $gw.name "name" $routeName "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    - kind: Gateway
+      name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gw.name "context" $) }}
+      namespace: {{ $.Release.Namespace }}
+  hostnames:
+    {{- range $hostname := $hostnames }}
+    - {{ $hostname | quote }}
+    {{- end }}
+  rules:
+    {{- range $rule := $route.rules }}
+    - backendRefs:
+        {{- range $backend := $rule.backendRefs }}
+        - name: {{ required "tlsRoutes[].rules[].backendRefs[].name is required" $backend.name | quote }}
+          port: {{ required "tlsRoutes[].rules[].backendRefs[].port is required" $backend.port }}
+          {{- with $backend.weight }}
+          weight: {{ . }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $matched }}
+{{- fail (printf "tlsRoutes[%d] (%s): ни один egressGateway listener не совпал с hostnames %v; parentRefs не сгенерировать" $routeIndex $routeName $hostnames) }}
+{{- end }}
+{{- end }}
+{{- end }}

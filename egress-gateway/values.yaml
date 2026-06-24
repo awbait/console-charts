@@ -1,0 +1,186 @@
+# ============================================================================
+#  Helm chart: egress-gateway — reference values.yaml
+#  Все параметры с описанием. Чарт разворачивает egress через Istio Waypoint /
+#  Gateway API и kube-ovn VpcEgressGateway. Независимые секции (можно
+#  использовать любую комбинацию):
+#
+#    egressGateway     — Gateway (Gateway API) с TLS Passthrough listener'ами
+#                        и сопутствующий ConfigMap для waypoint operator.
+#
+#    serviceEntries[]  — ServiceEntry на каждый внешний сервис (host, address,
+#                        порты, endpoint'ы).
+#
+#    tlsRoutes[]       — TLSRoute: маршрут от waypoint к backend'у ServiceEntry.
+#
+#    vpcEgressGateway[] — VpcEgressGateway (kube-ovn): egress на уровне VPC
+#                        (externalIPs, SNAT-политики, селекторы).
+#
+#  Конвенция именования ресурсов:
+#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# naming — общие теги для имён ресурсов (см. конвенцию выше)
+# ----------------------------------------------------------------------------
+# instanceTag / clusterTag / projectTag задаются один раз на релиз.
+# kindShort подставляется автоматически по типу ресурса:
+#   igw — Istio Ingress-Gateway (в этом чарте не используется)
+#   egw — Istio Egress-Gateway  (Gateway, ConfigMap, ServiceEntry, TLSRoute)
+#   veg — VPC Egress Gateway    (VpcEgressGateway)
+# name задаётся на каждый ресурс (2..6 символов, DNS-формат).
+naming:
+  # Тег инстанса (таблица 50). Required, DNS-формат lower-case.
+  instanceTag: ru1
+
+  # Тег кластера (таблица 52). Required, DNS-формат lower-case.
+  clusterTag: k8s1
+
+  # Тег проекта. Required, 2..6 символов, DNS-формат lower-case.
+  projectTag: nbox
+
+generic:
+  # Общие labels для всех ресурсов чарта.
+  labels:
+    environment: production
+    team: platform
+
+  # Общие annotations для всех ресурсов чарта.
+  annotations:
+    owner: platform-team
+    monitoring: "true"
+
+
+# ============================================================================
+# egressGateway — список egress-шлюзов (Gateway + ConfigMap на каждый элемент)
+# ============================================================================
+# Каждый listener описывает один внешний сервис: из него генерируются
+# listener в Gateway и ServiceEntry (см. serviceEntry.yaml).
+# ConfigMap создаётся автоматически и носит то же имя, что и Gateway (egw).
+#   name           — required, 2..6 символов; {name} в имени Gateway/ConfigMap
+#   enabled        — default true; false → Gateway + ConfigMap не создаются
+#   listeners[]    — список listener'ов:
+#     name       — required, 2..6 символов; {name} в имени ServiceEntry,
+#                  а также имя listener'а в Gateway
+#     hostname   — required, hostname / SNI и host ServiceEntry
+#     port       — required
+#     protocol   — default TLS
+#     tlsMode    — default Passthrough
+#     addresses  — статические IP внешнего сервиса; заданы → resolution STATIC
+#                  и endpoints в ServiceEntry, иначе → resolution DNS
+#     exportTo   — видимость ServiceEntry, default ["."]
+#     location   — default MESH_EXTERNAL
+#     resolution — override резолвинга ServiceEntry
+egressGateway:
+  - name: wp
+    enabled: true
+    listeners:
+      - name: nx
+        hostname: repository.solution.test
+        port: 443
+        protocol: TLS
+        tlsMode: Passthrough
+        addresses:
+          - 10.40.20.50
+
+      - name: art
+        hostname: artifactory.solution.test
+        port: 443
+        protocol: TLS
+        tlsMode: Passthrough
+        addresses:
+          - 10.40.20.60
+
+
+# ============================================================================
+# tlsRoutes — TLSRoute (список). parentRefs генерируются автоматически
+# ============================================================================
+# parentRefs НЕ задаются: маршрут привязывается к тем egressGateway, у которых
+# есть listener с hostname из route.hostnames. На КАЖДЫЙ совпавший Gateway
+# создаётся отдельный TLSRoute. Имя по расширенной конвенции:
+#   {instanceTag}-{clusterTag}-egw-{parentGatewayName}-{projectTag}-{name}
+#   name        — required, 2..6 символов; {name} в имени TLSRoute
+#   enabled     — default true
+#   hostnames[] — required, hostname / SNI маршрута (совпадает с listener)
+#   rules[].backendRefs[] — name/port (обязательны), weight (опционально);
+#                           name совпадает с host из ServiceEntry (= hostname).
+tlsRoutes:
+  - name: rnx
+    enabled: true
+    hostnames:
+      - repository.solution.test
+    rules:
+      - backendRefs:
+          - name: repository.solution.test
+            port: 443
+            weight: 100
+
+  - name: rart
+    enabled: true
+    hostnames:
+      - artifactory.solution.test
+    rules:
+      - backendRefs:
+          - name: artifactory.solution.test
+            port: 443
+            weight: 100
+
+
+# ============================================================================
+# vpcEgressGateway — VpcEgressGateway (kube-ovn), список
+# ============================================================================
+# Захардкожены в шаблоне (НЕ настраиваются здесь): vpc, externalSubnet,
+# trafficPolicy, nodeSelector, policies. Менять — в templates/VPCEgressGateway.yaml.
+# Пользователь задаёт:
+#   name        — required, 2..6 символов; {name} в имени ресурса (veg)
+#   externalIPs — required, внешние IP
+#   replicas    — default len(externalIPs)
+#   selectors   — namespaceSelectors[] и podSelectors[]
+vpcEgressGateway:
+  - name: core
+    replicas: 6
+    externalIPs:
+      - 10.193.101.10
+      - 10.193.101.11
+    selectors:
+      namespaceSelectors:
+        - namespaceSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - test
+      podSelectors:
+        - podSelector:
+            matchExpressions:
+              - key: out-gateway
+                operator: In
+                values:
+                  - "true"
+
+  - name: core2
+    externalIPs:
+      - 10.193.101.12
+      - 10.193.101.13
+      - 10.193.101.14
+    selectors:
+      namespaceSelectors:
+        - namespaceSelector:
+            matchExpressions:
+              - key: app-2
+                operator: In
+                values:
+                  - test
+      podSelectors:
+        - podSelector:
+            matchExpressions:
+              - key: out-gateway-2
+                operator: In
+                values:
+                  - "true"
+        - podSelector:
+            matchExpressions:
+              - key: out-gateway-3
+                operator: In
+                values:
+                  - "true"

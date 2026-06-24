@@ -1,0 +1,838 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/policies/values.schema.json",
+  "title": "policies Helm chart values",
+  "description": "Editor-oriented schema for the policies chart (NetworkPolicy + Istio AuthorizationPolicy). Три независимые секции: policies[], netpol[], authzpol[].",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyOrder": [
+    "naming",
+    "defaults",
+    "policies",
+    "netpol",
+    "authzpol"
+  ],
+  "required": [
+    "naming"
+  ],
+  "properties": {
+    "naming": {
+      "title": "Naming tags",
+      "description": "Общие теги для генерации имён ресурсов по конвенции {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}. kindShort: np | ap.",
+      "$ref": "#/definitions/naming"
+    },
+    "defaults": {
+      "title": "Defaults",
+      "description": "Значения по умолчанию для trust domain, namespace label key и протокола портов.",
+      "$ref": "#/definitions/defaults"
+    },
+    "policies": {
+      "title": "Policies (NP + AP)",
+      "description": "Универсальные политики. Один блок описывает связь source <-> target; генерируются NetworkPolicy и AuthorizationPolicy с авто-зеркалированием egress в namespace получателя.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/policy"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Policy (source <-> target)",
+          "body": [
+            {
+              "name": "core",
+              "enabled": true,
+              "namespace": "netbox-core",
+              "serviceAccount": "netbox",
+              "selector": {
+                "app.kubernetes.io/name": "netbox"
+              },
+              "ingress": [
+                {
+                  "from": [
+                    {
+                      "namespace": "netbox-ingress",
+                      "selector": {
+                        "app.kubernetes.io/name": "ingress-istio"
+                      }
+                    }
+                  ],
+                  "ports": [
+                    8080
+                  ]
+                }
+              ],
+              "egress": [
+                {
+                  "to": [
+                    {
+                      "namespace": "netbox-postgresql",
+                      "selector": {
+                        "app.kubernetes.io/name": "postgresql"
+                      }
+                    }
+                  ],
+                  "ports": [
+                    5432
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "netpol": {
+      "title": "NetworkPolicies",
+      "description": "Только NetworkPolicy, без AuthorizationPolicy и без зеркал. Для L3/L4-only сценариев или ipBlock-правил.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/netpol"
+      },
+      "defaultSnippets": [
+        {
+          "label": "NetworkPolicy",
+          "body": [
+            {
+              "name": "ing",
+              "enabled": true,
+              "namespace": "netbox-ingress",
+              "selector": {
+                "app.kubernetes.io/name": "ingress-istio"
+              },
+              "ingress": [
+                {
+                  "from": [
+                    {
+                      "ipBlock": {
+                        "cidr": "0.0.0.0/0"
+                      }
+                    }
+                  ],
+                  "ports": [
+                    443
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "authzpol": {
+      "title": "AuthorizationPolicies",
+      "description": "Только AuthorizationPolicy (Istio). Для L7-правил (when, ports, кастомные principals) или когда NP описаны другим инструментом.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/authzpol"
+      },
+      "defaultSnippets": [
+        {
+          "label": "AuthorizationPolicy",
+          "body": [
+            {
+              "name": "gate",
+              "enabled": true,
+              "namespace": "netbox-ingress",
+              "action": "ALLOW",
+              "selector": {
+                "app.kubernetes.io/name": "ingress-istio"
+              },
+              "rules": [
+                {
+                  "from": {
+                    "ipBlocks": [
+                      "0.0.0.0/0"
+                    ]
+                  },
+                  "ports": [
+                    443
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "k8sName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "description": "Kubernetes DNS label: строчные буквы, цифры и дефисы; без дефиса в начале/конце."
+    },
+    "shortToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 6,
+      "description": "DNS-токен 2..6 символов: строчные буквы, цифры и дефисы; без дефиса в начале/конце."
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "instanceTag",
+        "clusterTag",
+        "projectTag"
+      ],
+      "properties": {
+        "instanceTag": {
+          "title": "instanceTag",
+          "description": "Тег инстанса (таблица 50). Required, DNS-формат lower-case.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "clusterTag": {
+          "title": "clusterTag",
+          "description": "Тег кластера (таблица 52). Required, DNS-формат lower-case.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "projectTag": {
+          "title": "projectTag",
+          "description": "Тег проекта. Required, 2..6 символов, DNS-формат lower-case.",
+          "$ref": "#/definitions/shortToken"
+        }
+      },
+      "required": [
+        "instanceTag",
+        "clusterTag",
+        "projectTag"
+      ]
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "trustDomain",
+        "namespaceLabelKey",
+        "protocol"
+      ],
+      "properties": {
+        "trustDomain": {
+          "title": "trustDomain",
+          "description": "Istio trust domain для principal: {trustDomain}/ns/{namespace}/sa/{serviceAccount}.",
+          "type": "string",
+          "default": "cluster.local"
+        },
+        "namespaceLabelKey": {
+          "title": "namespaceLabelKey",
+          "description": "Label-ключ namespace для NetworkPolicy namespaceSelector.",
+          "type": "string",
+          "default": "kubernetes.io/metadata.name"
+        },
+        "protocol": {
+          "title": "protocol",
+          "description": "Протокол по умолчанию для портов NetworkPolicy.",
+          "type": "string",
+          "enum": [
+            "TCP",
+            "UDP",
+            "SCTP"
+          ],
+          "default": "TCP"
+        }
+      }
+    },
+    "portEntry": {
+      "title": "port",
+      "description": "Порт: число (используется defaults.protocol) или объект { port, protocol }.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/port"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "$ref": "#/definitions/port"
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP",
+                "SCTP"
+              ]
+            }
+          },
+          "required": [
+            "port"
+          ]
+        }
+      ]
+    },
+    "ipBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "cidr",
+        "except"
+      ],
+      "properties": {
+        "cidr": {
+          "title": "cidr",
+          "description": "CIDR-блок.",
+          "type": "string"
+        },
+        "except": {
+          "title": "except",
+          "description": "Исключения из CIDR-блока.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "cidr"
+      ]
+    },
+    "labelSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "matchLabels",
+        "matchExpressions"
+      ],
+      "properties": {
+        "matchLabels": {
+          "title": "matchLabels",
+          "$ref": "#/definitions/stringMap"
+        },
+        "matchExpressions": {
+          "title": "matchExpressions",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/labelSelectorRequirement"
+          }
+        }
+      }
+    },
+    "labelSelectorRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "In",
+            "NotIn",
+            "Exists",
+            "DoesNotExist"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator"
+      ]
+    },
+    "policyIngressPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Источник ingress: namespace+selector (+опц. serviceAccount для AP principals), ipBlock, либо raw namespaceSelector/podSelector.",
+      "propertyOrder": [
+        "namespace",
+        "selector",
+        "serviceAccount",
+        "ipBlock",
+        "namespaceSelector",
+        "podSelector"
+      ],
+      "properties": {
+        "namespace": {
+          "title": "namespace",
+          "$ref": "#/definitions/k8sName"
+        },
+        "selector": {
+          "title": "selector",
+          "description": "Pod labels источника.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "serviceAccount": {
+          "title": "serviceAccount",
+          "description": "SA отправителя для AP principal. Нет → fallback на namespaces: [namespace].",
+          "$ref": "#/definitions/k8sName"
+        },
+        "ipBlock": {
+          "title": "ipBlock",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/ipBlock"
+        },
+        "namespaceSelector": {
+          "title": "namespaceSelector",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/labelSelector"
+        },
+        "podSelector": {
+          "title": "podSelector",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/labelSelector"
+        }
+      }
+    },
+    "policyEgressPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Получатель egress: namespace+selector или ipBlock. serviceAccount ЗАПРЕЩЁН (owner SA берётся из policy.serviceAccount).",
+      "propertyOrder": [
+        "namespace",
+        "selector",
+        "ipBlock"
+      ],
+      "properties": {
+        "namespace": {
+          "title": "namespace",
+          "$ref": "#/definitions/k8sName"
+        },
+        "selector": {
+          "title": "selector",
+          "description": "Pod labels получателя (target).",
+          "$ref": "#/definitions/stringMap"
+        },
+        "ipBlock": {
+          "title": "ipBlock",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/ipBlock"
+        }
+      }
+    },
+    "netpolPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Peer для netpol: namespace+selector, ipBlock, либо raw namespaceSelector/podSelector.",
+      "propertyOrder": [
+        "namespace",
+        "selector",
+        "ipBlock",
+        "namespaceSelector",
+        "podSelector"
+      ],
+      "properties": {
+        "namespace": {
+          "title": "namespace",
+          "$ref": "#/definitions/k8sName"
+        },
+        "selector": {
+          "title": "selector",
+          "$ref": "#/definitions/stringMap"
+        },
+        "ipBlock": {
+          "title": "ipBlock",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/ipBlock"
+        },
+        "namespaceSelector": {
+          "title": "namespaceSelector",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/labelSelector"
+        },
+        "podSelector": {
+          "title": "podSelector",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/labelSelector"
+        }
+      }
+    },
+    "policyIngressRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "from",
+        "ports"
+      ],
+      "properties": {
+        "from": {
+          "title": "from",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/policyIngressPeer"
+          }
+        },
+        "ports": {
+          "title": "ports",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/portEntry"
+          }
+        }
+      },
+      "required": [
+        "from"
+      ]
+    },
+    "policyEgressRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "to",
+        "ports"
+      ],
+      "properties": {
+        "to": {
+          "title": "to",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/policyEgressPeer"
+          }
+        },
+        "ports": {
+          "title": "ports",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/portEntry"
+          }
+        }
+      },
+      "required": [
+        "to"
+      ]
+    },
+    "netpolIngressRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "from",
+        "ports"
+      ],
+      "properties": {
+        "from": {
+          "title": "from",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/netpolPeer"
+          }
+        },
+        "ports": {
+          "title": "ports",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/portEntry"
+          }
+        }
+      },
+      "required": [
+        "from"
+      ]
+    },
+    "netpolEgressRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "to",
+        "ports"
+      ],
+      "properties": {
+        "to": {
+          "title": "to",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/netpolPeer"
+          }
+        },
+        "ports": {
+          "title": "ports",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/portEntry"
+          }
+        }
+      },
+      "required": [
+        "to"
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "namespace",
+        "serviceAccount",
+        "selector",
+        "ingress",
+        "egress"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя политики, 2..6 символов. {name} в именах NP/AP.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "enabled",
+          "description": "true = создавать; false = пропустить всю запись.",
+          "type": "boolean",
+          "default": true
+        },
+        "namespace": {
+          "title": "namespace",
+          "description": "Namespace owner-workload.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "serviceAccount": {
+          "title": "serviceAccount",
+          "description": "SA owner-workload. Идёт в principal зеркальных AP. Обязателен при наличии egress.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "selector": {
+          "title": "selector",
+          "description": "Pod selector owner-workload (podSelector в NP, selector в AP).",
+          "$ref": "#/definitions/stringMap"
+        },
+        "ingress": {
+          "title": "ingress",
+          "description": "Правила входящего трафика к owner.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/policyIngressRule"
+          }
+        },
+        "egress": {
+          "title": "egress",
+          "description": "Правила исходящего трафика owner (создают зеркала NP+AP в target ns).",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/policyEgressRule"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "namespace",
+        "selector"
+      ]
+    },
+    "netpol": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "namespace",
+        "selector",
+        "ingress",
+        "egress"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя ресурса, 2..6 символов. {name} в имени NP.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "namespace": {
+          "title": "namespace",
+          "$ref": "#/definitions/k8sName"
+        },
+        "selector": {
+          "title": "selector",
+          "description": "podSelector. Пустой/отсутствует → все pod в ns.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "ingress": {
+          "title": "ingress",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/netpolIngressRule"
+          }
+        },
+        "egress": {
+          "title": "egress",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/netpolEgressRule"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "namespace"
+      ]
+    },
+    "authzpol": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "namespace",
+        "action",
+        "selector",
+        "rules"
+      ],
+      "properties": {
+        "name": {
+          "title": "name",
+          "description": "Имя ресурса, 2..6 символов. {name} в имени AP.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "enabled",
+          "type": "boolean",
+          "default": true
+        },
+        "namespace": {
+          "title": "namespace",
+          "$ref": "#/definitions/k8sName"
+        },
+        "action": {
+          "title": "action",
+          "description": "Действие AuthorizationPolicy.",
+          "type": "string",
+          "enum": [
+            "ALLOW",
+            "DENY",
+            "AUDIT",
+            "CUSTOM"
+          ],
+          "default": "ALLOW"
+        },
+        "selector": {
+          "title": "selector",
+          "description": "Кому применяется policy. Опущен → ко всем workload в ns.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "rules": {
+          "title": "rules",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/authzRule"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "namespace",
+        "rules"
+      ]
+    },
+    "authzRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "from",
+        "ports",
+        "when"
+      ],
+      "properties": {
+        "from": {
+          "title": "from",
+          "description": "Источник. Формы: serviceAccounts, principals, ipBlocks, namespaces.",
+          "$ref": "#/definitions/authzSource"
+        },
+        "ports": {
+          "title": "ports",
+          "description": "Порты operation. Конвертируются в строки.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/portEntry"
+          }
+        },
+        "when": {
+          "title": "when",
+          "$ref": "#/definitions/authzWhen"
+        }
+      }
+    },
+    "authzSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Минимум одно из: serviceAccounts, principals, ipBlocks, namespaces.",
+      "propertyOrder": [
+        "serviceAccounts",
+        "principals",
+        "ipBlocks",
+        "namespaces"
+      ],
+      "properties": {
+        "serviceAccounts": {
+          "title": "serviceAccounts",
+          "description": "→ principals: {trustDomain}/ns/{namespace}/sa/{name}.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "namespace": {
+                "$ref": "#/definitions/k8sName"
+              },
+              "name": {
+                "$ref": "#/definitions/k8sName"
+              }
+            },
+            "required": [
+              "namespace",
+              "name"
+            ]
+          }
+        },
+        "principals": {
+          "title": "principals",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ipBlocks": {
+          "title": "ipBlocks",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "namespaces": {
+          "title": "namespaces",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "authzWhen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceNamespaces": {
+          "title": "sourceNamespaces",
+          "description": "→ when key source.namespace.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

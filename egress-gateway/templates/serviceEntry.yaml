@@ -1,0 +1,62 @@
+{{/*
+ServiceEntry — генерируется из listener'ов egressGateway (по одному на listener).
+Внешний сервис описывается прямо в listener:
+  hostname  → spec.hosts и backend в TLSRoute
+  port      → spec.ports[].number
+  protocol  → spec.ports[].protocol (default TLS)
+  addresses → статические IP: заданы → resolution STATIC + endpoints,
+              иначе → resolution DNS
+Имя ресурса по конвенции (kindShort egw, name = listener.name).
+enabled: false на шлюзе → его listener'ы пропускаются.
+*/}}
+{{- range $gwIndex, $gw := .Values.egressGateway }}
+{{- if ($gw.enabled | default true) }}
+{{- range $index, $listener := $gw.listeners }}
+{{- $seName := required (printf "egressGateway[%d].listeners[%d].name is required" $gwIndex $index) $listener.name }}
+{{- $hostname := required (printf "egressGateway[%d].listeners[%d].hostname is required" $gwIndex $index) $listener.hostname }}
+{{- $port := required (printf "egressGateway[%d].listeners[%d].port is required" $gwIndex $index) $listener.port }}
+{{- $protocol := $listener.protocol | default "TLS" }}
+{{- $addresses := $listener.addresses | default (list) }}
+{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $seName "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  hosts:
+    - {{ $hostname | quote }}
+  {{- if $addresses }}
+  addresses:
+    {{- range $address := $addresses }}
+    - {{ $address | quote }}
+    {{- end }}
+  {{- end }}
+  exportTo:
+    {{- range $export := ($listener.exportTo | default (list ".")) }}
+    - {{ $export | quote }}
+    {{- end }}
+  location: {{ $listener.location | default "MESH_EXTERNAL" }}
+  resolution: {{ $listener.resolution | default (ternary "STATIC" "DNS" (gt (len $addresses) 0)) }}
+  ports:
+    - name: {{ $seName }}
+      number: {{ $port }}
+      protocol: {{ $protocol }}
+  {{- if $addresses }}
+  endpoints:
+    {{- range $address := $addresses }}
+    - address: {{ $address | quote }}
+      ports:
+        {{ $seName }}: {{ $port }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

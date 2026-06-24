@@ -1,0 +1,37 @@
+{{- if .Values.global.enable }}
+{{ if .Values.subnet.enable }}
+{{- $root := . }}
+{{- range .Values.subnet.subnets }}
+{{- $gatewayIP := include "managed-ns.getGatewayIP" .cidrBlock -}}
+apiVersion: kubeovn.io/v1
+kind: Subnet
+metadata:
+  name: {{ .name | lower | trunc 63 | trimSuffix "-" }}
+spec:
+  default: false
+  protocol: IPv4
+  cidrBlock: {{ .cidrBlock }}
+  natOutgoing: false
+  excludeIps:   
+    - {{ $gatewayIP }}
+    {{- if .excludeIps }}
+    {{- range .excludeIps }}
+    - {{ . }}
+    {{- end }}
+    {{- end }}
+  gateway: {{ $gatewayIP }}
+  gatewayType: centralized
+  private: true
+  allowSubnets:
+    - 172.30.0.0/15
+    {{- if .allowSubnets }}
+    {{- range .allowSubnets }}
+    - {{ . }}
+    {{- end }}
+    {{- end }}
+  enableEcmp: false
+  namespaces:
+    - {{ $root.Values.namespace.namespaceName }}
+{{- end }}
+{{- end }}
+{{- end -}}

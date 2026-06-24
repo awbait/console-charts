@@ -1,0 +1,64 @@
+# Минимальный пример: одна точка egress.
+# Один Gateway с одним TLS Passthrough listener (nexus). Из listener
+# генерируется ServiceEntry; tlsRoutes задаётся явным списком (parentRefs
+# генерируются автоматически). Плюс один VpcEgressGateway (kube-ovn).
+#
+# Имена ресурсов по конвенции: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# На выходе (при naming ниже):
+# - ConfigMap        ru1-k8s1-egw-nbox-wp
+# - Gateway          ru1-k8s1-egw-nbox-wp
+# - ServiceEntry     ru1-k8s1-egw-nbox-nx
+# - TLSRoute         ru1-k8s1-egw-nbox-rnx
+# - VpcEgressGateway ru1-k8s1-veg-nbox-core
+
+naming:
+  instanceTag: ru1     # required, DNS-формат
+  clusterTag: k8s1     # required, DNS-формат
+  projectTag: nbox     # required, 2..6 символов
+
+generic:
+  labels: {}
+  annotations: {}
+
+egressGateway:
+  - name: wp
+    enabled: true
+    listeners:
+      - name: nx
+        hostname: repository.solution.test
+        port: 443
+        protocol: TLS
+        tlsMode: Passthrough
+        addresses:
+          - 10.40.20.50
+
+tlsRoutes:
+  - name: rnx
+    enabled: true
+    hostnames:
+      - repository.solution.test
+    rules:
+      - backendRefs:
+          - name: repository.solution.test
+            port: 443
+
+vpcEgressGateway:
+  - name: core
+    externalIPs:
+      - 10.193.101.10
+      - 10.193.101.11
+    selectors:
+      namespaceSelectors:
+        - namespaceSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - test
+      podSelectors:
+        - podSelector:
+            matchExpressions:
+              - key: out-gateway
+                operator: In
+                values:
+                  - "true"

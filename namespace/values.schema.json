@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "additionalProperties": false,
+      "description": "Глобальные настройки чарта",
+      "properties": {
+        "enable": {
+          "description": "Включить создание ресурсов чарта",
+          "default": false,
+          "title": "Enable",
+          "type": "boolean",
+          "ui:widget": "hidden"
+        }
+      },
+      "title": "global",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "namespace": {
+      "additionalProperties": false,
+      "description": "Значения для создаваемого Namespace",
+      "properties": {
+        "namespaceName": {
+          "description": "Имя создаваемого Namespace. Должно соответствовать формату: <product>-<env>-ns-<purpose>",
+          "default": "project-dev-ns-default",
+          "title": "Имя Namespace",
+          "type": "string"
+        },
+        "projectName": {
+          "description": "Имя проекта, в котором создаётся Namespace",
+          "default": "project",
+          "title": "Имя Проекта",
+          "type": "string"
+        },
+        "clusterName": {
+          "description": "Имя кластера Alauda, в котором создаётся Namespace",
+          "default": "common",
+          "title": "Имя кластера Alauda",
+          "type": "string"
+        },
+        "displayName": {
+          "description": "Отображаемое имя ресурса Namespace",
+          "default": "Managed by ECPK",
+          "title": "Отображаемое имя Namespace",
+          "type": "string"
+        },
+        "annotations": {
+          "description": "Словарь аннотаций ресурса Namespace",
+          "default": {},
+          "title": "Аннотации",
+          "type": "object"
+        },
+        "labels": {
+          "description": "Словарь меток ресурса Namespace",
+          "default": {},
+          "title": "Метки",
+          "type": "object"
+        }
+      },
+      "required": [
+        "namespaceName",
+        "projectName"
+      ],
+      "title": "Namespace",
+      "type": "object"
+    },
+    "resourceQuotas": {
+      "description": "Значения для ресурсный квот для создаваемого Namespace",
+      "additionalProperties": false,
+      "properties": {
+        "limits": {
+          "description": "Ресурсные лимиты для создаваемого Namespace",
+          "additionalProperties": false,
+          "properties": {
+            "cpu": {
+              "description": "Лимит ЦПУ для создаваемого Namespace",
+              "default": "",
+              "title": "Лимит ЦПУ",
+              "type": "string"
+            },
+            "memory": {
+              "description": "Лимит оперативной памяти для создаваемого Namespace",
+              "default": "",
+              "title": "Лимит оперативной памяти",
+              "type": "string"
+            }
+          },
+          "required": [
+            "cpu",
+            "memory"
+          ],
+          "title": "Лимиты ресурсов",
+          "type": "object"
+        },
+        "podsAmount": {
+          "description": "Максимальное количество подов в Namespace. Ограничивается маской подсети",
+          "default": 1000,
+          "title": "Количество подов",
+          "type": "integer",
+          "ui:widget": "hidden"
+        },
+        "requests": {
+          "description": "Ресурсные запросы для создаваемого Namespace",
+          "additionalProperties": false,
+          "properties": {
+            "cpu": {
+              "description": "Запрос ЦПУ для создаваемого Namespace",
+              "default": "",
+              "title": "Запрос ЦПУ",
+              "type": "string"
+            },
+            "memory": {
+              "description": "Запрос оперативной памяти для создаваемого Namespace",
+              "default": "",
+              "title": "Запрос оперативной памяти",
+              "type": "string"
+            }
+          },
+          "required": [
+            "cpu",
+            "memory"
+          ],
+          "title": "Запросы ресурсов",
+          "type": "object"
+        },
+        "storage": {
+          "description": "Квоты на блочные хранилища для создаваемого Namespace",
+          "additionalProperties": false,
+          "properties": {
+            "storages": {
+              "description": "Словарь квот на блочные хранилища. Должен соответствовать формату: $StorageClass: $Quota",
+              "default": {},
+              "title": "Квоты на блочные хранилища",
+              "type": "object"
+            }
+          },
+          "required": [
+            "storages"
+          ],
+          "title": "Квоты на блочные хранилища",
+          "type": "object"
+        }
+      },
+      "required": [
+        "limits",
+        "requests",
+        "storage"
+      ],
+      "title": "Ресурсные квоты",
+      "type": "object"
+    },
+    "subnet": {
+      "description": "Значения для подсетей создаваемого Namespace. Должна быть создана как минимум одна подсеть. Допускается создание нескольких подсетей",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "description": "Служебное поле, отвечает за включение создания ресурса Subnet. Включать только при гарантии, что CIDR блок успешно зарезервирован в Netbox",
+          "default": false,
+          "title": "Enable",
+          "type": "boolean",
+          "ui:widget": "hidden"
+        },
+        "subnets": {
+          "description": "Список подсетей для создаваемого Namespace",
+          "additionalProperties": false,
+          "items": {
+              "properties": {
+                "name": {
+                  "description": "Имя подсети. Должно соответствовать формату: <product>-<env>-ns-<purpose>",
+                  "default": "project-dev-subnet-default",
+                  "title": "Имя подсети",
+                  "type": "string"
+                },
+                "cidrBlock": {
+                  "default": "",
+                  "description": "CIDR блок, зарезервированный в Netbox (IP/mask)",
+                  "title": "CIDR блок",
+                  "type": "string"
+                },
+                "allowSubnets": {
+                  "description": "Список доступных подсетей, с которыми необходима сетевая связность с данной подсетью",
+                  "items": {
+                    "type": "string",
+                    "title": "CIDR блок подсети"
+                  },
+                  "title": "Допустимые подсети",
+                  "type": "array"
+                },
+                "excludeIps": {
+                  "description": "Список зарезервированных IP адресов, которые не должны выдаваться подам в создаваемом Namespace. IP шлюза внесён автоматический",
+                  "items": {
+                    "type": "string",
+                    "title": "IP адрес"
+                  },
+                  "title": "Зарезервированные IP адреса",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "cidrBlock"
+              ],
+              "type": "object"
+          },
+          "title": "Подсети",
+          "type": "array"
+        }
+      },
+      "required": [
+        "enable",
+        "subnets"
+      ],
+      "title": "Подсети Namespace",
+      "type": "object"
+    }
+  },
+  "required": [
+    "global",
+    "namespace",
+    "resourceQuotas",
+    "subnet"
+  ],
+  "type": "object"
+}

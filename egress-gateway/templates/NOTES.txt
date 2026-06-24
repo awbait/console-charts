@@ -1,0 +1,37 @@
+egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+Конвенция имён: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+
+{{ $hasGw := false -}}
+{{- range .Values.egressGateway }}{{ if (.enabled | default true) }}{{ $hasGw = true }}{{ end }}{{ end -}}
+{{- if $hasGw }}
+Egress Gateways и их listener'ы (→ ServiceEntry):
+{{- range $gw := .Values.egressGateway }}
+{{- if ($gw.enabled | default true) }}
+  • {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gw.name "context" $) }} (Gateway + ConfigMap)
+    {{- range $gw.listeners }}
+      - {{ .name }} → {{ .hostname }}:{{ .port }} ({{ .protocol | default "TLS" }}/{{ .tlsMode | default "Passthrough" }})  →  SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- with .Values.tlsRoutes }}
+
+TLSRoutes (parentRefs сгенерированы по hostname):
+{{- range . }}
+{{- if (.enabled | default true) }}
+  • {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }} → {{ join ", " .hostnames }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- with .Values.vpcEgressGateway }}
+
+VpcEgressGateway (kube-ovn):
+{{- range . }}
+  • {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (externalIPs: {{ len .externalIPs }}, replicas: {{ .replicas | default (len .externalIPs) }})
+{{- end }}
+{{- end }}
+
+Проверка:
+  kubectl -n {{ .Release.Namespace }} get gateway,serviceentry,tlsroute,vpcegressgateway -l app.kubernetes.io/instance={{ .Release.Name }}

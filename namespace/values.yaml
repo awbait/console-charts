@@ -1,0 +1,33 @@
+# managed-namespace - дефолтные значения (минимум, чтобы рендер проходил).
+# При global.enable=false чарт не создаёт ни одного ресурса.
+# Полный справочник параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
+
+global:
+  enable: false
+
+namespace:
+  namespaceName: "project-dev-ns-default"
+  projectName: project
+  clusterName: common
+  displayName: "Managed by ECPK"
+  annotations: {}
+  labels: {}
+
+resourceQuotas:
+  limits:
+    cpu: ""
+    memory: ""
+  requests:
+    cpu: ""
+    memory: ""
+  podsAmount: 1000
+  storage:
+    storages: {}
+
+subnet:
+  enable: false
+  subnets:
+    - name: "project-dev-subnet-default"
+      cidrBlock: ""
+      excludeIps: []
+      allowSubnets: []

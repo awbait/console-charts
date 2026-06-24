@@ -1,0 +1,40 @@
+# Минимальный пример: одна универсальная политика.
+# Описывает netbox в namespace netbox-core: один ingress (от ingress gateway)
+# и один egress (в postgresql).
+#
+# На выходе:
+# - в netbox-core:       NetworkPolicy (ingress+egress) + AuthorizationPolicy
+# - в netbox-postgresql: NetworkPolicy (ingress) + AuthorizationPolicy (mirror egress)
+#
+# Пустые netpol/authzpol явно отключают примеры из дефолтного values.yaml
+# при использовании через `helm install ... -f minimal-values.yaml`.
+
+naming:
+  instanceTag: ru1     # required, DNS-формат
+  clusterTag: k8s1     # required, DNS-формат
+  projectTag: nbox     # required, 2..6 символов
+
+netpol: []
+authzpol: []
+
+policies:
+  - name: core
+    namespace: netbox-core
+    serviceAccount: netbox             # обязателен при наличии egress
+    selector:
+      app.kubernetes.io/name: netbox
+
+    ingress:
+      - from:
+          - namespace: netbox-ingress
+            selector:
+              app.kubernetes.io/name: ingress-istio
+            serviceAccount: netbox-ingress-gateway-istio
+        ports: [8080]
+
+    egress:
+      - to:
+          - namespace: netbox-postgresql
+            selector:
+              app.kubernetes.io/name: postgresql
+        ports: [5432]

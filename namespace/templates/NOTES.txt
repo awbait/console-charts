@@ -1,0 +1,18 @@
+managed-namespace ({{ .Chart.Version }}): релиз {{ .Release.Name | quote }}.
+
+{{- if .Values.global.enable }}
+Создано:
+  Namespace:     {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+                 (проект {{ .Values.namespace.projectName }}, кластер {{ .Values.namespace.clusterName }})
+  ResourceQuota: {{ .Values.resourceQuotas.name | default "default" }}
+{{- if and .Values.subnet.enable .Values.subnet.subnets }}
+  Subnet(ы):
+{{- range .Values.subnet.subnets }}
+    - {{ .name | lower | trunc 63 | trimSuffix "-" }} ({{ .cidrBlock }})
+{{- end }}
+{{- else }}
+  Subnet:        не создаётся (subnet.enable=false)
+{{- end }}
+{{- else }}
+Ресурсы не созданы: global.enable=false.
+{{- end }}

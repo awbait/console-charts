@@ -1,0 +1,32 @@
+{{/*
+ConfigMap для waypoint operator — по одному на элемент списка egressGateway.
+Носит то же имя, что и Gateway (kindShort egw); на него ссылается Gateway
+через parametersRef (см. gateway.yaml).
+data.service — патч service waypoint'а: выключаем NodePort и удаляем порт 15021.
+Элемент пропускается при enabled: false.
+*/}}
+{{- range $gwIndex, $gw := .Values.egressGateway }}
+{{- if ($gw.enabled | default true) }}
+{{- $gwName := required (printf "egressGateway[%d].name is required" $gwIndex) $gw.name }}
+{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+data:
+  service: |
+    spec:
+      allocateLoadBalancerNodePorts: false
+      ports:
+      - "$patch": delete
+        port: 15021
+{{- end }}
+{{- end }}

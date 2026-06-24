@@ -1,0 +1,185 @@
+{{- $root := . -}}
+
+{{/*
+First block: universal policies -> NetworkPolicy (owner + auto-mirror in target ns).
+*/}}
+{{- range $index, $policy := default (list) $root.Values.policies }}
+{{- if eq (include "security-policies.enabled" (dict "policy" $policy)) "true" }}
+{{- $namespace := required (printf "policies[%d].namespace is required" $index) $policy.namespace -}}
+{{- $selector := required (printf "policies[%d].selector is required" $index) $policy.selector -}}
+{{- $ingress := default (list) $policy.ingress -}}
+{{- $egress := default (list) $policy.egress -}}
+
+{{/* Validate: peer.serviceAccount forbidden in egress (use top-level policy.serviceAccount). */}}
+{{- range $rule := $egress }}
+{{- range $peer := default (list) $rule.to }}
+{{- if $peer.serviceAccount }}
+{{- fail (printf "policies[%d] (%s): egress peer.serviceAccount is forbidden; use top-level policy.serviceAccount" $index $policy.name) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Owner NetworkPolicy. */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
+  namespace: {{ $namespace | quote }}
+  labels:
+    {{- include "security-policies.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+  policyTypes:
+    {{- if gt (len $ingress) 0 }}
+    - Ingress
+    {{- end }}
+    {{- if gt (len $egress) 0 }}
+    - Egress
+    {{- end }}
+  {{- if gt (len $ingress) 0 }}
+  ingress:
+    {{- range $rule := $ingress }}
+    - from:
+        {{- range $peer := default (list) $rule.from }}
+        - {{ include "security-policies.netpolPeer" (dict "root" $root "peer" $peer) | nindent 10 | trim }}
+        {{- end }}
+      {{- if $rule.ports }}
+      ports:
+{{ include "security-policies.netpolPorts" (dict "root" $root "ports" $rule.ports) | trim | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if gt (len $egress) 0 }}
+  egress:
+    {{- range $rule := $egress }}
+    - to:
+        {{- range $peer := default (list) $rule.to }}
+        - {{ include "security-policies.netpolPeer" (dict "root" $root "peer" $peer) | nindent 10 | trim }}
+        {{- end }}
+      {{- if $rule.ports }}
+      ports:
+{{ include "security-policies.netpolPorts" (dict "root" $root "ports" $rule.ports) | trim | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+{{/* Mirror NetworkPolicy in each target namespace (from egress rules). */}}
+{{- $targets := dict }}
+{{- range $ruleIndex, $rule := $egress }}
+{{- range $peer := default (list) $rule.to }}
+{{- if not $peer.ipBlock }}
+{{- $targetNs := required (printf "policies[%d].egress[%d].to.namespace is required for mirroring" $index $ruleIndex) $peer.namespace }}
+{{- $peerSelector := default (dict) $peer.selector }}
+{{- $existing := index $targets $targetNs }}
+{{- if $existing }}
+{{- if not (eq (toYaml $existing.selector) (toYaml $peerSelector)) }}
+{{- fail (printf "policies[%d] (%s): egress to namespace %q uses different selectors across rules; split into separate policies" $index $policy.name $targetNs) }}
+{{- end }}
+{{- $mergedPorts := concat $existing.ports (default (list) $rule.ports) }}
+{{- $_ := set $targets $targetNs (dict "selector" $peerSelector "ports" $mergedPorts) }}
+{{- else }}
+{{- $_ := set $targets $targetNs (dict "selector" $peerSelector "ports" (default (list) $rule.ports)) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- range $targetNs, $info := $targets }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
+  namespace: {{ $targetNs | quote }}
+  labels:
+    {{- include "security-policies.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    {{- if gt (len $info.selector) 0 }}
+    matchLabels:
+      {{- toYaml $info.selector | nindent 6 }}
+    {{- else }}
+    {}
+    {{- end }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{ default "kubernetes.io/metadata.name" $root.Values.defaults.namespaceLabelKey }}: {{ $namespace | quote }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $selector | nindent 14 }}
+      {{- if gt (len $info.ports) 0 }}
+      ports:
+{{ include "security-policies.netpolPorts" (dict "root" $root "ports" $info.ports) | trim | indent 8 }}
+      {{- end }}
+{{- end }}
+
+{{- end }}
+{{- end }}
+
+{{/*
+Second block: explicit netpol.
+*/}}
+{{- range $index, $policy := default (list) $root.Values.netpol }}
+{{- if eq (include "security-policies.enabled" (dict "policy" $policy)) "true" }}
+{{- $namespace := required (printf "netpol[%d].namespace is required" $index) $policy.namespace -}}
+{{- $selector := default (dict) $policy.selector -}}
+{{- $ingress := default (list) $policy.ingress -}}
+{{- $egress := default (list) $policy.egress }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
+  namespace: {{ $namespace | quote }}
+  labels:
+    {{- include "security-policies.labels" $root | nindent 4 }}
+spec:
+  podSelector:
+    {{- if gt (len $selector) 0 }}
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+    {{- else }}
+    {}
+    {{- end }}
+  policyTypes:
+    {{- if gt (len $ingress) 0 }}
+    - Ingress
+    {{- end }}
+    {{- if gt (len $egress) 0 }}
+    - Egress
+    {{- end }}
+  {{- if gt (len $ingress) 0 }}
+  ingress:
+    {{- range $rule := $ingress }}
+    - from:
+        {{- range $peer := default (list) $rule.from }}
+        - {{ include "security-policies.netpolPeer" (dict "root" $root "peer" $peer) | nindent 10 | trim }}
+        {{- end }}
+      {{- if $rule.ports }}
+      ports:
+{{ include "security-policies.netpolPorts" (dict "root" $root "ports" $rule.ports) | trim | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if gt (len $egress) 0 }}
+  egress:
+    {{- range $rule := $egress }}
+    - to:
+        {{- range $peer := default (list) $rule.to }}
+        - {{ include "security-policies.netpolPeer" (dict "root" $root "peer" $peer) | nindent 10 | trim }}
+        {{- end }}
+      {{- if $rule.ports }}
+      ports:
+{{ include "security-policies.netpolPorts" (dict "root" $root "ports" $rule.ports) | trim | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

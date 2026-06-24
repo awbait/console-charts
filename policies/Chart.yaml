@@ -1,0 +1,5 @@
+apiVersion: v2
+name: policies
+description: Декларативное управление правилами доступа между сервисами в Kubernetes и Istio.
+type: application
+version: 0.1.0
