@@ -1,0 +1,21 @@
+# managed-namespace - минимальный рабочий пример.
+# Создаёт Namespace и ResourceQuota (без выделенной подсети).
+
+global:
+  enable: true
+
+namespace:
+  namespaceName: "demo-dev-ns-app"
+  projectName: demo
+  clusterName: common
+
+resourceQuotas:
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+
+subnet:
+  enable: false
