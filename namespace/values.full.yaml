@@ -36,6 +36,17 @@ namespace:
   labels: {}
 
 # ----------------------------------------------------------------------------
+# serviceMesh - интеграция с Istio (ambient) и сетевыми политиками
+# ----------------------------------------------------------------------------
+# Включается на уровне контура (не пользователем): на DEV - по флагу, на
+# остальных контурах Service Mesh включён всегда. При enabled=true на Namespace
+# проставляются:
+#   labels:      istio-discovery=enabled, istio.io/dataplane-mode=ambient
+#   annotation:  networking.k8s.io/enable-netpol="true"
+serviceMesh:
+  enabled: false
+
+# ----------------------------------------------------------------------------
 # resourceQuotas - ResourceQuota для Namespace
 # ----------------------------------------------------------------------------
 resourceQuotas:

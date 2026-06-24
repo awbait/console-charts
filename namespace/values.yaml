@@ -14,6 +14,9 @@ namespace:
   annotations: {}
   labels: {}
 
+serviceMesh:
+  enabled: false
+
 resourceQuotas:
   limits:
     cpu: ""

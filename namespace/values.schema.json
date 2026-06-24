@@ -73,6 +73,22 @@
       "title": "Namespace",
       "type": "object"
     },
+    "serviceMesh": {
+      "additionalProperties": false,
+      "description": "Интеграция с Service Mesh (Istio ambient). Включается на уровне контура. При enabled=true на Namespace проставляются Istio-лейблы (istio-discovery, istio.io/dataplane-mode=ambient) и аннотация networking.k8s.io/enable-netpol",
+      "properties": {
+        "enabled": {
+          "description": "Включить Service Mesh для Namespace",
+          "default": false,
+          "title": "Service Mesh",
+          "type": "boolean",
+          "ui:widget": "hidden"
+        }
+      },
+      "title": "Service Mesh",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
     "resourceQuotas": {
       "description": "Значения для ресурсный квот для создаваемого Namespace",
       "additionalProperties": false,

@@ -6,6 +6,9 @@ metadata:
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
     cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
     cpaas.io/project-inner-namespace: {{ .Values.namespace.projectName }}
+    {{- if .Values.serviceMesh.enabled }}
+    networking.k8s.io/enable-netpol: "true"
+    {{- end }}
     {{- with .Values.namespace.annotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -13,6 +16,10 @@ metadata:
     cpaas.io/cluster: {{ .Values.namespace.clusterName }}
     cpaas.io/project: {{ .Values.namespace.projectName }}
     kubernetes.io/metadata.name: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+    {{- if .Values.serviceMesh.enabled }}
+    istio-discovery: enabled
+    istio.io/dataplane-mode: ambient
+    {{- end }}
     {{- include "managed-ns.labels" . | nindent 4 }}
     {{- with .Values.namespace.labels }}
       {{- toYaml . | nindent 4 }}

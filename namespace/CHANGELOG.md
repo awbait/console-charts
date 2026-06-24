@@ -19,6 +19,17 @@
 
 ---
 
+## [1.2.0] - 2026-06-24
+
+### Added
+- **`serviceMesh.enabled`** (default `false`) - при включении на Namespace
+  проставляются Istio-лейблы `istio-discovery: enabled` и
+  `istio.io/dataplane-mode: ambient`, а также аннотация
+  `networking.k8s.io/enable-netpol: "true"`. Включается на уровне контура
+  (скрыто в форме портала). По умолчанию поведение не меняется.
+
+---
+
 ## [1.1.0] - 2026-06-24
 
 ### Added
