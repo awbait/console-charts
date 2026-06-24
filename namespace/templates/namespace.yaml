@@ -15,6 +15,9 @@ metadata:
   labels:
     cpaas.io/cluster: {{ .Values.namespace.clusterName }}
     cpaas.io/project: {{ .Values.namespace.projectName }}
+    {{- with .Values.namespace.role }}
+    cpaas.io/namespace-role: {{ . }}
+    {{- end }}
     kubernetes.io/metadata.name: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
     {{- if .Values.serviceMesh.enabled }}
     istio-discovery: enabled
