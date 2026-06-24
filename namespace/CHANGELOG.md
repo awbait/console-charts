@@ -24,7 +24,11 @@
 ### Added
 - **`namespace.role`** - роль namespace со списком значений `ingress` / `egress`
   / `other` (ограничено в схеме). При выборе на Namespace ставится лейбл
-  `cpaas.io/namespace-role`. Поле опционально: без значения лейбл не ставится.
+  `namespace-role`. Поле опционально: без значения лейбл не ставится.
+
+### Changed
+- Дефолт `namespace.displayName` сменён с `Managed by ECPK` на `Managed namespace`
+  (убрано вендорное упоминание).
 
 ---
 

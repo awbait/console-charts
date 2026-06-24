@@ -42,7 +42,7 @@
         },
         "displayName": {
           "description": "Отображаемое имя ресурса Namespace",
-          "default": "Managed by ECPK",
+          "default": "Managed namespace",
           "title": "Отображаемое имя Namespace",
           "type": "string"
         },
@@ -54,7 +54,7 @@
           "ui:widget": "hidden"
         },
         "role": {
-          "description": "Роль namespace. При выборе ставится лейбл cpaas.io/namespace-role",
+          "description": "Роль namespace. При выборе ставится лейбл namespace-role",
           "title": "Роль namespace",
           "type": "string",
           "enum": ["ingress", "egress", "other"]

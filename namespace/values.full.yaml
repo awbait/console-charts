@@ -23,14 +23,14 @@ namespace:
   clusterName: common
 
   # Отображаемое имя (annotation cpaas.io/display-name).
-  displayName: "Managed by ECPK"
+  displayName: "Managed namespace"
 
   # Создатель namespace (annotation cpaas.io/creator). Default "lk".
   # Скрыто в форме портала; при заказе из консоли подставляется "console".
   creator: lk
 
-  # Роль namespace -> лейбл cpaas.io/namespace-role. Допустимо: ingress | egress |
-  # other. Опционально: без значения лейбл не ставится.
+  # Роль namespace -> лейбл namespace-role. Допустимо: ingress | egress | other.
+  # Опционально: без значения лейбл не ставится.
   role: other
 
   # Дополнительные annotations на Namespace.

@@ -9,7 +9,7 @@ namespace:
   namespaceName: "project-dev-ns-default"
   projectName: project
   clusterName: common
-  displayName: "Managed by ECPK"
+  displayName: "Managed namespace"
   creator: lk
   annotations: {}
   labels: {}
