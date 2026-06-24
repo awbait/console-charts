@@ -19,6 +19,30 @@
 
 ---
 
+## [1.3.0] - 2026-06-24
+
+### Added
+- **`namespace.role`** - роль namespace со списком значений `ingress` / `egress`
+  / `other` (ограничено в схеме). При выборе на Namespace ставится лейбл
+  `namespace-role`. Поле опционально: без значения лейбл не ставится.
+
+### Changed
+- Дефолт `namespace.displayName` сменён с `Managed by ECPK` на `Managed namespace`
+  (убрано вендорное упоминание).
+
+---
+
+## [1.2.0] - 2026-06-24
+
+### Added
+- **`serviceMesh.enabled`** (default `false`) - при включении на Namespace
+  проставляются Istio-лейблы `istio-discovery: enabled` и
+  `istio.io/dataplane-mode: ambient`, а также аннотация
+  `networking.k8s.io/enable-netpol: "true"`. Включается на уровне контура
+  (скрыто в форме портала). По умолчанию поведение не меняется.
+
+---
+
 ## [1.1.0] - 2026-06-24
 
 ### Added
