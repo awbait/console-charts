@@ -1,10 +1,10 @@
 {{/*
-Egress Gateway (Gateway API, класс istio-waypoint) — по одному на элемент
-списка egressGateway.
-infrastructure.parametersRef ссылается на ConfigMap (см. configmap.yaml),
-который носит то же имя, что и Gateway (kindShort egw).
-listeners — TLS Passthrough; allowedRoutes ограничены текущим namespace.
-Элемент пропускается при enabled: false.
+Egress Gateway (Gateway API, class istio-waypoint) - one per egressGateway
+list item.
+infrastructure.parametersRef references the ConfigMap (see configmap.yaml),
+which shares the same name as the Gateway (kindShort egw).
+listeners - TLS Passthrough; allowedRoutes are restricted to the current namespace.
+The item is skipped when enabled: false.
 */}}
 {{- range $gwIndex, $gw := .Values.egressGateway }}
 {{- if ($gw.enabled | default true) }}

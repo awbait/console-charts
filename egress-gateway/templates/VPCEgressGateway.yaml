@@ -1,12 +1,12 @@
 {{/*
-VpcEgressGateway (kube-ovn) — по одному на элемент списка vpcEgressGateway.
+VpcEgressGateway (kube-ovn) - one per vpcEgressGateway list item.
 
-Захардкожены в шаблоне (не настраиваются через values):
+Hardcoded in the template (not configurable via values):
   vpc, externalSubnet, trafficPolicy, nodeSelector, policies.
-Пользователь задаёт: name, externalIPs, selectors, (опционально) replicas.
+The user sets: name, externalIPs, selectors, (optionally) replicas.
 
-- К VpcEgressGateway обращается только Istio Waypoint.
-- replicas по умолчанию = числу externalIPs.
+- VpcEgressGateway is reached only by the Istio Waypoint.
+- replicas defaults to the number of externalIPs.
 */}}
 {{- if .Values.vpcEgressGateway }}
 {{- $root := . }}

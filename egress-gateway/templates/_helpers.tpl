@@ -1,20 +1,20 @@
 {{/*
-Имя чарта для helm.sh/chart.
+Chart name for helm.sh/chart.
 */}}
 {{- define "egress-gateway.helpers.app.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Базовое имя приложения (для labels) = projectTag.
+Base application name (for labels) = projectTag.
 */}}
 {{- define "egress-gateway.helpers.app.name" -}}
 {{- required "naming.projectTag is required" (.Values.naming | default dict).projectTag | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Валидация DNS-тега (instanceTag, clusterTag). Параметры: .label, .value.
-Возвращает значение в lower-case.
+DNS tag validation (instanceTag, clusterTag). Params: .label, .value.
+Returns the value in lower-case.
 */}}
 {{- define "egress-gateway.helpers.tag" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -25,8 +25,8 @@
 {{- end -}}
 
 {{/*
-Валидация короткого 2..6-символьного DNS-тега (projectTag, name).
-Параметры: .label, .value. Возвращает значение в lower-case.
+Short 2..6-character DNS tag validation (projectTag, name).
+Params: .label, .value. Returns the value in lower-case.
 */}}
 {{- define "egress-gateway.helpers.shortToken" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -40,11 +40,11 @@
 {{- end -}}
 
 {{/*
-Полное имя ресурса по конвенции:
-  без parent: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-  с parent:   {instanceTag}-{clusterTag}-{kindShort}-{parent}-{projectTag}-{name}
-Параметры: .context, .kindShort (igw|egw|veg), .name (2..6 символов),
-           .parent (опц., имя родительского Gateway, 2..6 символов; для TLSRoute).
+Full resource name by convention:
+  without parent: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+  with parent:    {instanceTag}-{clusterTag}-{kindShort}-{parent}-{projectTag}-{name}
+Params: .context, .kindShort (igw|egw|veg), .name (2..6 characters),
+        .parent (optional, parent Gateway name, 2..6 characters; for TLSRoute).
 */}}
 {{- define "egress-gateway.helpers.app.fullname" -}}
 {{- $naming := .context.Values.naming | default dict -}}
@@ -65,7 +65,7 @@
 {{- end -}}
 
 {{/*
-Selector labels — стабильная идентификация workload.
+Selector labels - stable workload identification.
 */}}
 {{- define "egress-gateway.helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "egress-gateway.helpers.app.name" . }}
@@ -74,7 +74,7 @@ app: {{ include "egress-gateway.helpers.app.name" . }}
 {{- end -}}
 
 {{/*
-Стандартные labels: selector + chart/managed-by/version + generic.labels.
+Standard labels: selector + chart/managed-by/version + generic.labels.
 */}}
 {{- define "egress-gateway.helpers.app.labels" -}}
 {{ include "egress-gateway.helpers.app.selectorLabels" . }}
@@ -89,7 +89,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Общие annotations (generic.annotations). Пусто → ничего не выводит.
+Common annotations (generic.annotations). Empty -> outputs nothing.
 */}}
 {{- define "egress-gateway.helpers.app.genericAnnotations" -}}
 {{- with (.Values.generic | default dict).annotations -}}
@@ -98,7 +98,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Универсальный рендеринг шаблонных значений. Параметры: .value, .context.
+Generic templated-value rendering. Params: .value, .context.
 */}}
 {{- define "egress-gateway.helpers.tplvalues.render" -}}
 {{- if typeIs "string" .value -}}
