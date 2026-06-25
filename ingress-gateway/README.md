@@ -1,4 +1,4 @@
-# ingress-gateway — usage
+# ingress-gateway - usage
 
 Чарт разворачивает ingress на базе Istio / Kubernetes Gateway API. Из
 независимых секций `values.yaml` генерируются ресурсы.
@@ -89,7 +89,7 @@ helm install  release-name . -f minimal-values.yaml
 `listener`: `name` (sectionName в parentRefs; длина не ограничена 2..6),
 `port`/`protocol` (req; `HTTP`/`HTTPS`/`TCP`/`UDP`/`TLS`), `hostname`
 (обязателен для `HTTPS`/`TLS`), `tlsMode` (`Terminate` для HTTPS,
-`Passthrough` для TLS — по умолчанию), `tlsSecretName`/`certificateRefs`
+`Passthrough` для TLS - по умолчанию), `tlsSecretName`/`certificateRefs`
 (для `Terminate`; см. авто-секреты ниже), `allowedRoutes`.
 
 #### TLS-секреты (auto)
@@ -103,7 +103,7 @@ helm install  release-name . -f minimal-values.yaml
 | `*edp.ecpk.test`     | `{instanceTag}-{clusterTag}-secret-{projectTag}-edptls` |
 | прочие             | секрет не создаётся → нужен `tlsSecretName`/`certificateRefs` |
 
-Секрет рендерится как `type: kubernetes.io/tls` с пустыми `tls.crt`/`tls.key` —
+Секрет рендерится как `type: kubernetes.io/tls` с пустыми `tls.crt`/`tls.key` -
 сертификат и ключ (base64) подставляете сами. Несколько listener'ов с одним
 паттерном (`*.idp.ecpk.test`, `auth.idp.ecpk.test`, …) дают **один** секрет.
 
@@ -115,13 +115,13 @@ helm install  release-name . -f minimal-values.yaml
 | `enabled`     | нет (true)  | `false` → Route не создаётся                                   |
 | `kind`        | нет (`HTTPRoute`) | `HTTPRoute`/`GRPCRoute`/`TLSRoute`/`TCPRoute`/`UDPRoute`; `apiVersion` выбирается автоматически |
 | `parentRefs[]`| да          | `gateway` (= `gateways[].name`) + `sectionName` (= `listener.name`) |
-| `hostnames[]` | для HTTP/GRPC/TLS | Hostname'ы (для TLS — SNI)                              |
+| `hostnames[]` | для HTTP/GRPC/TLS | Hostname'ы (для TLS - SNI)                              |
 | `rules[]`     | да          | `matches`/`filters` только для HTTP/GRPC; `backendRefs` обязательны (`name`/`port`, опц. `namespace`/`weight`) |
 
 **Упрощения при единственном включённом Gateway:**
-- `parentRefs[].gateway` можно опустить — подставится имя этого Gateway (при
+- `parentRefs[].gateway` можно опустить - подставится имя этого Gateway (при
   нескольких Gateway поле обязательно).
-- `hostnames` можно опустить — берутся из listener'ов, на которые ссылается
+- `hostnames` можно опустить - берутся из listener'ов, на которые ссылается
   route через `parentRefs[].sectionName` (для HTTP/GRPC/TLS).
 
 ### `networkPolicy`
@@ -136,13 +136,13 @@ Workload выбирается по label `gateway.networking.k8s.io/gateway-name
 
 `enabled` (default true). На каждый включённый Gateway создаётся
 `AuthorizationPolicy` (Istio), по умолчанию `ALLOW` для `0.0.0.0/0`. Тонкая
-настройка правил — в фазе доработки.
+настройка правил - в фазе доработки.
 
 ### `oidcAuth`
 
 `enabled` (default false). При включении создаются `HTTPRoute` для `/oauth2`,
 `ReferenceGrant`, две `AuthorizationPolicy` (CUSTOM ext_authz и проверка групп)
-и `RequestAuthentication`. Имена — пользовательские. Обязательны `application`,
+и `RequestAuthentication`. Имена - пользовательские. Обязательны `application`,
 `gateway`, `groupsPolicy.allowedGroups`, `keycloak.{issuer,jwksUri}`.
 
 > Labels/annotations на ресурсы задаются только глобально через `generic.labels`
@@ -174,5 +174,5 @@ helm template release-name . [-f my-values.yaml]
 helm install  release-name . [-f my-values.yaml]
 ```
 
-Полный reference всех параметров — в `values.yaml`. Минимальный пример —
+Полный reference всех параметров - в `values.yaml`. Минимальный пример -
 в `minimal-values.yaml`.

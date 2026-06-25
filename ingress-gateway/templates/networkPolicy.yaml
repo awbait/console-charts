@@ -1,9 +1,9 @@
 {{/*
-NetworkPolicy для workload каждого включённого Gateway — по одному на элемент
-списка gateways (при networkPolicy.enabled). Workload выбирается по label
-gateway.networking.k8s.io/gateway-name (проставляется Istio Gateway controller)
-= полное имя Gateway. Ingress по умолчанию разрешён на служебные порты Istio,
-egress задаётся пользователем (networkPolicy.egress, обязателен при enabled).
+NetworkPolicy for the workload of each enabled Gateway: one per element of
+the gateways list (when networkPolicy.enabled). The workload is selected by the label
+gateway.networking.k8s.io/gateway-name (set by the Istio Gateway controller)
+= full Gateway name. Ingress is by default allowed on the Istio service ports,
+egress is provided by the user (networkPolicy.egress, required when enabled).
 */}}
 {{- $root := . -}}
 {{- $networkPolicy := $root.Values.networkPolicy | default dict -}}

@@ -1,10 +1,10 @@
 {{/*
-Ingress Gateway (Gateway API, класс istio) — по одному на элемент списка
-gateways. infrastructure.parametersRef ссылается на ConfigMap (см.
-configmap.yaml), который носит то же имя, что и Gateway (kindShort cm).
-Для HTTPS/TLS listener'ов блок tls добавляется автоматически: Terminate
-требует tlsSecretName или certificateRefs, иначе Passthrough.
-Элемент пропускается при enabled: false.
+Ingress Gateway (Gateway API, istio class): one per element of the
+gateways list. infrastructure.parametersRef references a ConfigMap (see
+configmap.yaml), which has the same name as the Gateway (kindShort cm).
+For HTTPS/TLS listeners the tls block is added automatically: Terminate
+requires tlsSecretName or certificateRefs, otherwise Passthrough.
+The element is skipped when enabled: false.
 */}}
 {{- $root := . -}}
 {{- range $index, $gateway := $root.Values.gateways }}

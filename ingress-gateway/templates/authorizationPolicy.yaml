@@ -1,9 +1,9 @@
 {{/*
-AuthorizationPolicy (Istio) для workload каждого включённого Gateway — по
-одному на элемент списка gateways (при authorizationPolicy.enabled). Workload
-выбирается по label gateway.networking.k8s.io/gateway-name = полное имя Gateway.
-По умолчанию ALLOW для всех источников (0.0.0.0/0); тонкая настройка правил —
-в фазе доработки.
+AuthorizationPolicy (Istio) for the workload of each enabled Gateway: one
+per element of the gateways list (when authorizationPolicy.enabled). The workload
+is selected by the label gateway.networking.k8s.io/gateway-name = full Gateway name.
+By default ALLOW for all sources (0.0.0.0/0); fine-grained rule tuning is
+under development.
 */}}
 {{- $root := . -}}
 {{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict -}}

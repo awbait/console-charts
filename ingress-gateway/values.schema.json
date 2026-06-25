@@ -20,30 +20,30 @@
   "properties": {
     "naming": {
       "title": "Naming tags",
-      "description": "Общие теги для генерации имён ресурсов по конвенции {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}.",
+      "description": "Common tags for generating resource names by the convention {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}.",
       "$ref": "#/definitions/naming"
     },
     "generic": {
       "title": "Generic settings",
-      "description": "Общие labels/annotations, которые применяются ко всем ресурсам chart.",
+      "description": "Common labels/annotations applied to all chart resources.",
       "$ref": "#/definitions/generic",
       "ui:widget": "hidden"
     },
     "authorizationPolicy": {
       "title": "AuthorizationPolicy",
-      "description": "Настройки генерации Istio AuthorizationPolicy для Gateway workload.",
+      "description": "Settings for generating an Istio AuthorizationPolicy for the Gateway workload.",
       "$ref": "#/definitions/authorizationPolicy",
       "ui:widget": "hidden"
     },
     "networkPolicy": {
       "title": "NetworkPolicy",
-      "description": "Настройки генерации Kubernetes NetworkPolicy для Gateway workload.",
+      "description": "Settings for generating a Kubernetes NetworkPolicy for the Gateway workload.",
       "$ref": "#/definitions/networkPolicy",
       "ui:widget": "hidden"
     },
     "gateways": {
       "title": "Gateways",
-      "description": "Список Gateway ресурсов. Каждый элемент списка создаёт отдельный Gateway и связанный ConfigMap.",
+      "description": "List of Gateway resources. Each list element creates a separate Gateway and an associated ConfigMap.",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -81,7 +81,7 @@
     },
     "xroutes": {
       "title": "xRoutes",
-      "description": "Список Route ресурсов: HTTPRoute, GRPCRoute, TLSRoute, TCPRoute или UDPRoute. apiVersion не задаётся в values и выбирается шаблоном по kind. Может быть пустым: Gateway допустимо развернуть без маршрутов.",
+      "description": "List of Route resources: HTTPRoute, GRPCRoute, TLSRoute, TCPRoute or UDPRoute. apiVersion is not set in values and is selected by the template based on kind. May be empty: a Gateway can be deployed without routes.",
       "type": "array",
       "minItems": 0,
       "items": {
@@ -129,25 +129,25 @@
     },
     "oidcAuth": {
       "title": "OIDC Auth",
-      "description": "Настройки OIDC-аутентификации через oauth2-proxy, Keycloak и Istio AuthorizationPolicy.",
+      "description": "OIDC authentication settings via oauth2-proxy, Keycloak and Istio AuthorizationPolicy.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/oidcAuth"
     },
     "tlsWildcards": {
       "title": "TLS wildcards",
-      "description": "Предзаданные платформой wildcard TLS-сертификаты для *.idp.ecpk.test / *.edp.ecpk.test (заполняет платформа/ops, не пользователь). Скрыто.",
+      "description": "Platform-predefined wildcard TLS certificates for *.idp.ecpk.test / *.edp.ecpk.test (filled by the platform/ops, not the user). Hidden.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/tlsWildcards"
     },
     "global": {
       "title": "Global values",
-      "description": "Глобальные значения Helm, инжектируются автоматически при использовании чарта как сабчарта. Шаблонами чарта не используются.",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
       "type": "object",
       "ui:widget": "hidden"
     },
     "enabled": {
       "title": "Enabled",
-      "description": "Флаг condition родительского чарта при подключении сабчартом. Шаблонами чарта не используется.",
+      "description": "Parent chart condition flag when included as a subchart. Not used by the chart templates.",
       "type": "boolean",
       "ui:widget": "hidden"
     }
@@ -202,17 +202,17 @@
       "properties": {
         "instanceTag": {
           "title": "instanceTag",
-          "description": "Тег инстанса (таблица 50). Required, DNS-формат lower-case.",
+          "description": "Instance tag (table 50). Required, DNS format lower-case.",
           "$ref": "#/definitions/k8sName"
         },
         "clusterTag": {
           "title": "clusterTag",
-          "description": "Тег кластера (таблица 52). Required, DNS-формат lower-case.",
+          "description": "Cluster tag (table 52). Required, DNS format lower-case.",
           "$ref": "#/definitions/k8sName"
         },
         "projectTag": {
           "title": "projectTag",
-          "description": "Тег проекта. Required, 2..6 символов, DNS-формат lower-case.",
+          "description": "Project tag. Required, 2..6 characters, DNS format lower-case.",
           "$ref": "#/definitions/shortToken"
         }
       },
@@ -227,7 +227,7 @@
       "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
       "maxLength": 6,
-      "description": "DNS-токен 2..6 символов: начинается с буквы, далее строчные буквы/цифры/дефисы; без дефиса в начале/конце."
+      "description": "DNS token 2..6 characters: starts with a letter, then lowercase letters/digits/dashes; no dash at the start/end."
     },
     "generic": {
       "type": "object",
@@ -239,12 +239,12 @@
       "properties": {
         "labels": {
           "title": "Common labels",
-          "description": "Общие labels для всех ресурсов chart. Результат: metadata.labels.",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
           "$ref": "#/definitions/tplStringMap"
         },
         "annotations": {
           "title": "Common annotations",
-          "description": "Общие annotations для всех ресурсов chart. Результат: metadata.annotations.",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
           "$ref": "#/definitions/tplStringMap"
         }
       }
@@ -255,7 +255,7 @@
       "properties": {
         "enabled": {
           "title": "Enabled",
-          "description": "true = создавать AuthorizationPolicy; false = не создавать.",
+          "description": "true = create AuthorizationPolicy; false = do not create.",
           "type": "boolean",
           "default": true
         }
@@ -267,13 +267,13 @@
       "properties": {
         "enabled": {
           "title": "Enabled",
-          "description": "true = создавать NetworkPolicy; false = не создавать.",
+          "description": "true = create NetworkPolicy; false = do not create.",
           "type": "boolean",
           "default": true
         },
         "egress": {
           "title": "Egress rules",
-          "description": "Список правил разрешённого исходящего трафика. Результат: spec.egress у NetworkPolicy.",
+          "description": "List of allowed egress traffic rules. Result: spec.egress of the NetworkPolicy.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/networkPolicyEgressRule"
@@ -311,7 +311,7 @@
       "properties": {
         "to": {
           "title": "To peers",
-          "description": "Список получателей egress-трафика.",
+          "description": "List of egress traffic destinations.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -320,7 +320,7 @@
         },
         "ports": {
           "title": "Port",
-          "description": "Один конечный порт и протокол для egress-правила.",
+          "description": "A single destination port and protocol for the egress rule.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -339,17 +339,17 @@
       "properties": {
         "podSelector": {
           "title": "podSelector",
-          "description": "Выбор pod'ов по labels.",
+          "description": "Selection of pods by labels.",
           "$ref": "#/definitions/labelSelector"
         },
         "namespaceSelector": {
           "title": "namespaceSelector",
-          "description": "Выбор namespace по labels.",
+          "description": "Selection of namespaces by labels.",
           "$ref": "#/definitions/labelSelector"
         },
         "ipBlock": {
           "title": "ipBlock",
-          "description": "CIDR-блок для NetworkPolicy. Скрыто в editor UI.",
+          "description": "CIDR block for NetworkPolicy. Hidden in the editor UI.",
           "ui:widget": "hidden",
           "type": "object",
           "additionalProperties": false,
@@ -359,7 +359,7 @@
             },
             "except": {
               "title": "except",
-              "description": "Исключения из CIDR-блока. Скрыто в editor UI.",
+              "description": "Exclusions from the CIDR block. Hidden in the editor UI.",
               "ui:widget": "hidden",
               "type": "array",
               "items": {
@@ -379,12 +379,12 @@
       "properties": {
         "port": {
           "title": "port",
-          "description": "Конечный порт назначения.",
+          "description": "Destination port.",
           "$ref": "#/definitions/port"
         },
         "protocol": {
           "title": "protocol",
-          "description": "Протокол конечного порта.",
+          "description": "Protocol of the destination port.",
           "type": "string",
           "enum": [
             "TCP",
@@ -405,7 +405,7 @@
       "properties": {
         "matchLabels": {
           "title": "matchLabels",
-          "description": "Labels для выбора pod или namespace.",
+          "description": "Labels for selecting a pod or namespace.",
           "$ref": "#/definitions/stringMap"
         }
       }
@@ -452,26 +452,26 @@
       "properties": {
         "name": {
           "title": "name",
-          "description": "Имя Gateway, 2..6 символов. Используется для metadata.name, ConfigMap parametersRef и ссылок parentRefs[].gateway.",
+          "description": "Gateway name, 2..6 characters. Used for metadata.name, ConfigMap parametersRef and parentRefs[].gateway references.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = создавать этот Gateway и его ConfigMap; false = пропустить.",
+          "description": "true = create this Gateway and its ConfigMap; false = skip.",
           "type": "boolean",
           "ui:widget": "hidden",
           "default": true
         },
         "ipAddress": {
           "title": "ipAddress",
-          "description": "Статический IP-адрес LoadBalancer для MetalLB. Если задан, шаблон добавит metallb.io/loadBalancerIPs в ConfigMap.data.service.metadata.annotations.",
+          "description": "Static LoadBalancer IP address for MetalLB. If set, the template adds metallb.io/loadBalancerIPs to ConfigMap.data.service.metadata.annotations.",
           "type": "string",
           "minLength": 1,
           "ui:widget": "hidden"
         },
         "listeners": {
           "title": "Listeners",
-          "description": "Список listener'ов Gateway. Результат: spec.listeners.",
+          "description": "List of Gateway listeners. Result: spec.listeners.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -480,12 +480,12 @@
         },
         "hpa": {
           "title": "HorizontalPodAutoscaler",
-          "description": "Настройки HPA для автоматически создаваемого Istio Gateway Deployment. Рендерится в ConfigMap.data.horizontalPodAutoscaler.",
+          "description": "HPA settings for the automatically created Istio Gateway Deployment. Rendered into ConfigMap.data.horizontalPodAutoscaler.",
           "$ref": "#/definitions/gatewayHpa"
         },
         "resources": {
           "title": "Gateway resources",
-          "description": "Resources для контейнера istio-proxy в автоматически создаваемом Deployment. Рендерится в ConfigMap.data.deployment. Скрыто в форме нового заказа: создаётся со значением по умолчанию, правка — позже из карточки продукта.",
+          "description": "Resources for the istio-proxy container in the automatically created Deployment. Rendered into ConfigMap.data.deployment. Hidden in the new order form: created with a default value, edited later from the product card.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/containerResources",
           "default": {
@@ -511,27 +511,27 @@
       "properties": {
         "enabled": {
           "title": "enabled",
-          "description": "true = создать HorizontalPodAutoscaler для gateway deployment; false = не создавать.",
+          "description": "true = create a HorizontalPodAutoscaler for the gateway deployment; false = do not create.",
           "type": "boolean",
           "default": false
         },
         "minReplicas": {
           "title": "minReplicas",
-          "description": "Минимальное количество реплик gateway deployment.",
+          "description": "Minimum number of replicas of the gateway deployment.",
           "type": "integer",
           "minimum": 1,
           "default": 2
         },
         "maxReplicas": {
           "title": "maxReplicas",
-          "description": "Максимальное количество реплик gateway deployment.",
+          "description": "Maximum number of replicas of the gateway deployment.",
           "type": "integer",
           "minimum": 1,
           "default": 5
         },
         "averageUtilization": {
           "title": "averageUtilization",
-          "description": "Целевая средняя загрузка CPU в процентах.",
+          "description": "Target average CPU utilization in percent.",
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
@@ -545,13 +545,13 @@
       "properties": {
         "cpu": {
           "title": "cpu",
-          "description": "Количество CPU, например 100m, 500m, 1.",
+          "description": "Amount of CPU, for example 100m, 500m, 1.",
           "type": "string",
           "minLength": 1
         },
         "memory": {
           "title": "memory",
-          "description": "Количество памяти, например 128Mi, 512Mi, 1Gi.",
+          "description": "Amount of memory, for example 128Mi, 512Mi, 1Gi.",
           "type": "string",
           "minLength": 1
         }
@@ -567,12 +567,12 @@
       "properties": {
         "requests": {
           "title": "requests",
-          "description": "Запрашиваемые ресурсы контейнера istio-proxy. Для CPU-based HPA обязательно задавать requests.cpu.",
+          "description": "Requested resources of the istio-proxy container. For CPU-based HPA it is mandatory to set requests.cpu.",
           "$ref": "#/definitions/resourceQuantityMap"
         },
         "limits": {
           "title": "limits",
-          "description": "Лимиты ресурсов контейнера istio-proxy.",
+          "description": "Resource limits of the istio-proxy container.",
           "$ref": "#/definitions/resourceQuantityMap"
         }
       }
@@ -593,17 +593,17 @@
       "properties": {
         "name": {
           "title": "name",
-          "description": "Имя listener. Используется в xroutes[].parentRefs[].sectionName.",
+          "description": "Listener name. Used in xroutes[].parentRefs[].sectionName.",
           "$ref": "#/definitions/k8sName"
         },
         "port": {
           "title": "port",
-          "description": "Номер порта listener. Обязательное поле.",
+          "description": "Listener port number. Required field.",
           "$ref": "#/definitions/port"
         },
         "protocol": {
           "title": "protocol",
-          "description": "Протокол listener. Допустимые значения: HTTP, HTTPS, TCP, UDP, TLS.",
+          "description": "Listener protocol. Allowed values: HTTP, HTTPS, TCP, UDP, TLS.",
           "type": "string",
           "enum": [
             "HTTP",
@@ -615,13 +615,13 @@
         },
         "hostname": {
           "title": "hostname",
-          "description": "Домен listener. Для HTTP/TCP/UDP необязателен, для HTTPS/TLS обязателен. Подсказка: если tlsMode=Terminate и hostname содержит *.idp.ecpk.test или *.edp.ecpk.test — будет использован предзаданный wildcard-сертификат платформы; иначе создаётся пустой TLS-секрет, который нужно заполнить.",
+          "description": "Listener domain. Optional for HTTP/TCP/UDP, required for HTTPS/TLS. Hint: if tlsMode=Terminate and the hostname contains *.idp.ecpk.test or *.edp.ecpk.test, the platform predefined wildcard certificate is used; otherwise an empty TLS secret is created that needs to be filled in.",
           "type": "string",
           "minLength": 1
         },
         "tlsMode": {
           "title": "tlsMode",
-          "description": "Режим TLS. Passthrough (по умолчанию) — TLS проходит насквозь, сертификат не нужен. Terminate — TLS терминируется на Gateway; имя Secret генерируется автоматически по hostname (idp/edp → предзаданный cert; иначе — пустой секрет *-tls для заполнения). tlsSecretName задавать не нужно.",
+          "description": "TLS mode. Passthrough (default) - TLS passes through, no certificate needed. Terminate - TLS is terminated at the Gateway; the Secret name is generated automatically by hostname (idp/edp -> predefined cert; otherwise - an empty *-tls secret to fill in). tlsSecretName does not need to be set.",
           "type": "string",
           "default": "Passthrough",
           "enum": [
@@ -632,13 +632,13 @@
         "tlsSecretName": {
           "ui:widget": "hidden",
           "title": "tlsSecretName",
-          "description": "Генерируется автоматически по hostname (см. tlsMode); пользователем не задаётся. Скрыто.",
+          "description": "Generated automatically by hostname (see tlsMode); not set by the user. Hidden.",
           "$ref": "#/definitions/k8sName"
         },
         "certificateRefs": {
           "ui:widget": "hidden",
           "title": "certificateRefs",
-          "description": "Явные certificateRefs для tls.certificateRefs. Альтернатива tlsSecretName/авто-секрету.",
+          "description": "Explicit certificateRefs for tls.certificateRefs. An alternative to tlsSecretName/auto secret.",
           "type": "array",
           "items": {
             "type": "object",
@@ -647,7 +647,7 @@
         },
         "allowedRoutes": {
           "title": "allowedRoutes",
-          "description": "Правила допуска Route к listener. Необязательное поле. Если не задано, Gateway API применит поведение по умолчанию.",
+          "description": "Rules for admitting Routes to the listener. Optional field. If not set, the Gateway API applies the default behavior.",
           "$ref": "#/definitions/allowedRoutes"
         }
       },
@@ -723,7 +723,7 @@
       "properties": {
         "namespaces": {
           "title": "namespaces",
-          "description": "Из каких namespace разрешены Route. Скрыто от пользователя: пока всегда Same (только namespace Gateway).",
+          "description": "From which namespaces Routes are allowed. Hidden from the user: for now always Same (only the Gateway namespace).",
           "ui:widget": "hidden",
           "default": { "from": "Same" },
           "type": "object",
@@ -731,7 +731,7 @@
           "properties": {
             "from": {
               "title": "from",
-              "description": "Same = только namespace Gateway, All = любые namespace, Selector = namespace по selector.",
+              "description": "Same = only the Gateway namespace, All = any namespace, Selector = namespaces by selector.",
               "type": "string",
               "default": "Same",
               "enum": [
@@ -750,7 +750,7 @@
         },
         "kinds": {
           "title": "kinds",
-          "description": "Типы Route, которым разрешено привязываться к listener.",
+          "description": "Route types allowed to bind to the listener.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -759,7 +759,7 @@
             "properties": {
               "kind": {
                 "title": "kind",
-                "description": "Тип Route.",
+                "description": "Route type.",
                 "type": "string",
                 "enum": [
                   "HTTPRoute",
@@ -791,19 +791,19 @@
       "properties": {
         "name": {
           "title": "name",
-          "description": "Имя Route, 2..6 символов. Используется для metadata.name.",
+          "description": "Route name, 2..6 characters. Used for metadata.name.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = создавать Route; false = пропустить. Скрыто: по умолчанию true, форма не показывает это поле (чарт создаёт Route при отсутствии enabled).",
+          "description": "true = create Route; false = skip. Hidden: defaults to true, the form does not show this field (the chart creates the Route when enabled is absent).",
           "ui:widget": "hidden",
           "type": "boolean",
           "default": true
         },
         "kind": {
           "title": "kind",
-          "description": "Тип Route. apiVersion будет автоматически выбран шаблоном на основе kind.",
+          "description": "Route type. apiVersion will be selected automatically by the template based on kind.",
           "type": "string",
           "enum": [
             "HTTPRoute",
@@ -816,7 +816,7 @@
         },
         "parentRefs": {
           "title": "parentRefs",
-          "description": "Ссылки на Gateway/listener. gateway можно опустить при единственном Gateway (подставится автоматически).",
+          "description": "References to Gateway/listener. gateway may be omitted when there is a single Gateway (substituted automatically).",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -825,7 +825,7 @@
         },
         "hostnames": {
           "title": "hostnames",
-          "description": "Hostname'ы Route (для TLSRoute это SNI). Скрыто: при единственном Gateway чарт выводит их из listener'ов по sectionName. Для TCP/UDP не поддерживаются.",
+          "description": "Route hostnames (for TLSRoute this is SNI). Hidden: with a single Gateway the chart derives them from the listeners by sectionName. Not supported for TCP/UDP.",
           "ui:widget": "hidden",
           "type": "array",
           "items": {
@@ -834,7 +834,7 @@
         },
         "rules": {
           "title": "rules",
-          "description": "Правила маршрутизации. Результат: spec.rules route-ресурса.",
+          "description": "Routing rules. Result: spec.rules of the route resource.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -920,13 +920,13 @@
       "properties": {
         "gateway": {
           "title": "gateway",
-          "description": "Имя Gateway из gateways[].name. Скрыто: при единственном Gateway чарт подставляет его имя автоматически.",
+          "description": "Gateway name from gateways[].name. Hidden: with a single Gateway the chart substitutes its name automatically.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/shortToken"
         },
         "sectionName": {
           "title": "sectionName",
-          "description": "Имя listener этого Gateway.",
+          "description": "Listener name of this Gateway.",
           "$ref": "#/definitions/k8sName"
         }
       },
@@ -945,7 +945,7 @@
       "properties": {
         "matches": {
           "title": "matches",
-          "description": "Список match-условий для HTTPRoute / GRPCRoute. Не использовать для TLSRoute/TCPRoute/UDPRoute.",
+          "description": "List of match conditions for HTTPRoute / GRPCRoute. Do not use for TLSRoute/TCPRoute/UDPRoute.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/routeMatch"
@@ -953,7 +953,7 @@
         },
         "filters": {
           "title": "filters",
-          "description": "Фильтры Gateway API. Поддерживаются для HTTPRoute / GRPCRoute.",
+          "description": "Gateway API filters. Supported for HTTPRoute / GRPCRoute.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/routeFilter"
@@ -961,7 +961,7 @@
         },
         "backendRefs": {
           "title": "backendRefs",
-          "description": "Список backend сервисов, куда будет направляться трафик.",
+          "description": "List of backend services where traffic will be directed.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -975,7 +975,7 @@
     },
     "routeMatch": {
       "title": "Match",
-      "description": "Одно match-условие для HTTPRoute или GRPCRoute. Выбери один тип: Path, Headers, QueryParams или Method.",
+      "description": "A single match condition for HTTPRoute or GRPCRoute. Choose one type: Path, Headers, QueryParams or Method.",
       "oneOf": [
         {
           "title": "Path",
@@ -1029,7 +1029,7 @@
         },
         {
           "title": "Method",
-          "description": "gRPC method match для GRPCRoute.",
+          "description": "gRPC method match for GRPCRoute.",
           "type": "object",
           "additionalProperties": false,
           "properties": {
@@ -1049,7 +1049,7 @@
       "properties": {
         "type": {
           "title": "type",
-          "description": "Тип сравнения пути.",
+          "description": "Path match type.",
           "type": "string",
           "enum": [
             "Exact",
@@ -1060,7 +1060,7 @@
         },
         "value": {
           "title": "value",
-          "description": "Значение пути.",
+          "description": "Path value.",
           "type": "string",
           "default": "/"
         }
@@ -1076,7 +1076,7 @@
       "properties": {
         "type": {
           "title": "type",
-          "description": "Тип сравнения.",
+          "description": "Match type.",
           "type": "string",
           "enum": [
             "Exact",
@@ -1086,12 +1086,12 @@
         },
         "name": {
           "title": "name",
-          "description": "Имя header/query parameter.",
+          "description": "Header/query parameter name.",
           "type": "string"
         },
         "value": {
           "title": "value",
-          "description": "Значение header/query parameter.",
+          "description": "Header/query parameter value.",
           "type": "string"
         }
       },
@@ -1106,12 +1106,12 @@
       "properties": {
         "service": {
           "title": "service",
-          "description": "Полное имя gRPC service, например users.UsersService.",
+          "description": "Full gRPC service name, for example users.UsersService.",
           "type": "string"
         },
         "method": {
           "title": "method",
-          "description": "Имя gRPC method, например GetUser.",
+          "description": "gRPC method name, for example GetUser.",
           "type": "string"
         }
       },
@@ -1119,7 +1119,7 @@
     },
     "routeFilter": {
       "title": "filter",
-      "description": "Фильтр Gateway API для HTTPRoute / GRPCRoute. Поддерживаются RequestHeaderModifier, RequestRedirect, URLRewrite и CORS.",
+      "description": "Gateway API filter for HTTPRoute / GRPCRoute. RequestHeaderModifier, RequestRedirect, URLRewrite and CORS are supported.",
       "oneOf": [
         {
           "$ref": "#/definitions/requestHeaderModifierFilter"
@@ -1137,7 +1137,7 @@
     },
     "requestHeaderModifierFilter": {
       "title": "RequestHeaderModifier",
-      "description": "Изменение request headers. Доступные методы: Set, Add, Remove.",
+      "description": "Modification of request headers. Available methods: Set, Add, Remove.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1150,11 +1150,11 @@
         },
         "requestHeaderModifier": {
           "title": "method",
-          "description": "Выбери действие над request header: Set, Add или Remove.",
+          "description": "Choose the action on the request header: Set, Add or Remove.",
           "oneOf": [
             {
               "title": "Set",
-              "description": "Set перезаписывает header указанным значением.",
+              "description": "Set overwrites the header with the given value.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1173,7 +1173,7 @@
             },
             {
               "title": "Add",
-              "description": "Add добавляет значение к существующему header.",
+              "description": "Add appends a value to an existing header.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1192,7 +1192,7 @@
             },
             {
               "title": "Remove",
-              "description": "Remove удаляет header по имени.",
+              "description": "Remove deletes a header by name.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1225,13 +1225,13 @@
       "properties": {
         "name": {
           "title": "headerName",
-          "description": "Имя header.",
+          "description": "Header name.",
           "type": "string",
           "minLength": 1
         },
         "value": {
           "title": "headerValue",
-          "description": "Значение header.",
+          "description": "Header value.",
           "type": "string",
           "minLength": 1
         }
@@ -1243,7 +1243,7 @@
     },
     "requestRedirectFilter": {
       "title": "RequestRedirect",
-      "description": "Redirect запроса. Доступные методы: Scheme, Domain, FullPath, Port, StatusCode.",
+      "description": "Request redirect. Available methods: Scheme, Domain, FullPath, Port, StatusCode.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1256,7 +1256,7 @@
         },
         "requestRedirect": {
           "title": "method",
-          "description": "Выбери, какая часть redirect будет изменена.",
+          "description": "Choose which part of the redirect will be changed.",
           "oneOf": [
             {
               "title": "Scheme",
@@ -1265,7 +1265,7 @@
               "properties": {
                 "scheme": {
                   "title": "value",
-                  "description": "Схема redirect.",
+                  "description": "Redirect scheme.",
                   "type": "string",
                   "enum": [
                     "http",
@@ -1285,7 +1285,7 @@
               "properties": {
                 "hostname": {
                   "title": "value",
-                  "description": "Точный домен redirect.",
+                  "description": "Exact redirect domain.",
                   "type": "string",
                   "minLength": 1
                 }
@@ -1301,7 +1301,7 @@
               "properties": {
                 "path": {
                   "title": "value",
-                  "description": "Полная замена пути запроса.",
+                  "description": "Full replacement of the request path.",
                   "type": "object",
                   "additionalProperties": false,
                   "properties": {
@@ -1371,7 +1371,7 @@
     },
     "urlRewriteFilter": {
       "title": "URLRewrite",
-      "description": "Переписывание URL перед отправкой в backend. Доступные методы: Domain, FullPath.",
+      "description": "URL rewrite before sending to the backend. Available methods: Domain, FullPath.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1384,7 +1384,7 @@
         },
         "urlRewrite": {
           "title": "method",
-          "description": "Выбери, какая часть URL будет переписана.",
+          "description": "Choose which part of the URL will be rewritten.",
           "oneOf": [
             {
               "title": "Domain",
@@ -1393,7 +1393,7 @@
               "properties": {
                 "hostname": {
                   "title": "value",
-                  "description": "Точный домен, на который нужно переписать hostname.",
+                  "description": "Exact domain to rewrite the hostname to.",
                   "type": "string",
                   "minLength": 1
                 }
@@ -1409,7 +1409,7 @@
               "properties": {
                 "path": {
                   "title": "value",
-                  "description": "Полная замена пути запроса.",
+                  "description": "Full replacement of the request path.",
                   "type": "object",
                   "additionalProperties": false,
                   "properties": {
@@ -1446,7 +1446,7 @@
     },
     "corsFilter": {
       "title": "CORS",
-      "description": "CORS filter для HTTPRoute. Выбери один CORS-параметр для настройки.",
+      "description": "CORS filter for HTTPRoute. Choose one CORS parameter to configure.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1458,7 +1458,7 @@
         },
         "cors": {
           "title": "Method",
-          "description": "Выбери CORS-параметр.",
+          "description": "Choose a CORS parameter.",
           "oneOf": [
             {
               "title": "AllowOrigins",
@@ -1467,7 +1467,7 @@
               "properties": {
                 "allowOrigins": {
                   "title": "value",
-                  "description": "Список разрешённых Origin. Например: https://example.ru или *.",
+                  "description": "List of allowed Origins. For example: https://example.ru or *.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1488,7 +1488,7 @@
               "properties": {
                 "allowCredentials": {
                   "title": "value",
-                  "description": "Всегда true. Разрешает credentials в CORS-запросах.",
+                  "description": "Always true. Allows credentials in CORS requests.",
                   "type": "boolean",
                   "const": true,
                   "default": true
@@ -1505,7 +1505,7 @@
               "properties": {
                 "allowMethods": {
                   "title": "value",
-                  "description": "Список разрешённых HTTP-методов.",
+                  "description": "List of allowed HTTP methods.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1537,7 +1537,7 @@
               "properties": {
                 "allowHeaders": {
                   "title": "value",
-                  "description": "Список разрешённых request headers.",
+                  "description": "List of allowed request headers.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1558,7 +1558,7 @@
               "properties": {
                 "exposeHeaders": {
                   "title": "value",
-                  "description": "Список response headers, доступных клиентскому коду.",
+                  "description": "List of response headers exposed to client code.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1579,7 +1579,7 @@
               "properties": {
                 "maxAge": {
                   "title": "value",
-                  "description": "Время кеширования preflight-ответа в секундах.",
+                  "description": "Preflight response cache time in seconds.",
                   "type": "integer",
                   "minimum": 1,
                   "default": 600
@@ -1609,23 +1609,23 @@
       "properties": {
         "name": {
           "title": "name",
-          "description": "Имя backend Service. Обязательное поле. Не будет автоматически префиксоваться именем chart.",
+          "description": "Backend Service name. Required field. Will not be automatically prefixed with the chart name.",
           "$ref": "#/definitions/k8sName"
         },
         "namespace": {
           "title": "namespace",
-          "description": "Namespace backend Service. Необязательно.",
+          "description": "Backend Service namespace. Optional.",
           "$ref": "#/definitions/k8sName"
         },
         "port": {
           "title": "port",
-          "description": "Порт backend Service. Обязательное поле.",
+          "description": "Backend Service port. Required field.",
           "$ref": "#/definitions/port",
           "default": 80
         },
         "weight": {
           "title": "weight",
-          "description": "Вес backend при балансировке между несколькими backendRefs.",
+          "description": "Backend weight when balancing between multiple backendRefs.",
           "type": "integer",
           "minimum": 0,
           "default": 100
