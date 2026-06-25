@@ -1,13 +1,13 @@
 {{/*
-ConfigMap for the waypoint operator - one per egressGateway list item.
-Shares the same name as the Gateway (kindShort egw); the Gateway references it
-via parametersRef (see gateway.yaml).
+ConfigMap for the waypoint operator - one per gateway. Shares the same name as
+the Gateway (kindShort egw); the Gateway references it via parametersRef (see
+gateway.yaml).
 data.service - patch for the waypoint Service: disable NodePort and drop port 15021.
-The item is skipped when enabled: false.
+Skipped when the gateway is disabled.
 */}}
-{{- range $gwIndex, $gw := .Values.egressGateway }}
-{{- if ($gw.enabled | default true) }}
-{{- $gwName := required (printf "egressGateway[%d].name is required" $gwIndex) $gw.name }}
+{{- $gw := .Values.egressGateway | default dict }}
+{{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
+{{- $gwName := required "egressGateway.name is required" $gw.name }}
 {{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 ---
 apiVersion: v1
@@ -28,5 +28,4 @@ data:
       ports:
       - "$patch": delete
         port: 15021
-{{- end }}
 {{- end }}

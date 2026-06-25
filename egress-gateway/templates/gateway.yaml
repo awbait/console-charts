@@ -1,15 +1,22 @@
 {{/*
-Egress Gateway (Gateway API, class istio-waypoint) - one per egressGateway
-list item.
-infrastructure.parametersRef references the ConfigMap (see configmap.yaml),
-which shares the same name as the Gateway (kindShort egw).
-listeners - TLS Passthrough; allowedRoutes are restricted to the current namespace.
-The item is skipped when enabled: false.
+Egress Gateway (Gateway API, class istio-waypoint) - a SINGLE gateway built from
+.Values.egressGateway. It may carry more than one listener.
+infrastructure.parametersRef references the ConfigMap (see configmap.yaml), which
+shares the same name as the Gateway (kindShort egw).
+Per listener:
+  - tls.mode is always Passthrough (not configurable);
+  - protocol is TLS or HTTPS and selects the allowed route kind
+    (TLS -> TLSRoute, HTTPS -> HTTPRoute);
+  - allowedRoutes are restricted to the current namespace.
+The whole gateway is skipped when enabled: false.
 */}}
-{{- range $gwIndex, $gw := .Values.egressGateway }}
-{{- if ($gw.enabled | default true) }}
-{{- $gwName := required (printf "egressGateway[%d].name is required" $gwIndex) $gw.name }}
+{{- $gw := .Values.egressGateway | default dict }}
+{{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
+{{- $gwName := required "egressGateway.name is required" $gw.name }}
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
+{{- if not $gw.listeners }}
+{{- fail "egressGateway.listeners must contain at least one listener" }}
+{{- end }}
 {{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -34,20 +41,22 @@ spec:
       name: {{ $gwFullname }}
   listeners:
     {{- range $index, $listener := $gw.listeners }}
-    - name: {{ $listener.name | default (printf "listener-%d" $index) }}
-      hostname: {{ required (printf "egressGateway[%d].listeners[%d].hostname is required" $gwIndex $index) $listener.hostname | quote }}
-      port: {{ required (printf "egressGateway[%d].listeners[%d].port is required" $gwIndex $index) $listener.port }}
-      protocol: {{ $listener.protocol | default "TLS" }}
+    {{- $lName := include "egress-gateway.helpers.shortToken" (dict "label" (printf "egressGateway.listeners[%d].name" $index) "value" (required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name)) }}
+    {{- $protocol := include "egress-gateway.helpers.listenerProtocol" (dict "label" (printf "egressGateway.listeners[%d].protocol" $index) "value" $listener.protocol) }}
+    {{- $routeKind := include "egress-gateway.helpers.routeKind" $protocol }}
+    - name: {{ $lName }}
+      hostname: {{ required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname | quote }}
+      port: {{ required (printf "egressGateway.listeners[%d].port is required" $index) $listener.port }}
+      protocol: {{ $protocol }}
       tls:
-        mode: {{ $listener.tlsMode | default "Passthrough" }}
+        mode: Passthrough
       allowedRoutes:
         kinds:
-          - kind: TLSRoute
+          - kind: {{ $routeKind }}
         namespaces:
           from: Selector
           selector:
             matchLabels:
               kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
     {{- end }}
-{{- end }}
 {{- end }}

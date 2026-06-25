@@ -65,6 +65,48 @@ Params: .context, .kindShort (igw|egw|veg), .name (2..6 characters),
 {{- end -}}
 
 {{/*
+Resolve an "enabled" flag. Param: the entity (dict). An explicit false is
+respected; a missing key defaults to true. Returns "true" or "" (for if-tests).
+Avoids the `| default true` pitfall that turns an explicit false into true.
+*/}}
+{{- define "egress-gateway.helpers.app.enabled" -}}
+{{- $entity := . | default dict -}}
+{{- if hasKey $entity "enabled" -}}
+{{- ternary "true" "" (eq (toString $entity.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Listener protocol validation. Params: .label, .value (default TLS).
+Allowed: TLS or HTTPS. Returns the canonical upper-case value.
+*/}}
+{{- define "egress-gateway.helpers.listenerProtocol" -}}
+{{- $value := .value | default "TLS" | toString | upper -}}
+{{- if not (has $value (list "TLS" "HTTPS")) -}}
+{{- fail (printf "%s must be TLS or HTTPS, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Route Kind by listener protocol. Param: the canonical protocol string.
+TLS -> TLSRoute, HTTPS -> HTTPRoute.
+*/}}
+{{- define "egress-gateway.helpers.routeKind" -}}
+{{- if eq . "HTTPS" -}}HTTPRoute{{- else -}}TLSRoute{{- end -}}
+{{- end -}}
+
+{{/*
+apiVersion for a route by its Kind. Param: the canonical route Kind.
+HTTPRoute is GA (v1); TLSRoute is still v1alpha2.
+*/}}
+{{- define "egress-gateway.helpers.routeApiVersion" -}}
+{{- if eq . "HTTPRoute" -}}gateway.networking.k8s.io/v1{{- else -}}gateway.networking.k8s.io/v1alpha2{{- end -}}
+{{- end -}}
+
+{{/*
 Selector labels - stable workload identification.
 */}}
 {{- define "egress-gateway.helpers.app.selectorLabels" -}}
