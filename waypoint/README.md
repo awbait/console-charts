@@ -1,6 +1,6 @@
-# waypoint — usage
+# waypoint - usage
 
-Чарт разворачивает Istio ambient **waypoint proxy** — `Gateway` (Gateway API,
+Чарт разворачивает Istio ambient **waypoint proxy** - `Gateway` (Gateway API,
 класс `istio-waypoint`) с listener'ом mesh-трафика (HBONE, порт 15008).
 
 | Секция         | Что генерирует                          | Когда использовать                       |
@@ -91,5 +91,5 @@ helm template release-name . [-f my-values.yaml]
 helm install  release-name . [-f my-values.yaml]
 ```
 
-Полный reference всех параметров — в `values.yaml`. Минимальный пример —
+Полный reference всех параметров - в `values.yaml`. Минимальный пример -
 в `minimal-values.yaml`.

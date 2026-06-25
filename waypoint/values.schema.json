@@ -16,18 +16,18 @@
   "properties": {
     "naming": {
       "title": "Naming tags",
-      "description": "Общие теги для генерации имён ресурсов по конвенции {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}. kindShort: wp.",
+      "description": "Common tags for generating resource names by the convention {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}. kindShort: wp.",
       "$ref": "#/definitions/naming"
     },
     "generic": {
       "title": "Generic settings",
-      "description": "Общие labels/annotations, которые применяются ко всем ресурсам chart.",
+      "description": "Common labels/annotations applied to all chart resources.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
     },
     "waypoints": {
       "title": "Waypoints",
-      "description": "Список waypoint-прокси. Каждый элемент создаёт Gateway класса istio-waypoint (HBONE/15008).",
+      "description": "List of waypoint proxies. Each item creates a Gateway of class istio-waypoint (HBONE/15008).",
       "type": "array",
       "items": {
         "$ref": "#/definitions/waypoint"
@@ -50,14 +50,14 @@
     "k8sName": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      "description": "Kubernetes DNS label: строчные буквы, цифры и дефисы; без дефиса в начале/конце."
+      "description": "Kubernetes DNS label: lower-case letters, digits and hyphens; no leading/trailing hyphen."
     },
     "shortToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
       "maxLength": 6,
-      "description": "DNS-токен 2..6 символов: строчные буквы, цифры и дефисы; без дефиса в начале/конце."
+      "description": "DNS token 2..6 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
     },
     "tplStringMap": {
       "type": "object",
@@ -76,17 +76,17 @@
       "properties": {
         "instanceTag": {
           "title": "instanceTag",
-          "description": "Тег инстанса (таблица 50). Required, DNS-формат lower-case.",
+          "description": "Instance tag (table 50). Required, lower-case DNS format.",
           "$ref": "#/definitions/k8sName"
         },
         "clusterTag": {
           "title": "clusterTag",
-          "description": "Тег кластера (таблица 52). Required, DNS-формат lower-case.",
+          "description": "Cluster tag (table 52). Required, lower-case DNS format.",
           "$ref": "#/definitions/k8sName"
         },
         "projectTag": {
           "title": "projectTag",
-          "description": "Тег проекта. Required, 2..6 символов, DNS-формат lower-case.",
+          "description": "Project tag. Required, 2..6 characters, lower-case DNS format.",
           "$ref": "#/definitions/shortToken"
         }
       },
@@ -106,12 +106,12 @@
       "properties": {
         "labels": {
           "title": "Common labels",
-          "description": "Общие labels для всех ресурсов chart. Результат: metadata.labels.",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
           "$ref": "#/definitions/tplStringMap"
         },
         "annotations": {
           "title": "Common annotations",
-          "description": "Общие annotations для всех ресурсов chart. Результат: metadata.annotations.",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
           "$ref": "#/definitions/tplStringMap"
         }
       }
@@ -127,18 +127,18 @@
       "properties": {
         "name": {
           "title": "name",
-          "description": "Имя waypoint, 2..6 символов. {name} в имени Gateway (kindShort wp).",
+          "description": "Waypoint name, 2..6 characters. {name} in the Gateway name (kindShort wp).",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = создавать Gateway; false = пропустить.",
+          "description": "true = create the Gateway; false = skip.",
           "type": "boolean",
           "default": true
         },
         "for": {
           "title": "for",
-          "description": "istio.io/waypoint-for: область перехвата waypoint'ом.",
+          "description": "istio.io/waypoint-for: the waypoint interception scope.",
           "type": "string",
           "enum": [
             "service",

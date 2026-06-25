@@ -1,54 +1,14 @@
-# ============================================================================
-#  Helm chart: waypoint — reference values.yaml
-#  Чарт разворачивает Istio ambient waypoint proxy (Gateway API, класс
-#  istio-waypoint, listener HBONE/15008). Одна секция:
-#
-#    waypoints[] — список waypoint'ов. На каждый элемент создаётся Gateway.
-#
-#  Конвенция именования ресурсов:
-#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-#  kindShort: wp (waypoint Gateway).
-# ============================================================================
+# waypoint - default values (minimum for render to pass).
+# By default no waypoints are created (the list is empty).
+# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
 
-
-# ----------------------------------------------------------------------------
-# naming — общие теги для имён ресурсов (см. конвенцию выше)
-# ----------------------------------------------------------------------------
-# instanceTag / clusterTag / projectTag задаются один раз на релиз.
-# kindShort подставляется автоматически (wp). name — на каждый waypoint
-# (2..6 символов, DNS-формат).
 naming:
-  # Тег инстанса (таблица 50). Required, DNS-формат lower-case.
-  instanceTag: ru1
-
-  # Тег кластера (таблица 52). Required, DNS-формат lower-case.
-  clusterTag: k8s1
-
-  # Тег проекта. Required, 2..6 символов, DNS-формат lower-case.
-  projectTag: nbox
+  instanceTag: ru1     # required, lower-case DNS format
+  clusterTag: k8s1     # required, lower-case DNS format
+  projectTag: nbox     # required, 2..6 characters
 
 generic:
-  # Общие labels для всех ресурсов чарта.
-  labels:
-    environment: production
-    team: platform
+  labels: {}
+  annotations: {}
 
-  # Общие annotations для всех ресурсов чарта.
-  annotations:
-    owner: platform-team
-    monitoring: "true"
-
-
-# ============================================================================
-# waypoints — список waypoint-прокси (Gateway на каждый элемент)
-# ============================================================================
-# Pod'ы/сервисы привязываются к waypoint через label
-#   istio.io/use-waypoint: {instanceTag}-{clusterTag}-wp-{projectTag}-{name}
-#   name    — required, 2..6 символов; {name} в имени Gateway
-#   enabled — default true; false → Gateway не создаётся
-#   for     — область перехвата (istio.io/waypoint-for):
-#             service (default) | workload | all
-waypoints:
-  - name: mesh
-    enabled: true
-    for: service
+waypoints: []
