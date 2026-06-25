@@ -1,5 +1,5 @@
-ingress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
-Конвенция имён: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+ingress-gateway ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
+Naming convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
 
 {{ $hasGw := false -}}
 {{- range .Values.gateways }}{{ if eq (include "ingress-gateway.helpers.app.enabled" .) "true" }}{{ $hasGw = true }}{{ end }}{{ end -}}
@@ -7,7 +7,7 @@ ingress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Relea
 Gateways (Gateway + ConfigMap):
 {{- range $gw := .Values.gateways }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gw) "true" }}
-  • {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gw.name "context" $) }}
+  - {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gw.name "context" $) }}
     {{- range $gw.listeners }}
       - {{ .name }} {{ .protocol }}:{{ .port }}{{ with .hostname }} ({{ . }}){{ end }}
     {{- end }}
@@ -22,15 +22,15 @@ Gateways (Gateway + ConfigMap):
 Routes:
 {{- range $r := .Values.xroutes }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $r) "true" }}
-  • {{ $r.kind | default "HTTPRoute" }} {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" ($r.kind | default "HTTPRoute") "name" $r.name "context" $) }}{{ with $r.hostnames }} → {{ join ", " . }}{{ end }}
+  - {{ $r.kind | default "HTTPRoute" }} {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" ($r.kind | default "HTTPRoute") "name" $r.name "context" $) }}{{ with $r.hostnames }} -> {{ join ", " . }}{{ end }}
 {{- end }}
 {{- end }}
 {{- end }}
 
 {{- if ($.Values.oidcAuth).enabled }}
 
-OIDC: включён (oauth2-proxy + Keycloak). Проверьте issuer и доступность oauth2-proxy.
+OIDC: enabled (oauth2-proxy + Keycloak). Check the issuer and oauth2-proxy availability.
 {{- end }}
 
-Проверка:
+Check:
   kubectl -n {{ .Release.Namespace }} get gateway,httproute,grpcroute,tlsroute,tcproute,udproute,configmap,networkpolicy,authorizationpolicy -l app.kubernetes.io/instance={{ .Release.Name }}

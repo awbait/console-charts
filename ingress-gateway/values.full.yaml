@@ -1,67 +1,67 @@
 # ============================================================================
-#  Helm chart: ingress-gateway — reference values.yaml
-#  Все параметры с описанием. Чарт разворачивает ingress на базе Istio /
-#  Gateway API. Независимые секции (можно использовать любую комбинацию):
+#  Helm chart: ingress-gateway - reference values.yaml
+#  All parameters with descriptions. The chart deploys an ingress on top of
+#  Istio / Gateway API. Independent sections (any combination can be used):
 #
-#    gateways[]           — Gateway (Gateway API) + infrastructure ConfigMap
-#                           (Deployment/Service/HPA авто-создаваемого workload).
-#    xroutes[]            — Route (HTTP/GRPC/TLS/TCP/UDP) к backend-сервисам.
-#    networkPolicy        — NetworkPolicy для workload каждого Gateway.
-#    authorizationPolicy  — AuthorizationPolicy (Istio) для workload Gateway.
-#    oidcAuth             — OIDC через oauth2-proxy + Keycloak (опционально).
+#    gateways[]           - Gateway (Gateway API) + infrastructure ConfigMap
+#                           (Deployment/Service/HPA of the auto-created workload).
+#    xroutes[]            - Route (HTTP/GRPC/TLS/TCP/UDP) to backend services.
+#    networkPolicy        - NetworkPolicy for the workload of each Gateway.
+#    authorizationPolicy  - AuthorizationPolicy (Istio) for the Gateway workload.
+#    oidcAuth             - OIDC via oauth2-proxy + Keycloak (optional).
 #
-#  Конвенция именования ресурсов:
+#  Resource naming convention:
 #    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
 # ============================================================================
 
 
 # ----------------------------------------------------------------------------
-# naming — общие теги для имён ресурсов (см. конвенцию выше)
+# naming - common tags for resource names (see convention above)
 # ----------------------------------------------------------------------------
-# instanceTag / clusterTag / projectTag задаются один раз на релиз.
-# kindShort подставляется автоматически по типу ресурса:
-#   igw — Gateway              hr  — HTTPRoute        tr  — TLSRoute
-#   cm  — ConfigMap            gr  — GRPCRoute        tcr — TCPRoute
-#   np  — NetworkPolicy        ur  — UDPRoute
-#   ap  — AuthorizationPolicy
-# name задаётся на каждый Gateway/Route (2..6 символов, DNS-формат).
+# instanceTag / clusterTag / projectTag are set once per release.
+# kindShort is substituted automatically by resource type:
+#   igw - Gateway              hr  - HTTPRoute        tr  - TLSRoute
+#   cm  - ConfigMap            gr  - GRPCRoute        tcr - TCPRoute
+#   np  - NetworkPolicy        ur  - UDPRoute
+#   ap  - AuthorizationPolicy
+# name is set per Gateway/Route (2..6 characters, DNS format).
 naming:
-  # Тег инстанса (таблица 50). Required, DNS-формат lower-case.
+  # Instance tag (table 50). Required, DNS format lower-case.
   instanceTag: ru1
 
-  # Тег кластера (таблица 52). Required, DNS-формат lower-case.
+  # Cluster tag (table 52). Required, DNS format lower-case.
   clusterTag: k8s1
 
-  # Тег проекта. Required, 2..6 символов, DNS-формат lower-case.
+  # Project tag. Required, 2..6 characters, DNS format lower-case.
   projectTag: nbox
 
 generic:
-  # Общие labels для всех ресурсов чарта.
+  # Common labels for all chart resources.
   labels:
     environment: production
     team: platform
 
-  # Общие annotations для всех ресурсов чарта.
+  # Common annotations for all chart resources.
   annotations:
     owner: platform-team
     monitoring: "true"
 
 
 # ============================================================================
-# authorizationPolicy — Istio AuthorizationPolicy для workload Gateway
+# authorizationPolicy - Istio AuthorizationPolicy for the Gateway workload
 # ============================================================================
-# enabled: true → на каждый включённый Gateway создаётся AuthorizationPolicy
-# (по умолчанию ALLOW для 0.0.0.0/0). Тонкая настройка правил — в фазе доработки.
+# enabled: true -> an AuthorizationPolicy is created for each enabled Gateway
+# (ALLOW for 0.0.0.0/0 by default). Fine-grained rule tuning is under development.
 authorizationPolicy:
   enabled: true
 
 
 # ============================================================================
-# networkPolicy — Kubernetes NetworkPolicy для workload Gateway
+# networkPolicy - Kubernetes NetworkPolicy for the Gateway workload
 # ============================================================================
-# enabled: true → на каждый включённый Gateway создаётся NetworkPolicy.
-# Ingress по умолчанию разрешён на служебные порты Istio (80/443/15020/15021/
-# 15090). egress задаётся пользователем и ОБЯЗАТЕЛЕН при enabled: true.
+# enabled: true -> a NetworkPolicy is created for each enabled Gateway.
+# Ingress is by default allowed on the Istio service ports (80/443/15020/15021/
+# 15090). egress is provided by the user and is REQUIRED when enabled: true.
 networkPolicy:
   enabled: true
   egress:
@@ -88,28 +88,28 @@ networkPolicy:
 
 
 # ============================================================================
-# gateways — список Gateway (Gateway + ConfigMap на каждый элемент)
+# gateways - list of Gateway (Gateway + ConfigMap per element)
 # ============================================================================
-#   name        — required, 2..6 символов; {name} в имени Gateway/ConfigMap,
-#                 ссылка из xroutes[].parentRefs[].gateway
-#   enabled     — default true; false → Gateway + ConfigMap не создаются
-#   ipAddress   — статический IP LoadBalancer (→ аннотация MetalLB в ConfigMap)
-#   hpa         — HorizontalPodAutoscaler для авто-создаваемого Deployment
-#   resources   — resources контейнера istio-proxy (→ ConfigMap.data.deployment)
-#   listeners[] — список listener'ов:
-#     name          — имя listener (sectionName в parentRefs); не ограничено 2..6
-#     port/protocol — required (HTTP/HTTPS/TCP/UDP/TLS)
-#     hostname      — для HTTPS/TLS обязателен
-#     tlsMode       — Terminate (HTTPS по умолч.) | Passthrough (TLS по умолч.)
-#     tlsSecretName — Secret с сертификатом для tlsMode: Terminate. НЕ обязателен,
-#                     если hostname подходит под авто-генерацию секрета (ниже).
-#     allowedRoutes — правила допуска Route к listener
+#   name        - required, 2..6 characters; {name} in the Gateway/ConfigMap name,
+#                 referenced from xroutes[].parentRefs[].gateway
+#   enabled     - default true; false -> Gateway + ConfigMap are not created
+#   ipAddress   - static LoadBalancer IP (-> MetalLB annotation in ConfigMap)
+#   hpa         - HorizontalPodAutoscaler for the auto-created Deployment
+#   resources   - resources of the istio-proxy container (-> ConfigMap.data.deployment)
+#   listeners[] - list of listeners:
+#     name          - listener name (sectionName in parentRefs); not limited to 2..6
+#     port/protocol - required (HTTP/HTTPS/TCP/UDP/TLS)
+#     hostname      - required for HTTPS/TLS
+#     tlsMode       - Terminate (HTTPS default) | Passthrough (TLS default)
+#     tlsSecretName - Secret with a certificate for tlsMode: Terminate. NOT required
+#                     if the hostname matches secret auto-generation (below).
+#     allowedRoutes - rules for admitting Routes to the listener
 #
-# Авто-генерация TLS-секрета (tlsMode: Terminate): по hostname listener'а
-# создаётся Secret type kubernetes.io/tls (cert/key подставляете сами):
-#   *.idp.ecpk.test → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls
-#   *edp.ecpk.test  → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls
-#   прочие hostname → секрет не создаётся, нужен tlsSecretName/certificateRefs.
+# TLS secret auto-generation (tlsMode: Terminate): by the listener hostname a
+# Secret of type kubernetes.io/tls is created (you supply cert/key yourself):
+#   *.idp.ecpk.test -> {instanceTag}-{clusterTag}-secret-{projectTag}-idptls
+#   *edp.ecpk.test  -> {instanceTag}-{clusterTag}-secret-{projectTag}-edptls
+#   other hostnames -> no secret is created, tlsSecretName/certificateRefs is needed.
 gateways:
   - name: main
     enabled: true
@@ -165,7 +165,7 @@ gateways:
           kinds:
             - kind: GRPCRoute
 
-      # tlsSecretName не задан: hostname *.idp.ecpk.test → авто-секрет
+      # tlsSecretName not set: hostname *.idp.ecpk.test -> auto secret
       # {instanceTag}-{clusterTag}-secret-{projectTag}-idptls.
       - name: idp
         port: 8444
@@ -222,20 +222,20 @@ gateways:
 
 
 # ============================================================================
-# xroutes — список Route (kind задаёт тип; apiVersion выбирается автоматически)
+# xroutes - list of Route (kind sets the type; apiVersion is selected automatically)
 # ============================================================================
-#   name        — required, 2..6 символов; {name} в имени Route
-#   enabled     — default true
-#   kind        — HTTPRoute (default) | GRPCRoute | TLSRoute | TCPRoute | UDPRoute
-#   parentRefs[] — gateway (= gateways[].name) + sectionName (= listener.name)
-#   hostnames[] — для HTTP/GRPC/TLS (для TLS — SNI)
-#   rules[]     — matches/filters только для HTTP/GRPC; backendRefs обязательны
-#                 (name/port; namespace и weight опционально)
+#   name        - required, 2..6 characters; {name} in the Route name
+#   enabled     - default true
+#   kind        - HTTPRoute (default) | GRPCRoute | TLSRoute | TCPRoute | UDPRoute
+#   parentRefs[] - gateway (= gateways[].name) + sectionName (= listener.name)
+#   hostnames[] - for HTTP/GRPC/TLS (for TLS - SNI)
+#   rules[]     - matches/filters only for HTTP/GRPC; backendRefs are required
+#                 (name/port; namespace and weight are optional)
 #
-# Упрощения при ЕДИНСТВЕННОМ включённом Gateway (в этом примере их два, поэтому
-# здесь gateway указывается явно):
-#   - parentRefs[].gateway можно опустить — подставится имя этого Gateway;
-#   - hostnames можно опустить — берутся из listener'ов по parentRefs[].sectionName.
+# Simplifications with a SINGLE enabled Gateway (in this example there are two, so
+# here the gateway is specified explicitly):
+#   - parentRefs[].gateway may be omitted - the name of this Gateway is substituted;
+#   - hostnames may be omitted - taken from the listeners by parentRefs[].sectionName.
 xroutes:
   - name: app
     enabled: true
@@ -348,11 +348,11 @@ xroutes:
 
 
 # ============================================================================
-# oidcAuth — OIDC через oauth2-proxy + Keycloak (опционально)
+# oidcAuth - OIDC via oauth2-proxy + Keycloak (optional)
 # ============================================================================
-# enabled: false по умолчанию. Имена ресурсов — пользовательские (вне 5-частной
-# конвенции; уточняется при доработке). При enabled: true обязательны
-# application, gateway, groupsPolicy.allowedGroups, keycloak.{issuer,jwksUri}.
+# enabled: false by default. Resource names are user-defined (outside the 5-part
+# convention; to be refined during development). When enabled: true the following
+# are required: application, gateway, groupsPolicy.allowedGroups, keycloak.{issuer,jwksUri}.
 oidcAuth:
   enabled: false
 

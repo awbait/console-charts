@@ -19,6 +19,11 @@
 
 ---
 
+## [1.3.1] - 2026-06-25
+
+### Changed
+- Комментарии в `values.yaml`/`values.full.yaml`/`values.minimal.yaml`, `values.schema.json` и `NOTES.txt` переведены на английский (в исходниках чарта - без кириллицы).
+
 ## [1.3.0] - 2026-06-24
 
 ### Added

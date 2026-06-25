@@ -1,13 +1,13 @@
 {{/*
-ServiceEntry — генерируется из listener'ов egressGateway (по одному на listener).
-Внешний сервис описывается прямо в listener:
-  hostname  → spec.hosts и backend в TLSRoute
-  port      → spec.ports[].number
-  protocol  → spec.ports[].protocol (default TLS)
-  addresses → статические IP: заданы → resolution STATIC + endpoints,
-              иначе → resolution DNS
-Имя ресурса по конвенции (kindShort egw, name = listener.name).
-enabled: false на шлюзе → его listener'ы пропускаются.
+ServiceEntry - generated from egressGateway listeners (one per listener).
+The external service is described directly in the listener:
+  hostname  -> spec.hosts and the TLSRoute backend
+  port      -> spec.ports[].number
+  protocol  -> spec.ports[].protocol (default TLS)
+  addresses -> static IPs: set -> resolution STATIC + endpoints,
+               otherwise -> resolution DNS
+Resource name by convention (kindShort egw, name = listener.name).
+enabled: false on the gateway -> its listeners are skipped.
 */}}
 {{- range $gwIndex, $gw := .Values.egressGateway }}
 {{- if ($gw.enabled | default true) }}

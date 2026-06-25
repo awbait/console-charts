@@ -1,9 +1,9 @@
 {{/*
-Waypoint proxy (Gateway API, класс istio-waypoint) — по одному на элемент
-списка waypoints. Слушает mesh-трафик (HBONE, порт 15008). Label
-istio.io/waypoint-for определяет область перехвата (service|workload|all).
-Pod'ы/сервисы привязываются к waypoint через label
-istio.io/use-waypoint: <имя этого Gateway>. Элемент пропускается при enabled: false.
+Waypoint proxy (Gateway API, class istio-waypoint) - one per item of the
+waypoints list. Listens for mesh traffic (HBONE, port 15008). The label
+istio.io/waypoint-for sets the interception scope (service|workload|all).
+Pods/services are bound to a waypoint via the label
+istio.io/use-waypoint: <name of this Gateway>. An item is skipped when enabled: false.
 */}}
 {{- $root := . -}}
 {{- range $index, $waypoint := $root.Values.waypoints }}

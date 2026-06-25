@@ -1,13 +1,13 @@
 {{/*
-Базовое имя чарта (с учётом nameOverride).
+Base chart name (respecting nameOverride).
 */}}
 {{- define "console.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Полное имя релиза. fullnameOverride имеет приоритет; иначе release-name +
-имя чарта (без удвоения, если release уже содержит имя).
+Full release name. fullnameOverride takes precedence; otherwise release-name +
+chart name (without doubling if release already contains the name).
 */}}
 {{- define "console.fullname" -}}
 {{- if .Values.fullnameOverride -}}
@@ -23,14 +23,14 @@
 {{- end -}}
 
 {{/*
-Значение для метки helm.sh/chart.
+Value for the helm.sh/chart label.
 */}}
 {{- define "console.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Имена компонентов.
+Component names.
 */}}
 {{- define "console.portal.fullname" -}}
 {{- printf "%s-portal" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
@@ -41,7 +41,7 @@
 {{- end -}}
 
 {{/*
-Имя Secret портала: внешний (existingSecret) либо генерируемый.
+Portal Secret name: external (existingSecret) or generated.
 */}}
 {{- define "console.portal.secretName" -}}
 {{- if .Values.portal.existingSecret -}}
@@ -52,7 +52,7 @@
 {{- end -}}
 
 {{/*
-Имя Secret коллектора: внешний (existingSecret) либо генерируемый.
+Collector Secret name: external (existingSecret) or generated.
 */}}
 {{- define "console.collector.secretName" -}}
 {{- if .Values.collector.existingSecret -}}
@@ -63,7 +63,7 @@
 {{- end -}}
 
 {{/*
-Имя ServiceAccount портала.
+Portal ServiceAccount name.
 */}}
 {{- define "console.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
@@ -74,7 +74,7 @@
 {{- end -}}
 
 {{/*
-Имя ServiceAccount коллектора (отдельный SA: ему нужен read-only RBAC на кластер).
+Collector ServiceAccount name (separate SA: it needs read-only RBAC on the cluster).
 */}}
 {{- define "console.collector.serviceAccountName" -}}
 {{- if .Values.collector.serviceAccount.create -}}
@@ -85,7 +85,7 @@
 {{- end -}}
 
 {{/*
-Общие метки.
+Common labels.
 */}}
 {{- define "console.labels" -}}
 helm.sh/chart: {{ include "console.chart" . }}
@@ -97,7 +97,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Selector-метки компонентов (стабильны между релизами одной версии).
+Component selector labels (stable across releases of the same version).
 */}}
 {{- define "console.portal.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "console.name" . }}
@@ -112,10 +112,10 @@ app.kubernetes.io/component: collector
 {{- end -}}
 
 {{/*
-Сборка ссылки на образ: [registry/]repository:tag. Параметры (dict):
-  .image  - map с repository/tag/pullPolicy
-  .registry - глобальный префикс реестра (может быть пустым)
-  .defaultTag - tag по умолчанию (обычно .Chart.AppVersion)
+Build the image reference: [registry/]repository:tag. Parameters (dict):
+  .image  - map with repository/tag/pullPolicy
+  .registry - global registry prefix (may be empty)
+  .defaultTag - default tag (usually .Chart.AppVersion)
 */}}
 {{- define "console.image" -}}
 {{- $tag := .image.tag | default .defaultTag -}}

@@ -1,9 +1,9 @@
 {{/*
-ConfigMap для waypoint operator — по одному на элемент списка egressGateway.
-Носит то же имя, что и Gateway (kindShort egw); на него ссылается Gateway
-через parametersRef (см. gateway.yaml).
-data.service — патч service waypoint'а: выключаем NodePort и удаляем порт 15021.
-Элемент пропускается при enabled: false.
+ConfigMap for the waypoint operator - one per egressGateway list item.
+Shares the same name as the Gateway (kindShort egw); the Gateway references it
+via parametersRef (see gateway.yaml).
+data.service - patch for the waypoint Service: disable NodePort and drop port 15021.
+The item is skipped when enabled: false.
 */}}
 {{- range $gwIndex, $gw := .Values.egressGateway }}
 {{- if ($gw.enabled | default true) }}

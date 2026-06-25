@@ -1,20 +1,20 @@
 {{/*
-Имя чарта для helm.sh/chart.
+Chart name for helm.sh/chart.
 */}}
 {{- define "waypoint.helpers.app.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Базовое имя приложения (для labels) = projectTag.
+Base application name (for labels) = projectTag.
 */}}
 {{- define "waypoint.helpers.app.name" -}}
 {{- required "naming.projectTag is required" (.Values.naming | default dict).projectTag | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Валидация DNS-тега (instanceTag, clusterTag). Параметры: .label, .value.
-Возвращает значение в lower-case.
+DNS tag validation (instanceTag, clusterTag). Parameters: .label, .value.
+Returns the value in lower-case.
 */}}
 {{- define "waypoint.helpers.tag" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -25,8 +25,8 @@
 {{- end -}}
 
 {{/*
-Валидация короткого 2..6-символьного DNS-тега (projectTag, name).
-Параметры: .label, .value. Возвращает значение в lower-case.
+Short 2..6-character DNS tag validation (projectTag, name).
+Parameters: .label, .value. Returns the value in lower-case.
 */}}
 {{- define "waypoint.helpers.shortToken" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -40,10 +40,10 @@
 {{- end -}}
 
 {{/*
-Имя ресурса по конвенции:
+Resource name by convention:
   {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-Параметры: .context, .kindShort (wp), .name (2..6 символов).
-Итог обрезается до 63 символов. Пример: ru1-k8s1-wp-nbox-mesh.
+Parameters: .context, .kindShort (wp), .name (2..6 characters).
+The result is truncated to 63 characters. Example: ru1-k8s1-wp-nbox-mesh.
 */}}
 {{- define "waypoint.helpers.app.resourceName" -}}
 {{- $naming := .context.Values.naming | default dict -}}
@@ -59,7 +59,7 @@
 {{- end -}}
 
 {{/*
-Selector labels — стабильная идентификация ресурсов чарта.
+Selector labels - stable identification of chart resources.
 */}}
 {{- define "waypoint.helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "waypoint.helpers.app.name" . }}
@@ -68,7 +68,7 @@ app: {{ include "waypoint.helpers.app.name" . }}
 {{- end -}}
 
 {{/*
-Стандартные labels: selector + chart/managed-by/version + generic.labels.
+Standard labels: selector + chart/managed-by/version + generic.labels.
 */}}
 {{- define "waypoint.helpers.app.labels" -}}
 {{ include "waypoint.helpers.app.selectorLabels" . }}
@@ -83,7 +83,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Общие annotations (generic.annotations). Пусто → ничего не выводит.
+Common annotations (generic.annotations). Empty -> outputs nothing.
 */}}
 {{- define "waypoint.helpers.app.genericAnnotations" -}}
 {{- with (.Values.generic | default dict).annotations -}}
@@ -92,9 +92,9 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Признак включённости сущности (enabled). Параметр: entity (map).
-Корректно учитывает явный enabled: false (в отличие от `| default true`).
-enabled отсутствует → "true"; enabled: false → "" (выключено); иначе по значению.
+Entity enabled flag (enabled). Parameter: entity (map).
+Correctly honors an explicit enabled: false (unlike `| default true`).
+enabled missing -> "true"; enabled: false -> "" (disabled); otherwise by value.
 */}}
 {{- define "waypoint.helpers.app.enabled" -}}
 {{- $entity := . | default dict -}}
@@ -106,8 +106,8 @@ true
 {{- end -}}
 
 {{/*
-Валидация значения istio.io/waypoint-for. Параметр: value.
-Допустимо: service (default) | workload | all.
+Validation of the istio.io/waypoint-for value. Parameter: value.
+Allowed: service (default) | workload | all.
 */}}
 {{- define "waypoint.helpers.app.for" -}}
 {{- $value := . | default "service" | toString | lower -}}
@@ -118,7 +118,7 @@ true
 {{- end -}}
 
 {{/*
-Универсальный рендеринг шаблонных значений. Параметры: .value, .context.
+Generic rendering of templated values. Parameters: .value, .context.
 */}}
 {{- define "waypoint.helpers.tplvalues.render" -}}
 {{- if typeIs "string" .value -}}

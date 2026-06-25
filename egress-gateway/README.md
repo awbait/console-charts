@@ -1,4 +1,4 @@
-# egress-gateway — usage
+# egress-gateway - usage
 
 Чарт разворачивает egress через Istio Waypoint / Gateway API и kube-ovn
 `VpcEgressGateway`. Из независимых секций `values.yaml` генерируются ресурсы.
@@ -28,8 +28,8 @@
 | `projectTag`  | `naming.projectTag`               | 2..6 символов, DNS, required    |
 | `name`        | поле `name` ресурса               | 2..6 символов, DNS, required    |
 
-`kindShort` подставляется автоматически: `egw` — Istio Egress (Gateway,
-ConfigMap, ServiceEntry, TLSRoute), `veg` — VPC Egress (VpcEgressGateway).
+`kindShort` подставляется автоматически: `egw` - Istio Egress (Gateway,
+ConfigMap, ServiceEntry, TLSRoute), `veg` - VPC Egress (VpcEgressGateway).
 `igw` (Istio Ingress) в этом чарте не используется. ConfigMap носит то же имя,
 что и Gateway. Итог обрезается до 63 символов.
 
@@ -39,7 +39,7 @@ ConfigMap, ServiceEntry, TLSRoute), `veg` — VPC Egress (VpcEgressGateway).
 {instanceTag}-{clusterTag}-egw-{parentGatewayName}-{projectTag}-{name}
 ```
 
-`parentGatewayName` — `name` совпавшего по hostname Gateway (2..6). На каждый
+`parentGatewayName` - `name` совпавшего по hostname Gateway (2..6). На каждый
 совпавший Gateway создаётся отдельный TLSRoute. Пример: `ru1-k8s1-egw-wp-nbox-rnx`.
 
 ---
@@ -47,11 +47,11 @@ ConfigMap, ServiceEntry, TLSRoute), `veg` — VPC Egress (VpcEgressGateway).
 ## Quick start
 
 ```sh
-helm template release-name . -f minimal-values.yaml
-helm install  release-name . -f minimal-values.yaml
+helm template release-name . -f values.minimal.yaml
+helm install  release-name . -f values.minimal.yaml
 ```
 
-Минимальный пример (`minimal-values.yaml`) создаёт: ConfigMap, Gateway с одним
+Минимальный пример (`values.minimal.yaml`) создаёт: ConfigMap, Gateway с одним
 TLS listener, один ServiceEntry, один TLSRoute и один VpcEgressGateway.
 
 ---
@@ -96,13 +96,13 @@ TLS listener, один ServiceEntry, один TLSRoute и один VpcEgressGate
 
 ### `tlsRoutes[]`
 
-Список маршрутов. **`parentRefs` не указываются** — маршрут привязывается к тем
+Список маршрутов. **`parentRefs` не указываются** - маршрут привязывается к тем
 `egressGateway`, у которых есть listener с hostname из `route.hostnames`. На
 **каждый** совпавший Gateway создаётся отдельный TLSRoute (имя включает
 `parentGatewayName`, см. «Конвенция именования»).
 
 `name` (req, 2..6 символов), `enabled` (default true), `hostnames[]` (req),
-`rules[].backendRefs[]` (`name`/`port` — обязательны, `weight` — опционально;
+`rules[].backendRefs[]` (`name`/`port` - обязательны, `weight` - опционально;
 `name` совпадает с host из `ServiceEntry`).
 
 > Labels/annotations на ресурсы задаются только глобально через `generic.labels`
@@ -113,7 +113,7 @@ TLS listener, один ServiceEntry, один TLSRoute и один VpcEgressGate
 
 Захардкожены в `templates/VPCEgressGateway.yaml` (не настраиваются через values):
 `vpc` (`ovn-cluster`), `externalSubnet` (`egress-vip`), `trafficPolicy`
-(`Cluster`), `nodeSelector`, `policies`. Менять — в шаблоне.
+(`Cluster`), `nodeSelector`, `policies`. Менять - в шаблоне.
 
 Пользователь задаёт:
 
@@ -146,5 +146,5 @@ helm template release-name . [-f my-values.yaml]
 helm install  release-name . [-f my-values.yaml]
 ```
 
-Полный reference всех параметров — в `values.yaml`. Минимальный пример —
-в `minimal-values.yaml`.
+Полный reference всех параметров - в `values.full.yaml`. Минимальный пример -
+в `values.minimal.yaml`. `values.yaml` - дефолт (пустые секции, ничего не создаёт).

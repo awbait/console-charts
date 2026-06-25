@@ -1,14 +1,14 @@
 {{/*
-TLSRoute — задаётся явным списком tlsRoutes.
-parentRefs НЕ указываются пользователем, а генерируются: маршрут привязывается
-к тем egressGateway, у которых есть listener с hostname из route.hostnames.
+TLSRoute - defined as an explicit tlsRoutes list.
+parentRefs are NOT set by the user but generated: the route is bound to the
+egressGateway items that have a listener with a hostname from route.hostnames.
 
-На КАЖДЫЙ совпавший Gateway создаётся отдельный TLSRoute (с одним parentRef),
-имя — по конвенции с parentGatewayName:
+A separate TLSRoute (with a single parentRef) is created for EACH matched
+Gateway; the name follows the convention with parentGatewayName:
   {instanceTag}-{clusterTag}-egw-{parentGatewayName}-{projectTag}-{routeName}
-Если ни один listener не совпал — рендер падает.
-Поля: name (2..6), hostnames[], rules[].backendRefs[] (name/port — обязательны,
-weight — опционально). enabled: false → маршрут пропускается.
+If no listener matched, rendering fails.
+Fields: name (2..6), hostnames[], rules[].backendRefs[] (name/port are required,
+weight is optional). enabled: false -> the route is skipped.
 */}}
 {{- range $routeIndex, $route := .Values.tlsRoutes }}
 {{- if ($route.enabled | default true) }}
@@ -62,7 +62,7 @@ spec:
 {{- end }}
 {{- end }}
 {{- if not $matched }}
-{{- fail (printf "tlsRoutes[%d] (%s): ни один egressGateway listener не совпал с hostnames %v; parentRefs не сгенерировать" $routeIndex $routeName $hostnames) }}
+{{- fail (printf "tlsRoutes[%d] (%s): no egressGateway listener matched hostnames %v; cannot generate parentRefs" $routeIndex $routeName $hostnames) }}
 {{- end }}
 {{- end }}
 {{- end }}

@@ -1,20 +1,20 @@
 {{/*
-Имя чарта для helm.sh/chart.
+Chart name for helm.sh/chart.
 */}}
 {{- define "ingress-gateway.helpers.app.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Базовое имя приложения (для labels) = projectTag.
+Base application name (for labels) = projectTag.
 */}}
 {{- define "ingress-gateway.helpers.app.name" -}}
 {{- required "naming.projectTag is required" (.Values.naming | default dict).projectTag | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-Валидация DNS-тега (instanceTag, clusterTag). Параметры: .label, .value.
-Возвращает значение в lower-case.
+DNS tag validation (instanceTag, clusterTag). Parameters: .label, .value.
+Returns the value in lower-case.
 */}}
 {{- define "ingress-gateway.helpers.tag" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -25,8 +25,8 @@
 {{- end -}}
 
 {{/*
-Валидация короткого 2..6-символьного DNS-тега (projectTag, name).
-Параметры: .label, .value. Возвращает значение в lower-case.
+Validation of a short 2..6-character DNS tag (projectTag, name).
+Parameters: .label, .value. Returns the value in lower-case.
 */}}
 {{- define "ingress-gateway.helpers.shortToken" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
@@ -40,10 +40,10 @@
 {{- end -}}
 
 {{/*
-Короткий код типа ресурса (kindShort) по k8s kind. Параметр: kind (строка).
-Допустимые: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
+Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
+Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret). Неизвестный kind → fail.
+tcr (TCPRoute), ur (UDPRoute), secret (Secret). Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
 {{- $kind := required "kind is required" . | toString | lower -}}
@@ -62,11 +62,11 @@ tcr (TCPRoute), ur (UDPRoute), secret (Secret). Неизвестный kind → 
 {{- end -}}
 
 {{/*
-Имя TLS-секрета для listener по hostname (tlsMode: Terminate). Параметры: .hostname, .context.
-Имя ВСЕГДА генерируется автоматически (пользователь не задаёт tlsSecretName):
-  содержит "idp.ecpk.test" → {instanceTag}-{clusterTag}-secret-{projectTag}-idptls (предзаданный wildcard-cert)
-  содержит "edp.ecpk.test" → {instanceTag}-{clusterTag}-secret-{projectTag}-edptls (предзаданный wildcard-cert)
-  иначе                  → {instanceTag}-{clusterTag}-secret-{projectTag}-tls   (пустой секрет / change me)
+TLS secret name for a listener by hostname (tlsMode: Terminate). Parameters: .hostname, .context.
+The name is ALWAYS generated automatically (the user does not set tlsSecretName):
+  contains "idp.ecpk.test" -> {instanceTag}-{clusterTag}-secret-{projectTag}-idptls (predefined wildcard cert)
+  contains "edp.ecpk.test" -> {instanceTag}-{clusterTag}-secret-{projectTag}-edptls (predefined wildcard cert)
+  otherwise              -> {instanceTag}-{clusterTag}-secret-{projectTag}-tls   (empty secret / change me)
 */}}
 {{- define "ingress-gateway.helpers.app.tlsSecretName" -}}
 {{- $hostname := .hostname | default "" | toString | lower -}}
@@ -78,12 +78,12 @@ tcr (TCPRoute), ur (UDPRoute), secret (Secret). Неизвестный kind → 
 {{- end -}}
 
 {{/*
-Имя ресурса по конвенции:
+Resource name by convention:
   {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-Параметры: .context, .kind (k8s kind), .name (2..6 символов).
-kindShort выводится из .kind (см. ingress-gateway.helpers.app.kindShort).
-Итог обрезается до 63 символов.
-Примеры: ru1-k8s1-igw-nbox-main, ru1-k8s1-hr-nbox-app.
+Parameters: .context, .kind (k8s kind), .name (2..6 characters).
+kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
+The result is truncated to 63 characters.
+Examples: ru1-k8s1-igw-nbox-main, ru1-k8s1-hr-nbox-app.
 */}}
 {{- define "ingress-gateway.helpers.app.resourceName" -}}
 {{- $naming := .context.Values.naming | default dict -}}
@@ -96,7 +96,7 @@ kindShort выводится из .kind (см. ingress-gateway.helpers.app.kindS
 {{- end -}}
 
 {{/*
-Selector labels — стабильная идентификация ресурсов чарта.
+Selector labels - stable identification of chart resources.
 */}}
 {{- define "ingress-gateway.helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "ingress-gateway.helpers.app.name" . | quote }}
@@ -105,7 +105,7 @@ app: {{ include "ingress-gateway.helpers.app.name" . | quote }}
 {{- end -}}
 
 {{/*
-Стандартные labels: selector + chart/managed-by/version + generic.labels.
+Standard labels: selector + chart/managed-by/version + generic.labels.
 */}}
 {{- define "ingress-gateway.helpers.app.labels" -}}
 {{ include "ingress-gateway.helpers.app.selectorLabels" . }}
@@ -120,7 +120,7 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Общие annotations (generic.annotations). Пусто → ничего не выводит.
+Common annotations (generic.annotations). Empty -> outputs nothing.
 */}}
 {{- define "ingress-gateway.helpers.app.genericAnnotations" -}}
 {{- range $k, $v := (.Values.generic | default dict).annotations }}
@@ -129,9 +129,9 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end -}}
 
 {{/*
-Признак включённости сущности (enabled). Параметр: entity (map).
-Корректно учитывает явный enabled: false (в отличие от `| default true`).
-enabled отсутствует → "true"; enabled: false → "" (выключено); иначе по значению.
+Entity enabled flag (enabled). Parameter: entity (map).
+Correctly honors an explicit enabled: false (unlike `| default true`).
+enabled missing -> "true"; enabled: false -> "" (disabled); otherwise by value.
 */}}
 {{- define "ingress-gateway.helpers.app.enabled" -}}
 {{- $entity := . | default dict -}}
@@ -143,17 +143,17 @@ true
 {{- end -}}
 
 {{/*
-matchLabels для выбора workload Gateway в NetworkPolicy/AuthorizationPolicy.
-Istio Gateway controller проставляет pod'ам label
-gateway.networking.k8s.io/gateway-name = metadata.name Gateway.
-Параметры: .gatewayResourceName (полное имя Gateway).
+matchLabels for selecting the Gateway workload in NetworkPolicy/AuthorizationPolicy.
+The Istio Gateway controller sets on the pods the label
+gateway.networking.k8s.io/gateway-name = metadata.name of the Gateway.
+Parameters: .gatewayResourceName (full Gateway name).
 */}}
 {{- define "ingress-gateway.helpers.app.gatewayWorkloadSelectorLabels" -}}
 gateway.networking.k8s.io/gateway-name: {{ required "gatewayResourceName is required" .gatewayResourceName | quote }}
 {{- end -}}
 
 {{/*
-Canonical kind для xRoute. Параметры: .kind, .name.
+Canonical kind for xRoute. Parameters: .kind, .name.
 */}}
 {{- define "ingress-gateway.helpers.app.xRouteKind" -}}
 {{- $name := .name | default "<unknown>" -}}
@@ -168,8 +168,8 @@ Canonical kind для xRoute. Параметры: .kind, .name.
 {{- end -}}
 
 {{/*
-apiVersion для xRoute по kind. apiVersion намеренно не берётся из values.
-Параметры: .kind (canonical), .name.
+apiVersion for xRoute by kind. apiVersion is intentionally not taken from values.
+Parameters: .kind (canonical), .name.
 */}}
 {{- define "ingress-gateway.helpers.app.xRouteApiVersion" -}}
 {{- $name := .name | default "<unknown>" -}}
@@ -181,7 +181,7 @@ apiVersion для xRoute по kind. apiVersion намеренно не берё�
 {{- end -}}
 
 {{/*
-Универсальный рендеринг шаблонных значений. Параметры: .value, .context.
+Generic rendering of templated values. Parameters: .value, .context.
 */}}
 {{- define "ingress-gateway.helpers.tplvalues.render" -}}
 {{- if typeIs "string" .value -}}

@@ -1,14 +1,14 @@
 {{/*
-Route-ресурсы (Gateway API) — по одному на элемент списка xroutes.
-kind задаётся в values (HTTPRoute/GRPCRoute/TLSRoute/TCPRoute/UDPRoute),
-apiVersion выбирается автоматически по kind. matches/filters поддерживаются
-только для HTTPRoute/GRPCRoute. backendRefs обязательны.
+Route resources (Gateway API): one per element of the xroutes list.
+kind is set in values (HTTPRoute/GRPCRoute/TLSRoute/TCPRoute/UDPRoute),
+apiVersion is selected automatically by kind. matches/filters are supported
+only for HTTPRoute/GRPCRoute. backendRefs are required.
 
-Упрощения при ЕДИНСТВЕННОМ включённом Gateway:
-  - parentRefs[].gateway можно не указывать — подставляется имя этого Gateway;
-  - hostnames можно не указывать — берутся из listener'ов, на которые ссылается
-    route через parentRefs[].sectionName (для HTTP/GRPC/TLS).
-Элемент пропускается при enabled: false.
+Simplifications with a SINGLE enabled Gateway:
+  - parentRefs[].gateway may be omitted - the name of this Gateway is substituted;
+  - hostnames may be omitted - they are taken from the listeners that the
+    route references via parentRefs[].sectionName (for HTTP/GRPC/TLS).
+The element is skipped when enabled: false.
 */}}
 {{- $root := . -}}
 {{- $enabledGateways := list -}}
@@ -38,13 +38,13 @@ apiVersion выбирается автоматически по kind. matches/fi
 {{- end }}
 {{- range $ruleIndex, $rule := $route.rules }}
 {{- if and (not $supportsMatches) $rule.matches }}
-{{- fail (printf "xroutes[%d].rules[%d].matches is not supported for %s; для TLSRoute используйте hostnames (SNI)" $index $ruleIndex $routeKind) }}
+{{- fail (printf "xroutes[%d].rules[%d].matches is not supported for %s; for TLSRoute use hostnames (SNI)" $index $ruleIndex $routeKind) }}
 {{- end }}
 {{- if and (not $supportsFilters) $rule.filters }}
 {{- fail (printf "xroutes[%d].rules[%d].filters is not supported for %s" $index $ruleIndex $routeKind) }}
 {{- end }}
 {{- end }}
-{{- /* hostnames: явные из values или авто из listener'ов единственного Gateway по sectionName */ -}}
+{{- /* hostnames: explicit from values or auto from the listeners of the single Gateway by sectionName */ -}}
 {{- $effectiveHostnames := $route.hostnames | default list }}
 {{- if and $supportsHostnames (not $route.hostnames) $soleGateway }}
 {{- $sectionNames := list }}
@@ -70,7 +70,7 @@ spec:
     {{- range $parent := $route.parentRefs }}
     {{- $gwRef := $parent.gateway | default $soleGateway }}
     {{- if not $gwRef }}
-    {{- fail (printf "xroutes[%d].parentRefs[].gateway is required (Gateway'ев несколько — укажите явно)" $index) }}
+    {{- fail (printf "xroutes[%d].parentRefs[].gateway is required (multiple Gateways - specify it explicitly)" $index) }}
     {{- end }}
     - group: gateway.networking.k8s.io
       kind: Gateway

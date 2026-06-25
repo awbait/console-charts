@@ -55,16 +55,16 @@ Returns the value lower-cased.
 {{- end -}}
 
 {{/*
-Resource name по конвенции:
+Resource name following the convention:
   {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
 
-Параметры: .context, .shortkind (np|ap), .name (2..6 символов).
+Params: .context, .shortkind (np|ap), .name (2..6 characters).
 
 kindShort:
-- np — NetworkPolicy
-- ap — AuthorizationPolicy
+- np - NetworkPolicy
+- ap - AuthorizationPolicy
 
-Примеры:
+Examples:
 - ru1-k8s1-np-nbox-core
 - ru1-k8s1-ap-nbox-core
 */}}

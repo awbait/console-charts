@@ -1,6 +1,6 @@
-# managed-namespace - дефолтные значения (минимум, чтобы рендер проходил).
-# При global.enable=false чарт не создаёт ни одного ресурса.
-# Полный справочник параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
+# managed-namespace - default values (minimal, so rendering passes).
+# When global.enable=false the chart creates no resources.
+# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
 
 global:
   enable: false

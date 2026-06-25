@@ -4,10 +4,10 @@
   "properties": {
     "global": {
       "additionalProperties": false,
-      "description": "Глобальные настройки чарта",
+      "description": "Global chart settings",
       "properties": {
         "enable": {
-          "description": "Включить создание ресурсов чарта",
+          "description": "Enable creation of chart resources",
           "default": false,
           "title": "Enable",
           "type": "boolean",
@@ -20,55 +20,55 @@
     },
     "namespace": {
       "additionalProperties": false,
-      "description": "Значения для создаваемого Namespace",
+      "description": "Values for the Namespace being created",
       "properties": {
         "namespaceName": {
-          "description": "Имя создаваемого Namespace. Должно соответствовать формату: <product>-<env>-ns-<purpose>",
+          "description": "Name of the Namespace being created. Must match the format: <product>-<env>-ns-<purpose>",
           "default": "project-dev-ns-default",
-          "title": "Имя Namespace",
+          "title": "Namespace name",
           "type": "string"
         },
         "projectName": {
-          "description": "Имя проекта, в котором создаётся Namespace",
+          "description": "Name of the project the Namespace is created in",
           "default": "project",
-          "title": "Имя Проекта",
+          "title": "Project name",
           "type": "string"
         },
         "clusterName": {
-          "description": "Имя кластера Alauda, в котором создаётся Namespace",
+          "description": "Name of the Alauda cluster the Namespace is created in",
           "default": "common",
-          "title": "Имя кластера Alauda",
+          "title": "Alauda cluster name",
           "type": "string"
         },
         "displayName": {
-          "description": "Отображаемое имя ресурса Namespace",
+          "description": "Display name of the Namespace resource",
           "default": "Managed namespace",
-          "title": "Отображаемое имя Namespace",
+          "title": "Namespace display name",
           "type": "string"
         },
         "creator": {
-          "description": "Создатель Namespace (annotation cpaas.io/creator). При заказе из консоли подставляется console",
+          "description": "Namespace creator (annotation cpaas.io/creator). On order from the console console is substituted",
           "default": "lk",
-          "title": "Создатель",
+          "title": "Creator",
           "type": "string",
           "ui:widget": "hidden"
         },
         "role": {
-          "description": "Роль namespace. При выборе ставится лейбл namespace-role",
-          "title": "Роль namespace",
+          "description": "Namespace role. When selected the namespace-role label is set",
+          "title": "Namespace role",
           "type": "string",
           "enum": ["ingress", "egress", "other"]
         },
         "annotations": {
-          "description": "Словарь аннотаций ресурса Namespace",
+          "description": "Dictionary of annotations for the Namespace resource",
           "default": {},
-          "title": "Аннотации",
+          "title": "Annotations",
           "type": "object"
         },
         "labels": {
-          "description": "Словарь меток ресурса Namespace",
+          "description": "Dictionary of labels for the Namespace resource",
           "default": {},
-          "title": "Метки",
+          "title": "Labels",
           "type": "object"
         }
       },
@@ -81,10 +81,10 @@
     },
     "serviceMesh": {
       "additionalProperties": false,
-      "description": "Интеграция с Service Mesh (Istio ambient). Включается на уровне контура. При enabled=true на Namespace проставляются Istio-лейблы (istio-discovery, istio.io/dataplane-mode=ambient) и аннотация networking.k8s.io/enable-netpol",
+      "description": "Integration with Service Mesh (Istio ambient). Enabled at the environment level. When enabled=true the Namespace gets Istio labels (istio-discovery, istio.io/dataplane-mode=ambient) and the networking.k8s.io/enable-netpol annotation",
       "properties": {
         "enabled": {
-          "description": "Включить Service Mesh для Namespace",
+          "description": "Enable Service Mesh for the Namespace",
           "default": false,
           "title": "Service Mesh",
           "type": "boolean",
@@ -96,23 +96,23 @@
       "ui:widget": "hidden"
     },
     "resourceQuotas": {
-      "description": "Значения для ресурсный квот для создаваемого Namespace",
+      "description": "Values for resource quotas of the Namespace being created",
       "additionalProperties": false,
       "properties": {
         "limits": {
-          "description": "Ресурсные лимиты для создаваемого Namespace",
+          "description": "Resource limits for the Namespace being created",
           "additionalProperties": false,
           "properties": {
             "cpu": {
-              "description": "Лимит ЦПУ для создаваемого Namespace",
+              "description": "CPU limit for the Namespace being created",
               "default": "",
-              "title": "Лимит ЦПУ",
+              "title": "CPU limit",
               "type": "string"
             },
             "memory": {
-              "description": "Лимит оперативной памяти для создаваемого Namespace",
+              "description": "Memory limit for the Namespace being created",
               "default": "",
-              "title": "Лимит оперативной памяти",
+              "title": "Memory limit",
               "type": "string"
             }
           },
@@ -120,30 +120,30 @@
             "cpu",
             "memory"
           ],
-          "title": "Лимиты ресурсов",
+          "title": "Resource limits",
           "type": "object"
         },
         "podsAmount": {
-          "description": "Максимальное количество подов в Namespace. Ограничивается маской подсети",
+          "description": "Maximum number of pods in the Namespace. Limited by the subnet mask",
           "default": 1000,
-          "title": "Количество подов",
+          "title": "Pod count",
           "type": "integer",
           "ui:widget": "hidden"
         },
         "requests": {
-          "description": "Ресурсные запросы для создаваемого Namespace",
+          "description": "Resource requests for the Namespace being created",
           "additionalProperties": false,
           "properties": {
             "cpu": {
-              "description": "Запрос ЦПУ для создаваемого Namespace",
+              "description": "CPU request for the Namespace being created",
               "default": "",
-              "title": "Запрос ЦПУ",
+              "title": "CPU request",
               "type": "string"
             },
             "memory": {
-              "description": "Запрос оперативной памяти для создаваемого Namespace",
+              "description": "Memory request for the Namespace being created",
               "default": "",
-              "title": "Запрос оперативной памяти",
+              "title": "Memory request",
               "type": "string"
             }
           },
@@ -151,24 +151,24 @@
             "cpu",
             "memory"
           ],
-          "title": "Запросы ресурсов",
+          "title": "Resource requests",
           "type": "object"
         },
         "storage": {
-          "description": "Квоты на блочные хранилища для создаваемого Namespace",
+          "description": "Block storage quotas for the Namespace being created",
           "additionalProperties": false,
           "properties": {
             "storages": {
-              "description": "Словарь квот на блочные хранилища. Должен соответствовать формату: $StorageClass: $Quota",
+              "description": "Dictionary of block storage quotas. Must match the format: $StorageClass: $Quota",
               "default": {},
-              "title": "Квоты на блочные хранилища",
+              "title": "Block storage quotas",
               "type": "object"
             }
           },
           "required": [
             "storages"
           ],
-          "title": "Квоты на блочные хранилища",
+          "title": "Block storage quotas",
           "type": "object"
         }
       },
@@ -177,53 +177,53 @@
         "requests",
         "storage"
       ],
-      "title": "Ресурсные квоты",
+      "title": "Resource quotas",
       "type": "object"
     },
     "subnet": {
-      "description": "Значения для подсетей создаваемого Namespace. Должна быть создана как минимум одна подсеть. Допускается создание нескольких подсетей",
+      "description": "Values for subnets of the Namespace being created. At least one subnet must be created. Multiple subnets are allowed",
       "additionalProperties": false,
       "properties": {
         "enable": {
-          "description": "Служебное поле, отвечает за включение создания ресурса Subnet. Включать только при гарантии, что CIDR блок успешно зарезервирован в Netbox",
+          "description": "Service field, controls creation of the Subnet resource. Enable only when the CIDR block is guaranteed to be reserved in Netbox",
           "default": false,
           "title": "Enable",
           "type": "boolean",
           "ui:widget": "hidden"
         },
         "subnets": {
-          "description": "Список подсетей для создаваемого Namespace",
+          "description": "List of subnets for the Namespace being created",
           "additionalProperties": false,
           "items": {
               "properties": {
                 "name": {
-                  "description": "Имя подсети. Должно соответствовать формату: <product>-<env>-ns-<purpose>",
+                  "description": "Subnet name. Must match the format: <product>-<env>-ns-<purpose>",
                   "default": "project-dev-subnet-default",
-                  "title": "Имя подсети",
+                  "title": "Subnet name",
                   "type": "string"
                 },
                 "cidrBlock": {
                   "default": "",
-                  "description": "CIDR блок, зарезервированный в Netbox (IP/mask)",
-                  "title": "CIDR блок",
+                  "description": "CIDR block reserved in Netbox (IP/mask)",
+                  "title": "CIDR block",
                   "type": "string"
                 },
                 "allowSubnets": {
-                  "description": "Список доступных подсетей, с которыми необходима сетевая связность с данной подсетью",
+                  "description": "List of allowed subnets that require network connectivity with this subnet",
                   "items": {
                     "type": "string",
-                    "title": "CIDR блок подсети"
+                    "title": "Subnet CIDR block"
                   },
-                  "title": "Допустимые подсети",
+                  "title": "Allowed subnets",
                   "type": "array"
                 },
                 "excludeIps": {
-                  "description": "Список зарезервированных IP адресов, которые не должны выдаваться подам в создаваемом Namespace. IP шлюза внесён автоматический",
+                  "description": "List of reserved IP addresses that must not be handed out to pods in the Namespace being created. The gateway IP is added automatically",
                   "items": {
                     "type": "string",
-                    "title": "IP адрес"
+                    "title": "IP address"
                   },
-                  "title": "Зарезервированные IP адреса",
+                  "title": "Reserved IP addresses",
                   "type": "array"
                 }
               },
@@ -233,7 +233,7 @@
               ],
               "type": "object"
           },
-          "title": "Подсети",
+          "title": "Subnets",
           "type": "array"
         }
       },
@@ -241,7 +241,7 @@
         "enable",
         "subnets"
       ],
-      "title": "Подсети Namespace",
+      "title": "Namespace subnets",
       "type": "object"
     }
   },

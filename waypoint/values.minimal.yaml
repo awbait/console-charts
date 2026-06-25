@@ -1,0 +1,19 @@
+# Minimal example: a single namespace waypoint proxy.
+#
+# Resource name by convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# Result (with the naming below):
+# - Gateway ru1-k8s1-wp-nbox-mesh
+
+naming:
+  instanceTag: ru1     # required, DNS format
+  clusterTag: k8s1     # required, DNS format
+  projectTag: nbox     # required, 2..6 characters
+
+generic:
+  labels: {}
+  annotations: {}
+
+waypoints:
+  - name: mesh
+    enabled: true
+    for: service

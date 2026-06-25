@@ -1,12 +1,12 @@
 {{/*
-Infrastructure ConfigMap для Istio Gateway controller — по одному на элемент
-списка gateways. Носит то же имя, что и Gateway (kindShort cm); на него
-ссылается Gateway через parametersRef (см. gateway.yaml).
-data.deployment — патч авто-создаваемого Deployment (securityContext, resources
-контейнера istio-proxy). data.service — патч Service (LoadBalancer, выключение
-NodePort, удаление порта 15021; при ipAddress — аннотация MetalLB).
-data.horizontalPodAutoscaler — добавляется при hpa.enabled.
-Элемент пропускается при enabled: false.
+Infrastructure ConfigMap for the Istio Gateway controller: one per element
+of the gateways list. It has the same name as the Gateway (kindShort cm); the
+Gateway references it via parametersRef (see gateway.yaml).
+data.deployment - a patch for the auto-created Deployment (securityContext, resources
+of the istio-proxy container). data.service - a patch for the Service (LoadBalancer, disabling
+NodePort, removing port 15021; when ipAddress is set - a MetalLB annotation).
+data.horizontalPodAutoscaler - added when hpa.enabled.
+The element is skipped when enabled: false.
 */}}
 {{- $root := . -}}
 {{- range $index, $gateway := $root.Values.gateways }}

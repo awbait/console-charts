@@ -32,12 +32,11 @@
 | `CHANGELOG.md`              | да         | История версий по SemVer                                          |
 | `.helmignore`               | да         | Стандартный набор игнор-паттернов                                 |
 
-Сейчас не у всех чартов есть полный набор: README нет у `policies`/`namespace`;
-`NOTES.txt`/`.helmignore` нет у `namespace`; файлы значений у существующих чартов
-пока в старом виде (`values.yaml` как полный reference + `minimal-values.yaml`)
-и подлежат переводу на схему `values.yaml`/`values.minimal.yaml`/`values.full.yaml`.
-Это технический долг, а не образец для копирования: новый чарт заводи сразу с
-полным набором.
+Все стандартные чарты (`ingress-gateway`, `egress-gateway`, `waypoint`,
+`policies`, `namespace`) переведены на трёхфайловую схему значений
+`values.yaml` + `values.minimal.yaml` + `values.full.yaml` (см. раздел
+[Файлы значений](#файлы-значений)). Остаточные пробелы: у `policies` нет
+`NOTES.txt` и `.helmignore`. Новый чарт заводи сразу с полным набором.
 
 ---
 

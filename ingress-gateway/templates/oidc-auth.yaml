@@ -1,9 +1,9 @@
 {{/*
-OIDC-аутентификация через oauth2-proxy, Keycloak и Istio external authorization
-(при oidcAuth.enabled). Создаёт: HTTPRoute для /oauth2, ReferenceGrant,
-AuthorizationPolicy (CUSTOM ext_authz и проверка групп) и RequestAuthentication.
-Ресурсы располагаются в namespace приложения / Gateway / oauth2-proxy и носят
-заданные пользователем имена (вне 5-частной конвенции; уточняется при доработке).
+OIDC authentication via oauth2-proxy, Keycloak and Istio external authorization
+(when oidcAuth.enabled). Creates: HTTPRoute for /oauth2, ReferenceGrant,
+AuthorizationPolicy (CUSTOM ext_authz and group check) and RequestAuthentication.
+Resources live in the namespace of the application / Gateway / oauth2-proxy and use
+user-provided names (outside the 5-part convention; to be refined during development).
 */}}
 {{- if .Values.oidcAuth }}
 {{- if (.Values.oidcAuth.enabled | default false) }}
