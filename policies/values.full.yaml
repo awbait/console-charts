@@ -1,0 +1,215 @@
+# ============================================================================
+#  Helm chart: policies - full values reference
+#  All parameters with descriptions. Three independent sections (any
+#  combination can be used):
+#
+#    policies[]  - universal policies. One block describes a source <-> target
+#                  link. NetworkPolicy and AuthorizationPolicy are generated
+#                  with auto-mirroring of egress rules into the target
+#                  namespace.
+#
+#    netpol[]    - NetworkPolicy only, no mirrors. Use when you need fine
+#                  L3/L4 control or an ipBlock without an Istio AP.
+#
+#    authzpol[]  - AuthorizationPolicy only. Use for L7 (when, paths, custom
+#                  principals) or when NP are described another way.
+#
+#  Resource naming convention:
+#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+#  kindShort: np (NetworkPolicy) | ap (AuthorizationPolicy).
+#  Names must be unique within (namespace, kind).
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# naming - common tags for resource names (see convention above)
+# ----------------------------------------------------------------------------
+# instanceTag / clusterTag / projectTag are set once per release.
+# kindShort is substituted automatically by resource type (np | ap).
+# name is policy.name (2..6 characters, DNS) in the sections below.
+naming:
+  # Instance tag (table 50). Required, lower-case DNS format.
+  instanceTag: ru1
+
+  # Cluster tag (table 52). Required, lower-case DNS format.
+  clusterTag: k8s1
+
+  # Project tag. Required, 2..6 characters, lower-case DNS format.
+  projectTag: nbox
+
+
+# ----------------------------------------------------------------------------
+# defaults
+# ----------------------------------------------------------------------------
+defaults:
+  # Istio trust domain used to build a principal:
+  #   {trustDomain}/ns/{namespace}/sa/{serviceAccount}
+  trustDomain: cluster.local
+
+  # Namespace label key for the NetworkPolicy namespaceSelector.
+  # The k8s standard is kubernetes.io/metadata.name (set automatically).
+  namespaceLabelKey: kubernetes.io/metadata.name
+
+  # Default protocol for ports in NetworkPolicy.
+  # Overridden per-port: ports: [{ port: 53, protocol: UDP }]
+  protocol: TCP
+
+
+# ============================================================================
+# policies - universal policies (NetworkPolicy + AuthorizationPolicy)
+# ============================================================================
+# One entry -> up to 4 manifests:
+#   - in policy.namespace:       {name}-np (ingress+egress) and {name}-ap
+#   - in each target namespace:  {name}-np (ingress) and {name}-ap (mirror)
+#
+# Several egress rules with the same target.namespace are merged into a single
+# manifest on the target side (ports are combined).
+policies:
+  - # Short policy name (2..6 characters, DNS-format).
+    name: core1
+
+    # Optional, default: true. If false, the whole policy is skipped.
+    enabled: true
+
+    # Namespace where the described workload (owner) lives.
+    namespace: netbox-core
+
+    # ServiceAccount of the owner workload. Goes into the principal of the
+    # mirror AP on the target side. Required when egress rules are present.
+    serviceAccount: netbox
+
+    # Pod selector of the owner workload. Applied as:
+    #   - podSelector in the owner NetworkPolicy
+    #   - selector   in the owner AuthorizationPolicy
+    selector:
+      app.kubernetes.io/name: netbox
+
+    # Ingress rules: who is allowed to reach the owner.
+    # Each rule -> spec.ingress (NP) and one entry in spec.rules (AP).
+    ingress:
+      - # Traffic sources. Supported forms:
+        #   namespace + selector (+ optional serviceAccount for AP principals)
+        #   ipBlock
+        #   namespaceSelector / podSelector (raw k8s format, advanced)
+        from:
+          - namespace: netbox-ingress
+            selector:
+              app.kubernetes.io/name: ingress-istio
+            # Optional: sender SA for the AP principal.
+            #   set     -> principals: cluster.local/ns/.../sa/<SA>
+            #   missing -> fallback to namespaces: [<namespace>]
+            serviceAccount: netbox-ingress-gateway-istio
+
+        # Ports. Forms:
+        #   - 8080                                     (uses defaults.protocol)
+        #   - { port: 8080, protocol: TCP }            (explicit protocol)
+        ports: [8080]
+
+    # Egress rules: where the owner may connect.
+    # Each rule -> spec.egress in the owner NP AND NP+AP mirrors in the target ns.
+    egress:
+      - to:
+          - namespace: netbox-postgresql
+            selector:
+              app.kubernetes.io/name: postgresql
+            # NOTE: peer.serviceAccount in egress is FORBIDDEN - render fails.
+            # The owner SA is taken from policy.serviceAccount.
+        ports: [5432]
+
+      - to:
+          - namespace: netbox-valkey
+            selector:
+              app.kubernetes.io/name: valkey
+        ports:
+          - port: 6379
+            protocol: TCP
+
+
+# ============================================================================
+# netpol - NetworkPolicy only (no AuthorizationPolicy and no mirrors)
+# ============================================================================
+# Use for L3/L4-only scenarios or ipBlock rules.
+netpol:
+  - # Resource name: {name}-np.
+    name: ing
+
+    enabled: true
+
+    namespace: netbox-ingress
+
+    # podSelector. Empty/absent -> policy applies to all pods in the ns.
+    selector:
+      app.kubernetes.io/name: ingress-istio
+
+    # Ingress rules: list of {from: [...], ports: [...]}.
+    ingress:
+      - from:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              # except: [10.0.0.0/8]
+        ports: [443, 15020, 15021, 15090]
+
+    # Egress rules: list of {to: [...], ports: [...]}.
+    egress:
+      - to:
+          - namespace: netbox-core
+            selector:
+              app.kubernetes.io/name: netbox
+        ports: [8080]
+
+
+# ============================================================================
+# authzpol - AuthorizationPolicy only (no NetworkPolicy)
+# ============================================================================
+# Use for Istio L7 rules or when NP are described by another tool.
+authzpol:
+  - # Resource name: {name}-ap.
+    name: gate
+
+    enabled: true
+
+    namespace: netbox-ingress
+
+    # action: ALLOW (default) | DENY | AUDIT | CUSTOM
+    action: ALLOW
+
+    # selector - whom the policy applies to. Omitted -> all workloads in the ns.
+    selector:
+      app.kubernetes.io/name: ingress-istio
+
+    # rules: list of rules. Each rule may contain from / ports / when.
+    rules:
+      - # Source. Supported forms:
+        #   serviceAccounts - translated into principals
+        #   principals      - raw principal strings
+        #   ipBlocks
+        #   namespaces
+        from:
+          ipBlocks:
+            - 0.0.0.0/0
+        ports: [443]
+
+  - name: vkpr
+
+    namespace: netbox-valkey
+
+    selector:
+      app.kubernetes.io/name: valkey
+      app.kubernetes.io/component: primary
+
+    rules:
+      - from:
+          serviceAccounts:
+            - namespace: netbox-core
+              name: netbox
+            - namespace: netbox-valkey
+              name: netbox-valkey-primary
+            - namespace: netbox-valkey
+              name: netbox-valkey-replica
+        ports: [6379]
+
+        # when conditions. Currently sourceNamespaces is supported.
+        when:
+          sourceNamespaces:
+            - netbox-core
+            - netbox-valkey
