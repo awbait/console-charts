@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        # Перекатываем поды при изменении конфигурации/секрета.
+        # Roll the pods when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/portal-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/portal-secret.yaml") . | sha256sum }}
         {{- if and .Values.portal.metrics.enabled .Values.portal.metrics.scrapeAnnotations }}

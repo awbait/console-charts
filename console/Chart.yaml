@@ -2,7 +2,7 @@ apiVersion: v2
 name: console
 description: "Helm chart for Console (self-service developer portal): a single Go service serving the API and the embedded SPA"
 type: application
-version: 0.3.0
+version: 0.3.1
 appVersion: "0.2.0"
 
 # Optional ingress via the in-repo ingress-gateway chart (Istio Gateway API),

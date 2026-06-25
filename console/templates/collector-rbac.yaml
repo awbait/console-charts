@@ -7,11 +7,11 @@ metadata:
     {{- include "console.labels" . | nindent 4 }}
     {{- include "console.collector.selectorLabels" . | nindent 4 }}
 rules:
-  # Список namespace (фильтр по метке - на стороне запроса).
+  # List namespaces (label filtering happens on the request side).
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "watch"]
-  # Контроллеры, из podTemplate которых берётся каталог.
+  # Controllers whose podTemplate is used to build the catalog.
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets", "daemonsets"]
     verbs: ["get", "list", "watch"]

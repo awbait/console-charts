@@ -1,13 +1,13 @@
-console {{ .Chart.Version }} (app {{ .Chart.AppVersion }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+console {{ .Chart.Version }} (app {{ .Chart.AppVersion }}) deployed in namespace {{ .Release.Namespace | quote }}.
 
 portal: Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}, OIDC.
-collector: {{ if .Values.collector.enabled }}включён{{ else }}отключён{{ end }}.
-вход: {{ if .Values.ingressGateway.enabled }}ingress-gateway (Istio){{ else }}снаружи (не из чарта){{ end }}.
+collector: {{ if .Values.collector.enabled }}enabled{{ else }}disabled{{ end }}.
+ingress: {{ if .Values.ingressGateway.enabled }}ingress-gateway (Istio){{ else }}external (not from the chart){{ end }}.
 {{- if and .Values.collector.enabled (not .Values.collector.existingSecret) (not .Values.collector.secrets.REDIS_URL) }}
 
-ВНИМАНИЕ: collector.secrets.REDIS_URL не задан - коллектор не стартует.
+WARNING: collector.secrets.REDIS_URL is not set - the collector will not start.
 {{- end }}
 {{- if and (not .Values.portal.existingSecret) (not .Values.portal.secrets.DATABASE_URL) }}
 
-ВНИМАНИЕ: portal.secrets.DATABASE_URL не задан - портал не стартует.
+WARNING: portal.secrets.DATABASE_URL is not set - the portal will not start.
 {{- end }}

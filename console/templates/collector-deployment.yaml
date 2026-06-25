@@ -14,7 +14,7 @@ spec:
   template:
     metadata:
       annotations:
-        # Перекатываем под при изменении конфигурации/секрета.
+        # Roll the pod when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/collector-secret.yaml") . | sha256sum }}
         {{- with .Values.collector.podAnnotations }}
