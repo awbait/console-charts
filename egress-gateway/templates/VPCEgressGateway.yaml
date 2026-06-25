@@ -3,26 +3,39 @@ VpcEgressGateway (kube-ovn) - one per vpcEgressGateway list item.
 
 Hardcoded in the template (not configurable via values):
   vpc, externalSubnet, trafficPolicy, nodeSelector, policies.
-The user sets: name, externalIPs, selectors, (optionally) replicas.
+The user sets only: name, externalIPs (and enabled).
 
-- VpcEgressGateway is reached only by the Istio Waypoint.
-- replicas defaults to the number of externalIPs.
+Derived (not configurable):
+  - replicas      = number of externalIPs;
+  - selectors     namespaceSelector + podSelector point at the Istio egress
+                  gateway created from .Values.egressGateway: the release
+                  namespace and the waypoint pods of that Gateway
+                  (label gateway.networking.k8s.io/gateway-name).
+
+A VpcEgressGateway only makes sense together with the egress Gateway it points
+at, so egressGateway must be enabled and named when this section is used.
 */}}
 {{- if .Values.vpcEgressGateway }}
 {{- $root := . }}
-{{- range $index, $gw := .Values.vpcEgressGateway }}
-{{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $gw.externalIPs }}
+{{- $gw := .Values.egressGateway | default dict }}
+{{- if not (and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true")) }}
+{{- fail "vpcEgressGateway requires egressGateway to be enabled (its selectors point at the egress gateway pods)" }}
+{{- end }}
+{{- $gwName := required "egressGateway.name is required when vpcEgressGateway is set" $gw.name }}
+{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $root) }}
+{{- range $index, $veg := .Values.vpcEgressGateway }}
+{{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $veg.externalIPs }}
 ---
 apiVersion: kubeovn.io/v1
 kind: VpcEgressGateway
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" (required (printf "vpcEgressGateway[%d].name is required" $index) $gw.name) "context" $root) }}
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" (required (printf "vpcEgressGateway[%d].name is required" $index) $veg.name) "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
   labels:
     {{- include "egress-gateway.helpers.app.labels" $root | nindent 4 }}
 spec:
   vpc: ovn-cluster
-  replicas: {{ $gw.replicas | default (len $externalIPs) }}
+  replicas: {{ len $externalIPs }}
   externalSubnet: egress-vip
   externalIPs:
     {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $externalIPs "context" $root) | nindent 4 }}
@@ -33,17 +46,13 @@ spec:
           values:
             - worker-node-3
             - worker-node-5
-  {{- $nsSelectors := ($gw.selectors | default dict).namespaceSelectors }}
-  {{- $podSelectors := ($gw.selectors | default dict).podSelectors }}
-  {{- if or $nsSelectors $podSelectors }}
   selectors:
-  {{- with $nsSelectors }}
-    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
-  {{- end }}
-  {{- with $podSelectors }}
-    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
-  {{- end }}
-  {{- end }}
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ $root.Release.Namespace | quote }}
+    - podSelector:
+        matchLabels:
+          gateway.networking.k8s.io/gateway-name: {{ $gwFullname }}
   policies:
     - snat: true
       subnets:

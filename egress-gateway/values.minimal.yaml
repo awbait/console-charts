@@ -1,64 +1,38 @@
-# Minimal example: a single egress point.
-# One Gateway with one TLS Passthrough listener (nexus). The listener generates
-# a ServiceEntry; tlsRoutes is set as an explicit list (parentRefs are generated
-# automatically). Plus one VpcEgressGateway (kube-ovn).
+# Минимальный пример: одна точка egress.
+# Один Gateway с одним TLS Passthrough listener (nx). Из listener генерируются
+# ServiceEntry и один TLSRoute (Kind маршрута берётся из протокола listener).
+# Плюс один VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот Gateway.
 #
-# Resource names by convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-# Output (with the naming below):
+# Имена ресурсов по конвенции: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+# Результат (при нейминге ниже):
 # - ConfigMap        ru1-k8s1-egw-nbox-wp
 # - Gateway          ru1-k8s1-egw-nbox-wp
 # - ServiceEntry     ru1-k8s1-egw-nbox-nx
-# - TLSRoute         ru1-k8s1-egw-nbox-rnx
+# - TLSRoute         ru1-k8s1-egw-wp-nbox-nx   (parent = Gateway, name = listener)
 # - VpcEgressGateway ru1-k8s1-veg-nbox-core
 
 naming:
-  instanceTag: ru1     # required, DNS format
-  clusterTag: k8s1     # required, DNS format
-  projectTag: nbox     # required, 2..6 characters
+  instanceTag: ru1     # обязателен, DNS-формат
+  clusterTag: k8s1     # обязателен, DNS-формат
+  projectTag: nbox     # обязателен, 2..6 символов
 
 generic:
   labels: {}
   annotations: {}
 
 egressGateway:
-  - name: wp
-    enabled: true
-    listeners:
-      - name: nx
-        hostname: repository.solution.test
-        port: 443
-        protocol: TLS
-        tlsMode: Passthrough
-        addresses:
-          - 10.40.20.50
-
-tlsRoutes:
-  - name: rnx
-    enabled: true
-    hostnames:
-      - repository.solution.test
-    rules:
-      - backendRefs:
-          - name: repository.solution.test
-            port: 443
+  enabled: true
+  name: wp
+  listeners:
+    - name: nx
+      hostname: repository.solution.test
+      port: 443
+      protocol: TLS
+      addresses:
+        - 10.40.20.50
 
 vpcEgressGateway:
   - name: core
     externalIPs:
       - 10.193.101.10
       - 10.193.101.11
-    selectors:
-      namespaceSelectors:
-        - namespaceSelector:
-            matchExpressions:
-              - key: app
-                operator: In
-                values:
-                  - test
-      podSelectors:
-        - podSelector:
-            matchExpressions:
-              - key: out-gateway
-                operator: In
-                values:
-                  - "true"

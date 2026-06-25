@@ -1,23 +1,23 @@
 {{/*
-ServiceEntry - generated from egressGateway listeners (one per listener).
+ServiceEntry - generated from the egressGateway listeners (one per listener).
 The external service is described directly in the listener:
-  hostname  -> spec.hosts and the TLSRoute backend
+  hostname  -> spec.hosts and the route backend
   port      -> spec.ports[].number
-  protocol  -> spec.ports[].protocol (default TLS)
+  protocol  -> spec.ports[].protocol (TLS or HTTPS)
   addresses -> static IPs: set -> resolution STATIC + endpoints,
                otherwise -> resolution DNS
 Resource name by convention (kindShort egw, name = listener.name).
-enabled: false on the gateway -> its listeners are skipped.
+The whole section is skipped when the gateway is disabled.
 */}}
-{{- range $gwIndex, $gw := .Values.egressGateway }}
+{{- $gw := .Values.egressGateway | default dict }}
 {{- if ($gw.enabled | default true) }}
-{{- range $index, $listener := $gw.listeners }}
-{{- $seName := required (printf "egressGateway[%d].listeners[%d].name is required" $gwIndex $index) $listener.name }}
-{{- $hostname := required (printf "egressGateway[%d].listeners[%d].hostname is required" $gwIndex $index) $listener.hostname }}
-{{- $port := required (printf "egressGateway[%d].listeners[%d].port is required" $gwIndex $index) $listener.port }}
-{{- $protocol := $listener.protocol | default "TLS" }}
-{{- $addresses := $listener.addresses | default (list) }}
 {{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+{{- range $index, $listener := $gw.listeners }}
+{{- $seName := required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name }}
+{{- $hostname := required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname }}
+{{- $port := required (printf "egressGateway.listeners[%d].port is required" $index) $listener.port }}
+{{- $protocol := include "egress-gateway.helpers.listenerProtocol" (dict "label" (printf "egressGateway.listeners[%d].protocol" $index) "value" $listener.protocol) }}
+{{- $addresses := $listener.addresses | default (list) }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -57,6 +57,5 @@ spec:
         {{ $seName }}: {{ $port }}
     {{- end }}
   {{- end }}
-{{- end }}
 {{- end }}
 {{- end }}

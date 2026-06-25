@@ -19,6 +19,46 @@
 
 ---
 
+## [2.0.0] - 2026-06-25
+
+BREAKING: структура `values.yaml` изменена. `egressGateway` теперь один объект
+(а не список), секция `tlsRoutes` удалена (маршруты генерируются автоматически),
+из listener убран `tlsMode`, из `vpcEgressGateway` убраны `selectors` и `replicas`.
+Старый `values.yaml` придётся переписать.
+
+### Changed
+- **Один Gateway на релиз.** `egressGateway` из списка превращён в одиночный
+  объект (`name` / `enabled` / `listeners[]`). В одном Gateway допускается
+  больше одного listener.
+- **Протокол listener - `TLS` или `HTTPS`** (по умолчанию `TLS`); валидируется.
+  `tls.mode` всегда `Passthrough` и больше не настраивается (поле `tlsMode`
+  удалено из values и схемы).
+- **`vpcEgressGateway`** больше не принимает `selectors` и `replicas`: число
+  реплик равно числу `externalIPs`, а `namespaceSelector`/`podSelector`
+  подставляются шаблоном и указывают на под'ы созданного egress Gateway
+  (label `gateway.networking.k8s.io/gateway-name`).
+- Комментарии в `values.yaml` / `values.minimal.yaml` / `values.full.yaml`
+  возвращены на русский (по `charts/CONVENTIONS.md`); в 1.0.1 они были на
+  английском. Комментарии в `templates/` остаются на английском.
+
+### Added
+- **Маршруты генерируются автоматически - один на listener.** Kind берётся из
+  протокола listener (`TLS` -> `TLSRoute`, `HTTPS` -> `HTTPRoute`), имя - из
+  имени listener по конвенции с родителем
+  (`{instanceTag}-{clusterTag}-egw-{gatewayName}-{projectTag}-{listenerName}`),
+  `hostnames` - из hostname listener, единственный `backendRef` -
+  `{name: hostname, port: listener.port, weight: 100}`. Route привязан к своему
+  listener через `parentRefs[].sectionName`.
+
+### Removed
+- Секция `tlsRoutes[]` и её поля в `values.schema.json` - маршруты теперь
+  выводятся из listener'ов, задавать их вручную не нужно.
+
+### Fixed
+- `apiVersion` маршрутов приведён к Kind: `TLSRoute` -
+  `gateway.networking.k8s.io/v1alpha2`, `HTTPRoute` - `.../v1` (раньше TLSRoute
+  ошибочно рендерился как `v1`).
+
 ## [1.0.1] - 2026-06-25
 
 ### Changed

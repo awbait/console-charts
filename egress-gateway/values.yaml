@@ -1,16 +1,21 @@
-# egress-gateway - default values (minimum for render to pass).
-# By default no egress resources are created (all lists are empty).
-# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
+# egress-gateway - дефолтные значения (минимум, чтобы рендер проходил).
+# Пустые дефолты: ничего не создаётся. Чарт автоматически подгружает этот файл
+# при каждом `helm template`, поэтому в нём НЕ должно быть примера
+# egressGateway/vpcEgressGateway (иначе они домержатся в каждый заказ, который
+# опускает эти ключи). Заказ передаёт свои значения; naming.* обязателен
+# (валидируется через values.schema.json).
+# Полный reference параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
 
 naming:
-  instanceTag: ru1     # required, lower-case DNS format
-  clusterTag: k8s1     # required, lower-case DNS format
-  projectTag: nbox     # required, 2..6 characters
+  instanceTag: ru1     # обязателен, DNS-формат lower-case
+  clusterTag: k8s1     # обязателен, DNS-формат lower-case
+  projectTag: nbox     # обязателен, 2..6 символов
 
 generic:
   labels: {}
   annotations: {}
 
-egressGateway: []
-tlsRoutes: []
+# egressGateway (одиночный объект) намеренно НЕ задан здесь - его передаёт заказ.
+# Аннотированный reference - в values.full.yaml.
+
 vpcEgressGateway: []

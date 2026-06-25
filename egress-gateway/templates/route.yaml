@@ -1,0 +1,53 @@
+{{/*
+Routes - one per egressGateway listener (auto-generated, NOT a separate values
+section). Everything is derived from the listener:
+  - kind            from protocol: TLS -> TLSRoute, HTTPS -> HTTPRoute
+                    (apiVersion follows the kind: TLSRoute v1alpha2, HTTPRoute v1);
+  - name            from the listener name, by the parent convention
+                    {instanceTag}-{clusterTag}-egw-{gatewayName}-{projectTag}-{listenerName};
+  - parentRefs      bound to this gateway and pinned to the listener via sectionName;
+  - hostnames       the listener hostname;
+  - rules[0].backendRefs[0] = {name: hostname, port: listener.port, weight: 100}.
+The whole section is skipped when the gateway is disabled.
+*/}}
+{{- $gw := .Values.egressGateway | default dict }}
+{{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
+{{- $gwName := required "egressGateway.name is required" $gw.name }}
+{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
+{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
+{{- range $index, $listener := $gw.listeners }}
+{{- $lName := required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name }}
+{{- $hostname := required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname }}
+{{- $port := required (printf "egressGateway.listeners[%d].port is required" $index) $listener.port }}
+{{- $protocol := include "egress-gateway.helpers.listenerProtocol" (dict "label" (printf "egressGateway.listeners[%d].protocol" $index) "value" $listener.protocol) }}
+{{- $routeKind := include "egress-gateway.helpers.routeKind" $protocol }}
+{{- $apiVersion := include "egress-gateway.helpers.routeApiVersion" $routeKind }}
+{{- $routeName := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "parent" $gwName "name" $lName "context" $) }}
+---
+apiVersion: {{ $apiVersion }}
+kind: {{ $routeKind }}
+metadata:
+  name: {{ $routeName }}
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
+  {{- if $genericAnnotations }}
+  annotations:
+    {{- $genericAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gwFullname }}
+      namespace: {{ $.Release.Namespace }}
+      sectionName: {{ $listener.name }}
+  hostnames:
+    - {{ $hostname | quote }}
+  rules:
+    - backendRefs:
+        - name: {{ $hostname | quote }}
+          port: {{ $port }}
+          weight: 100
+{{- end }}
+{{- end }}
