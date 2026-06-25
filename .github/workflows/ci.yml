@@ -1,0 +1,46 @@
+name: CI
+
+# PR/main validation gate for the Helm charts. Mirrors the lefthook pre-push
+# hook (runs the same scripts/helm-check.sh) so a push made with --no-verify is
+# still caught here. The `ci` job is the single status check to require in
+# branch protection.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+        with:
+          version: latest
+      - name: Lint and template all charts
+        run: sh scripts/helm-check.sh
+
+  # Single required status check. Stays green when upstream jobs pass, fails if
+  # any failed or was cancelled.
+  ci:
+    needs: [charts]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify upstream results
+        run: |
+          results='${{ join(needs.*.result, ',') }}'
+          echo "upstream results: $results"
+          case "$results" in
+            *failure*|*cancelled*) echo "a required job did not pass"; exit 1;;
+          esac
+          echo "all required jobs passed"
