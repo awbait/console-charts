@@ -1,108 +1,108 @@
 # ============================================================================
-#  Helm chart: managed-namespace - полный справочник values
-#  Создаёт Namespace (cpaas/Alauda), ResourceQuota и kube-ovn Subnet.
-#  Любой ресурс создаётся только при global.enable=true.
+#  Helm chart: managed-namespace - full values reference
+#  Creates a Namespace (cpaas/Alauda), ResourceQuota and kube-ovn Subnet.
+#  Any resource is created only when global.enable=true.
 # ============================================================================
 
 global:
-  # Главный выключатель чарта. false -> не создаётся ни один ресурс.
-  # Служебное поле, скрыто в форме портала; включается консолью при заказе.
+  # Main chart switch. false -> no resource is created.
+  # Service field, hidden in the portal form; enabled by the console on order.
   enable: true
 
 # ----------------------------------------------------------------------------
-# namespace - параметры создаваемого Namespace
+# namespace - parameters of the Namespace being created
 # ----------------------------------------------------------------------------
 namespace:
-  # Имя Namespace. Формат: <product>-<env>-ns-<purpose>. Required.
+  # Namespace name. Format: <product>-<env>-ns-<purpose>. Required.
   namespaceName: "project-dev-ns-default"
 
-  # Имя проекта, которому принадлежит Namespace. Required.
+  # Name of the project the Namespace belongs to. Required.
   projectName: project
 
-  # Имя кластера Alauda.
+  # Alauda cluster name.
   clusterName: common
 
-  # Отображаемое имя (annotation cpaas.io/display-name).
+  # Display name (annotation cpaas.io/display-name).
   displayName: "Managed namespace"
 
-  # Создатель namespace (annotation cpaas.io/creator). Default "lk".
-  # Скрыто в форме портала; при заказе из консоли подставляется "console".
+  # Namespace creator (annotation cpaas.io/creator). Default "lk".
+  # Hidden in the portal form; on order from the console "console" is substituted.
   creator: lk
 
-  # Роль namespace -> лейбл namespace-role. Допустимо: ingress | egress | other.
-  # Опционально: без значения лейбл не ставится.
+  # Namespace role -> namespace-role label. Allowed: ingress | egress | other.
+  # Optional: without a value the label is not set.
   role: other
 
-  # Дополнительные annotations на Namespace.
+  # Additional annotations on the Namespace.
   annotations: {}
 
-  # Дополнительные labels на Namespace.
+  # Additional labels on the Namespace.
   labels: {}
 
 # ----------------------------------------------------------------------------
-# serviceMesh - интеграция с Istio (ambient) и сетевыми политиками
+# serviceMesh - integration with Istio (ambient) and network policies
 # ----------------------------------------------------------------------------
-# Включается на уровне контура (не пользователем): на DEV - по флагу, на
-# остальных контурах Service Mesh включён всегда. При enabled=true на Namespace
-# проставляются:
+# Enabled at the environment level (not by the user): on DEV by a flag, on
+# other environments Service Mesh is always enabled. When enabled=true the
+# Namespace gets:
 #   labels:      istio-discovery=enabled, istio.io/dataplane-mode=ambient
 #   annotation:  networking.k8s.io/enable-netpol="true"
 serviceMesh:
   enabled: false
 
 # ----------------------------------------------------------------------------
-# resourceQuotas - ResourceQuota для Namespace
+# resourceQuotas - ResourceQuota for the Namespace
 # ----------------------------------------------------------------------------
 resourceQuotas:
-  # Жёсткие лимиты на namespace.
+  # Hard limits on the namespace.
   limits:
     cpu: "4"
     memory: "8Gi"
 
-  # Запросы. Если не заданы - подставляются из limits.
+  # Requests. If not set - taken from limits.
   requests:
     cpu: "2"
     memory: "4Gi"
 
-  # Максимальное число подов (фактически ограничено маской подсети).
-  # Служебное поле, скрыто в форме портала.
+  # Maximum number of pods (in practice limited by the subnet mask).
+  # Service field, hidden in the portal form.
   podsAmount: 1000
 
-  # Квоты на блочные хранилища в формате { <StorageClass>: <Quota> }.
+  # Block storage quotas in the format { <StorageClass>: <Quota> }.
   storage:
     storages: {}
     # storages:
     #   fast-ssd: 100Gi
 
 # ----------------------------------------------------------------------------
-# subnet - kube-ovn Subnet(ы) для Namespace
+# subnet - kube-ovn Subnet(s) for the Namespace
 # ----------------------------------------------------------------------------
-# Часть полей Subnet фиксирована в шаблоне и не настраивается:
-#   default=false           - пользовательские подсети всегда не default.
-#   protocol=IPv4           - тип протокола (IPv6/Dual не используются).
-#   natOutgoing=false       - для изолированной (private=true) подсети NAT выключен.
-#   gateway                 - адрес Virtual-Router, вычисляется из cidrBlock.
-#   gatewayType=centralized - тип исходящего шлюза.
-#   private=true            - подсеть изолированная.
-#   enableEcmp=false        - ECMP-балансировка исходящего трафика выключена.
-#   namespaces              - подсеть привязывается ровно к одному Namespace.
+# Some Subnet fields are fixed in the template and not configurable:
+#   default=false           - user subnets are always non-default.
+#   protocol=IPv4           - protocol type (IPv6/Dual not used).
+#   natOutgoing=false       - for an isolated (private=true) subnet NAT is off.
+#   gateway                 - Virtual-Router address, computed from cidrBlock.
+#   gatewayType=centralized - egress gateway type.
+#   private=true            - the subnet is isolated.
+#   enableEcmp=false        - ECMP balancing of egress traffic is off.
+#   namespaces              - the subnet is bound to exactly one Namespace.
 subnet:
-  # Включать только когда CIDR гарантированно зарезервирован в Netbox.
-  # Служебное поле, скрыто в форме портала.
+  # Enable only when the CIDR is guaranteed to be reserved in Netbox.
+  # Service field, hidden in the portal form.
   enable: false
 
-  # Список подсетей (минимум одна при enable=true).
+  # List of subnets (at least one when enable=true).
   subnets:
-    - # Имя подсети. Формат: <product>-<env>-subnet-<purpose>. Required.
+    - # Subnet name. Format: <product>-<env>-subnet-<purpose>. Required.
       name: "project-dev-subnet-default"
 
-      # CIDR-блок, зарезервированный в Netbox (IP/mask, маска >= 24). Required.
+      # CIDR block reserved in Netbox (IP/mask, mask >= 24). Required.
       cidrBlock: ""
 
-      # Зарезервированные IP, которые не выдаются подам.
-      # IP шлюза добавляется в исключения автоматически.
+      # Reserved IPs that are not handed out to pods.
+      # The gateway IP is added to the exclusions automatically.
       excludeIps: []
 
-      # Допустимые для связности подсети.
-      # ovn-default и Service-Subnet (172.30.0.0/15) уже включены шаблоном.
+      # Subnets allowed for connectivity.
+      # ovn-default and Service-Subnet (172.30.0.0/15) are already included by the template.
       allowSubnets: []

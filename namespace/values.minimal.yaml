@@ -1,5 +1,5 @@
-# managed-namespace - минимальный рабочий пример.
-# Создаёт Namespace и ResourceQuota (без выделенной подсети).
+# managed-namespace - minimal working example.
+# Creates a Namespace and ResourceQuota (without a dedicated subnet).
 
 global:
   enable: true
