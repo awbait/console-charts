@@ -413,6 +413,23 @@ helm template release <chart> -f <chart>/values.full.yaml
 чарты (`*.tgz`), вендоринг `charts/` и `Chart.lock` - не коммить (они в
 `.gitignore`).
 
+### Lefthook (pre-push)
+
+В репозитории есть `lefthook.yml`: на `git push` запускается
+`scripts/helm-check.sh`, который прогоняет `helm lint` + `helm template` по всем
+чартам (lint - с `values.minimal.yaml`, где он есть, иначе с дефолтным
+`values.yaml`; render - по `values.minimal.yaml`/`values.full.yaml`). Push с
+поломанным чартом блокируется. Это бэкстоп, а не замена локальной проверки выше.
+
+Установить хук один раз после клона:
+
+```sh
+lefthook install
+```
+
+Прогнать гейт вручную (без push): `lefthook run pre-push` или
+`sh scripts/helm-check.sh`.
+
 ---
 
 ## Исключения

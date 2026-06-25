@@ -1,0 +1,10 @@
+# Lefthook git hooks for the console-charts repo.
+# Install once after clone:  lefthook install
+# Docs: https://lefthook.dev
+#
+# The gate runs on pre-push so commits stay fast; push is blocked if any chart
+# fails. scripts/helm-check.sh validates every chart (helm lint + helm template).
+pre-push:
+  commands:
+    helm-validate:
+      run: sh scripts/helm-check.sh
