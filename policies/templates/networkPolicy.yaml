@@ -5,7 +5,7 @@ First block: universal policies -> NetworkPolicy (owner + auto-mirror in target 
 */}}
 {{- range $index, $policy := default (list) $root.Values.policies }}
 {{- if eq (include "security-policies.enabled" (dict "policy" $policy)) "true" }}
-{{- $namespace := required (printf "policies[%d].namespace is required" $index) $policy.namespace -}}
+{{- $namespace := $root.Release.Namespace -}}
 {{- $selector := required (printf "policies[%d].selector is required" $index) $policy.selector -}}
 {{- $ingress := default (list) $policy.ingress -}}
 {{- $egress := default (list) $policy.egress -}}
@@ -128,7 +128,7 @@ Second block: explicit netpol.
 */}}
 {{- range $index, $policy := default (list) $root.Values.netpol }}
 {{- if eq (include "security-policies.enabled" (dict "policy" $policy)) "true" }}
-{{- $namespace := required (printf "netpol[%d].namespace is required" $index) $policy.namespace -}}
+{{- $namespace := $root.Release.Namespace -}}
 {{- $selector := default (dict) $policy.selector -}}
 {{- $ingress := default (list) $policy.ingress -}}
 {{- $egress := default (list) $policy.egress }}

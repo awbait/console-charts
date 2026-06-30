@@ -40,7 +40,6 @@
             {
               "name": "core",
               "enabled": true,
-              "namespace": "netbox-core",
               "serviceAccount": "netbox",
               "selector": {
                 "app.kubernetes.io/name": "netbox"
@@ -56,7 +55,9 @@
                     }
                   ],
                   "ports": [
-                    8080
+                    {
+                      "port": 8080
+                    }
                   ]
                 }
               ],
@@ -71,7 +72,9 @@
                     }
                   ],
                   "ports": [
-                    5432
+                    {
+                      "port": 5432
+                    }
                   ]
                 }
               ]
@@ -94,7 +97,6 @@
             {
               "name": "ing",
               "enabled": true,
-              "namespace": "netbox-ingress",
               "selector": {
                 "app.kubernetes.io/name": "ingress-istio"
               },
@@ -108,7 +110,9 @@
                     }
                   ],
                   "ports": [
-                    443
+                    {
+                      "port": 443
+                    }
                   ]
                 }
               ]
@@ -131,7 +135,6 @@
             {
               "name": "gate",
               "enabled": true,
-              "namespace": "netbox-ingress",
               "action": "ALLOW",
               "selector": {
                 "app.kubernetes.io/name": "ingress-istio"
@@ -144,7 +147,9 @@
                     ]
                   },
                   "ports": [
-                    443
+                    {
+                      "port": 443
+                    }
                   ]
                 }
               ]
@@ -244,32 +249,32 @@
       }
     },
     "portEntry": {
-      "title": "port",
-      "description": "Port: a number (uses defaults.protocol) or an object { port, protocol }.",
-      "oneOf": [
-        {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "port",
+        "protocol"
+      ],
+      "properties": {
+        "port": {
+          "title": "port",
+          "description": "Destination port.",
           "$ref": "#/definitions/port"
         },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "port": {
-              "$ref": "#/definitions/port"
-            },
-            "protocol": {
-              "type": "string",
-              "enum": [
-                "TCP",
-                "UDP",
-                "SCTP"
-              ]
-            }
-          },
-          "required": [
-            "port"
-          ]
+        "protocol": {
+          "title": "protocol",
+          "description": "Protocol of the port. Omitted -> defaults.protocol.",
+          "type": "string",
+          "enum": [
+            "TCP",
+            "UDP",
+            "SCTP"
+          ],
+          "default": "TCP"
         }
+      },
+      "required": [
+        "port"
       ]
     },
     "ipBlock": {
@@ -572,7 +577,6 @@
       "propertyOrder": [
         "name",
         "enabled",
-        "namespace",
         "serviceAccount",
         "selector",
         "ingress",
@@ -589,11 +593,6 @@
           "description": "true = create; false = skip the whole entry.",
           "type": "boolean",
           "default": true
-        },
-        "namespace": {
-          "title": "namespace",
-          "description": "Namespace of the owner workload.",
-          "$ref": "#/definitions/k8sName"
         },
         "serviceAccount": {
           "title": "serviceAccount",
@@ -624,7 +623,6 @@
       },
       "required": [
         "name",
-        "namespace",
         "selector"
       ]
     },
@@ -634,7 +632,6 @@
       "propertyOrder": [
         "name",
         "enabled",
-        "namespace",
         "selector",
         "ingress",
         "egress"
@@ -649,10 +646,6 @@
           "title": "enabled",
           "type": "boolean",
           "default": true
-        },
-        "namespace": {
-          "title": "namespace",
-          "$ref": "#/definitions/k8sName"
         },
         "selector": {
           "title": "selector",
@@ -675,8 +668,7 @@
         }
       },
       "required": [
-        "name",
-        "namespace"
+        "name"
       ]
     },
     "authzpol": {
@@ -685,7 +677,6 @@
       "propertyOrder": [
         "name",
         "enabled",
-        "namespace",
         "action",
         "selector",
         "rules"
@@ -700,10 +691,6 @@
           "title": "enabled",
           "type": "boolean",
           "default": true
-        },
-        "namespace": {
-          "title": "namespace",
-          "$ref": "#/definitions/k8sName"
         },
         "action": {
           "title": "action",
@@ -733,7 +720,6 @@
       },
       "required": [
         "name",
-        "namespace",
         "rules"
       ]
     },
