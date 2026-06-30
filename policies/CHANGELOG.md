@@ -28,9 +28,9 @@
 ### Changed
 - **Namespace владельца - всегда `.Release.Namespace`.** Поля `namespace` у
   `policies[]`, `netpol[]`, `authzpol[]` убраны: owner-ресурсы создаются в
-  namespace релиза, поэтому деплой чарт в namespace целевого workload
-  (`helm install -n <ns>`). Namespace в `ingress.from[]` / `egress.to[]` (peer'ы
-  и зеркала egress) сохранены - это другие namespace.
+  namespace релиза, поэтому чарт нужно ставить в namespace целевого workload.
+  Namespace в `ingress.from[]` / `egress.to[]` (peer'ы и зеркала egress)
+  сохранены - это другие namespace.
 - **`portEntry` в схеме упрощён.** Убран `oneOf` (число | объект); оставлена
   объектная форма с раздельными полями `port` (обязательное) и `protocol`
   (опционально, fallback на `defaults.protocol`), как `networkPolicyPort` в

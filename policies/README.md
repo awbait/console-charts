@@ -81,8 +81,8 @@ Reference `values.yaml` описывает по одному примеру на
 | `ingress[]`      | нет                            | Кому разрешено ходить В owner (`from` + `ports`)               |
 | `egress[]`       | нет                            | Куда owner может ходить (`to` + `ports`); зеркалится в target   |
 
-Owner-ресурсы создаются в namespace релиза; деплой чарт в namespace целевого
-workload (`helm install -n <ns>`).
+Owner-ресурсы создаются в namespace релиза - ставь чарт в namespace целевого
+workload.
 
 Формы `from`/`to`: `namespace + selector` (+ опц. `serviceAccount` для AP
 principal), `ipBlock`, либо raw `namespaceSelector`/`podSelector` (advanced).
