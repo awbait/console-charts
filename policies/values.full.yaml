@@ -59,7 +59,7 @@ defaults:
 # policies - universal policies (NetworkPolicy + AuthorizationPolicy)
 # ============================================================================
 # One entry -> up to 4 manifests:
-#   - in policy.namespace:       {name}-np (ingress+egress) and {name}-ap
+#   - in the release namespace:  {name}-np (ingress+egress) and {name}-ap
 #   - in each target namespace:  {name}-np (ingress) and {name}-ap (mirror)
 #
 # Several egress rules with the same target.namespace are merged into a single
@@ -70,9 +70,6 @@ policies:
 
     # Optional, default: true. If false, the whole policy is skipped.
     enabled: true
-
-    # Namespace where the described workload (owner) lives.
-    namespace: netbox-core
 
     # ServiceAccount of the owner workload. Goes into the principal of the
     # mirror AP on the target side. Required when egress rules are present.
@@ -100,10 +97,11 @@ policies:
             #   missing -> fallback to namespaces: [<namespace>]
             serviceAccount: netbox-ingress-gateway-istio
 
-        # Ports. Forms:
-        #   - 8080                                     (uses defaults.protocol)
-        #   - { port: 8080, protocol: TCP }            (explicit protocol)
-        ports: [8080]
+        # Ports. Each entry is an object { port, protocol }:
+        #   - { port: 8080 }                (protocol from defaults.protocol)
+        #   - { port: 8080, protocol: TCP } (explicit protocol)
+        ports:
+          - port: 8080
 
     # Egress rules: where the owner may connect.
     # Each rule -> spec.egress in the owner NP AND NP+AP mirrors in the target ns.
@@ -114,7 +112,8 @@ policies:
               app.kubernetes.io/name: postgresql
             # NOTE: peer.serviceAccount in egress is FORBIDDEN - render fails.
             # The owner SA is taken from policy.serviceAccount.
-        ports: [5432]
+        ports:
+          - port: 5432
 
       - to:
           - namespace: netbox-valkey
@@ -135,8 +134,6 @@ netpol:
 
     enabled: true
 
-    namespace: netbox-ingress
-
     # podSelector. Empty/absent -> policy applies to all pods in the ns.
     selector:
       app.kubernetes.io/name: ingress-istio
@@ -147,7 +144,11 @@ netpol:
           - ipBlock:
               cidr: 0.0.0.0/0
               # except: [10.0.0.0/8]
-        ports: [443, 15020, 15021, 15090]
+        ports:
+          - port: 443
+          - port: 15020
+          - port: 15021
+          - port: 15090
 
     # Egress rules: list of {to: [...], ports: [...]}.
     egress:
@@ -155,7 +156,8 @@ netpol:
           - namespace: netbox-core
             selector:
               app.kubernetes.io/name: netbox
-        ports: [8080]
+        ports:
+          - port: 8080
 
 
 # ============================================================================
@@ -167,8 +169,6 @@ authzpol:
     name: gate
 
     enabled: true
-
-    namespace: netbox-ingress
 
     # action: ALLOW (default) | DENY | AUDIT | CUSTOM
     action: ALLOW
@@ -187,11 +187,10 @@ authzpol:
         from:
           ipBlocks:
             - 0.0.0.0/0
-        ports: [443]
+        ports:
+          - port: 443
 
   - name: vkpr
-
-    namespace: netbox-valkey
 
     selector:
       app.kubernetes.io/name: valkey
@@ -206,7 +205,8 @@ authzpol:
               name: netbox-valkey-primary
             - namespace: netbox-valkey
               name: netbox-valkey-replica
-        ports: [6379]
+        ports:
+          - port: 6379
 
         # when conditions. Currently sourceNamespaces is supported.
         when:

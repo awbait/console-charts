@@ -26,6 +26,15 @@
   `authzpol[]`), конвенция именования, таблицы полей, валидации, запуск.
 
 ### Changed
+- **Namespace владельца - всегда `.Release.Namespace`.** Поля `namespace` у
+  `policies[]`, `netpol[]`, `authzpol[]` убраны: owner-ресурсы создаются в
+  namespace релиза, поэтому деплой чарт в namespace целевого workload
+  (`helm install -n <ns>`). Namespace в `ingress.from[]` / `egress.to[]` (peer'ы
+  и зеркала egress) сохранены - это другие namespace.
+- **`portEntry` в схеме упрощён.** Убран `oneOf` (число | объект); оставлена
+  объектная форма с раздельными полями `port` (обязательное) и `protocol`
+  (опционально, fallback на `defaults.protocol`), как `networkPolicyPort` в
+  `ingress-gateway`. Скалярная форма `ports: [8080]` больше не валидна по схеме.
 - **Конвенция именования ресурсов** - имя строится как
   `{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}` (было `{name}-{np|ap}`).
   Общие теги - в новом блоке `naming` (`instanceTag`/`clusterTag`/`projectTag`),

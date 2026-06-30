@@ -69,22 +69,25 @@ Reference `values.yaml` описывает по одному примеру на
 ### `policies[]`
 
 Один блок описывает owner-workload и его ingress/egress. На запись создаётся до 4
-манифестов: `np`+`ap` в `policy.namespace` и зеркала `np`(ingress)+`ap` в каждом
-target namespace из egress-правил.
+манифестов: `np`+`ap` в namespace релиза (`.Release.Namespace`) и зеркала
+`np`(ingress)+`ap` в каждом target namespace из egress-правил.
 
 | Поле             | Обязательно                    | Описание                                                       |
 |------------------|--------------------------------|----------------------------------------------------------------|
 | `name`           | да                             | 2..6 символов, DNS; `{name}` в имени ресурсов                  |
 | `enabled`        | нет (true)                     | `false` -> вся policy пропускается                            |
-| `namespace`      | да                             | Namespace owner-workload                                        |
 | `serviceAccount` | при наличии egress             | SA owner-а; идёт в principal зеркальных AP                      |
 | `selector`       | да                             | Pod selector owner-а (podSelector в NP, selector в AP)         |
 | `ingress[]`      | нет                            | Кому разрешено ходить В owner (`from` + `ports`)               |
 | `egress[]`       | нет                            | Куда owner может ходить (`to` + `ports`); зеркалится в target   |
 
+Owner-ресурсы создаются в namespace релиза; деплой чарт в namespace целевого
+workload (`helm install -n <ns>`).
+
 Формы `from`/`to`: `namespace + selector` (+ опц. `serviceAccount` для AP
 principal), `ipBlock`, либо raw `namespaceSelector`/`podSelector` (advanced).
-Порты: `8080` (берётся `defaults.protocol`) или `{ port: 8080, protocol: TCP }`.
+Порты: `{ port: 8080 }` (протокол из `defaults.protocol`) или
+`{ port: 8080, protocol: TCP }`.
 
 > `peer.serviceAccount` в **egress** запрещён - рендер упадёт. SA отправителя
 > берётся из `policy.serviceAccount` owner-а.
@@ -97,7 +100,6 @@ principal), `ipBlock`, либо raw `namespaceSelector`/`podSelector` (advanced)
 |-------------|-------------|----------------------------------------------------------------|
 | `name`      | да          | 2..6 символов, DNS; имя ресурса (`np`)                         |
 | `enabled`   | нет (true)  | `false` -> ресурс не создаётся                                |
-| `namespace` | да          | Namespace ресурса                                              |
 | `selector`  | нет         | podSelector; пустой -> политика на все pod в ns               |
 | `ingress[]` | нет         | Список `{ from: [...], ports: [...] }`                         |
 | `egress[]`  | нет         | Список `{ to: [...], ports: [...] }`                           |
@@ -110,7 +112,6 @@ principal), `ipBlock`, либо raw `namespaceSelector`/`podSelector` (advanced)
 |-------------|-------------|----------------------------------------------------------------|
 | `name`      | да          | 2..6 символов, DNS; имя ресурса (`ap`)                         |
 | `enabled`   | нет (true)  | `false` -> ресурс не создаётся                                |
-| `namespace` | да          | Namespace ресурса                                              |
 | `action`    | нет (ALLOW) | `ALLOW` / `DENY` / `AUDIT` / `CUSTOM`                          |
 | `selector`  | нет         | Кому применяется; опущен -> ко всем workload в ns             |
 | `rules[]`   | да          | Правила `from` / `ports` / `when`                              |
@@ -124,7 +125,7 @@ principal), `ipBlock`, либо raw `namespaceSelector`/`podSelector` (advanced)
 
 - `naming.instanceTag`/`clusterTag` не заданы или не DNS-формат.
 - `naming.projectTag` или любое `policy.name` не 2..6 символов / не DNS-формат.
-- `policy.namespace`/`selector` не заданы (`policies[]`).
+- `policy.selector` не задан (`policies[]`).
 - egress-правило без `policy.serviceAccount` owner-а.
 - `peer.serviceAccount` указан в egress-правиле.
 
