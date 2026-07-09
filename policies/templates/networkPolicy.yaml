@@ -26,8 +26,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
   namespace: {{ $namespace | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     matchLabels:
@@ -94,8 +93,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
   namespace: {{ $targetNs | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     {{- if gt (len $info.selector) 0 }}
@@ -138,8 +136,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "np" "context" $root) }}
   namespace: {{ $namespace | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     {{- if gt (len $selector) 0 }}

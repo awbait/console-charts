@@ -15,7 +15,7 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels
+Common labels: chart identity + generic.labels.
 */}}
 {{- define "managed-ns.labels" -}}
 helm.sh/chart: {{ include "managed-ns.chart" . }}
@@ -24,6 +24,40 @@ app.cpaas.io/name: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- range $k, $v := (.Values.generic | default dict).labels }}
+{{ $k }}: {{ tpl (toString $v) $ | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Common metadata (labels + annotations) for every chart resource. Renders the
+full "labels:" block and, only when non-empty, the "annotations:" block, so a
+resource wires both in one call and never silently drops generic.* on a new
+manifest. Parameters:
+  .context     - root context ($), required;
+  .labels      - optional dict of extra per-resource labels;
+  .annotations - optional dict of extra per-resource annotations.
+Call right under metadata.name/namespace:
+  {{- include "managed-ns.metadata" (dict "context" $root) | nindent 2 }}
+*/}}
+{{- define "managed-ns.metadata" -}}
+{{- $ctx := .context -}}
+labels:
+  {{- include "managed-ns.labels" $ctx | nindent 2 }}
+  {{- range $k, $v := .labels }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+{{- $ann := (.context.Values.generic | default dict).annotations | default dict -}}
+{{- $extra := .annotations | default dict -}}
+{{- if or $ann $extra }}
+annotations:
+  {{- range $k, $v := $ann }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+  {{- range $k, $v := $extra }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+{{- end }}
 {{- end }}
 
 

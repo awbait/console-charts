@@ -92,6 +92,38 @@ Common annotations (generic.annotations). Empty -> outputs nothing.
 {{- end -}}
 
 {{/*
+Common metadata (labels + annotations) for every chart resource. Renders the
+full "labels:" block and, only when non-empty, the "annotations:" block, so a
+resource wires both in one call and never silently drops generic.* on a new
+manifest. Parameters:
+  .context     - root context ($), required;
+  .labels      - optional dict of extra per-resource labels;
+  .annotations - optional dict of extra per-resource annotations.
+Call right under metadata.name/namespace:
+  {{- include "waypoint.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+*/}}
+{{- define "waypoint.helpers.app.metadata" -}}
+{{- $ctx := .context -}}
+labels:
+  {{- include "waypoint.helpers.app.labels" $ctx | nindent 2 }}
+  {{- with .labels }}
+  {{- include "waypoint.helpers.tplvalues.render" (dict "value" . "context" $ctx) | nindent 2 }}
+  {{- end }}
+{{- $generic := include "waypoint.helpers.app.genericAnnotations" $ctx | trim -}}
+{{- $extra := "" -}}
+{{- with .annotations }}{{- $extra = include "waypoint.helpers.tplvalues.render" (dict "value" . "context" $ctx) | trim -}}{{- end -}}
+{{- if or $generic $extra }}
+annotations:
+  {{- with $generic }}
+  {{- . | nindent 2 }}
+  {{- end }}
+  {{- with $extra }}
+  {{- . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Entity enabled flag (enabled). Parameter: entity (map).
 Correctly honors an explicit enabled: false (unlike `| default true`).
 enabled missing -> "true"; enabled: false -> "" (disabled); otherwise by value.

@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "propertyOrder": [
     "naming",
+    "generic",
     "defaults",
     "policies",
     "netpol",
@@ -20,6 +21,12 @@
       "title": "Naming tags",
       "description": "Common tags for generating resource names by the convention {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}. kindShort: np | ap.",
       "$ref": "#/definitions/naming"
+    },
+    "generic": {
+      "title": "Generic settings",
+      "description": "Common labels/annotations applied to all chart resources.",
+      "$ref": "#/definitions/generic",
+      "ui:widget": "hidden"
     },
     "defaults": {
       "title": "Defaults",
@@ -181,6 +188,33 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      }
+    },
+    "tplStringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map of string keys to string values (may use Helm tpl templating)."
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "labels",
+        "annotations"
+      ],
+      "properties": {
+        "labels": {
+          "title": "Common labels",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "$ref": "#/definitions/tplStringMap"
+        },
+        "annotations": {
+          "title": "Common annotations",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "$ref": "#/definitions/tplStringMap"
+        }
       }
     },
     "naming": {

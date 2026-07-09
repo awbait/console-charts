@@ -7,6 +7,7 @@ apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
   name: {{ .name | lower | trunc 63 | trimSuffix "-" }}
+  {{- include "managed-ns.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   default: false
   protocol: IPv4

@@ -18,8 +18,7 @@ kind: AuthorizationPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "ap" "context" $root) }}
   namespace: {{ $namespace | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   action: ALLOW
   selector:
@@ -84,8 +83,7 @@ kind: AuthorizationPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "ap" "context" $root) }}
   namespace: {{ $targetNs | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   action: ALLOW
   {{- if gt (len $info.selector) 0 }}
@@ -122,8 +120,7 @@ kind: AuthorizationPolicy
 metadata:
   name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "ap" "context" $root) }}
   namespace: {{ $namespace | quote }}
-  labels:
-    {{- include "security-policies.labels" $root | nindent 4 }}
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   action: {{ default "ALLOW" $policy.action | quote }}
   {{- if $policy.selector }}

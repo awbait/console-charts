@@ -11,7 +11,6 @@ The whole section is skipped when the gateway is disabled.
 */}}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if ($gw.enabled | default true) }}
-{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 {{- range $index, $listener := $gw.listeners }}
 {{- $seName := required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name }}
 {{- $hostname := required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname }}
@@ -24,12 +23,7 @@ kind: ServiceEntry
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $seName "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
-  labels:
-    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
 spec:
   hosts:
     - {{ $hostname | quote }}

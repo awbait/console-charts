@@ -20,20 +20,14 @@ The element is skipped when enabled: false.
 {{- $hpaEnabled := $hpa.enabled | default false -}}
 {{/* resources is hidden in the order form; apply a sane istio-proxy default when omitted (editable later from the product card). */}}
 {{- $defaultResources := dict "requests" (dict "cpu" "100m" "memory" "128Mi") "limits" (dict "cpu" "2000m" "memory" "1024Mi") -}}
-{{- $resources := $gateway.resources | default $defaultResources -}}
-{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
+{{- $resources := $gateway.resources | default $defaultResources }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ConfigMap" "name" $gatewayName "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 data:
   {{- if $hpaEnabled }}
   horizontalPodAutoscaler: |

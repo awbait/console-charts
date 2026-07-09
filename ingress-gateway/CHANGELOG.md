@@ -19,6 +19,16 @@
 
 ---
 
+## [3.3.2] - 2026-07-09
+
+### Changed
+- Labels и annotations всех ресурсов теперь собираются одним хелпером `ingress-gateway.helpers.app.metadata` (`labels:` + условный `annotations:` из `generic.*`). Раньше каждый манифест повторял этот блок вручную. Стандартный рендер семантически не меняется (убраны только пустые строки).
+
+### Fixed
+- Ресурсы OIDC (`HTTPRoute`, `ReferenceGrant`, `AuthorizationPolicy`, `RequestAuthentication`) теперь тоже получают `generic.annotations` - раньше на них выводились только labels.
+
+---
+
 ## [3.3.1] - 2026-06-25
 
 ### Changed

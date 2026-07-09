@@ -23,8 +23,7 @@ kind: HTTPRoute
 metadata:
   name: {{ $oauth2Route.name | default "oauth2-route" }}
   namespace: {{ $auth.application.namespace | default .Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" .) | nindent 2 }}
 spec:
   hostnames:
     {{- range $host := $auth.application.hostnames }}
@@ -55,8 +54,7 @@ kind: ReferenceGrant
 metadata:
   name: {{ $referenceGrant.name | default .Release.Namespace | quote }}
   namespace: oauth2-proxy
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" .) | nindent 2 }}
 spec:
   from:
     - group: gateway.networking.k8s.io
@@ -73,8 +71,7 @@ kind: AuthorizationPolicy
 metadata:
   name: {{ $externalAuthPolicy.name | default "redirect-to-oauth2-proxy" }}
   namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" .) | nindent 2 }}
 spec:
   action: CUSTOM
   provider:
@@ -101,8 +98,7 @@ kind: AuthorizationPolicy
 metadata:
   name: {{ $groupsPolicy.name | default "groups-whitelist" }}
   namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" .) | nindent 2 }}
 spec:
   action: ALLOW
   targetRefs:
@@ -143,8 +139,7 @@ kind: RequestAuthentication
 metadata:
   name: {{ $requestAuthentication.name | default "keycloak-jwt" }}
   namespace: {{ $auth.gateway.namespace | default .Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" . | nindent 4 }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" .) | nindent 2 }}
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
