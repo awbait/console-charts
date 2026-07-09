@@ -10,20 +10,13 @@ istio.io/use-waypoint: <name of this Gateway>. An item is skipped when enabled: 
 {{- if eq (include "waypoint.helpers.app.enabled" $waypoint) "true" }}
 {{- $waypointName := required (printf "waypoints[%d].name is required" $index) $waypoint.name }}
 {{- $for := include "waypoint.helpers.app.for" $waypoint.for }}
-{{- $genericAnnotations := include "waypoint.helpers.app.genericAnnotations" $root }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "waypoint.helpers.app.labels" $root | nindent 4 }}
-    istio.io/waypoint-for: {{ $for | quote }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "waypoint.helpers.app.metadata" (dict "context" $root "labels" (dict "istio.io/waypoint-for" $for)) | nindent 2 }}
 spec:
   gatewayClassName: istio-waypoint
   listeners:
