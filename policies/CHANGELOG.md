@@ -24,6 +24,11 @@
 ### Added
 - **`README.md`** - usage-документ чарта: секции (`policies[]`/`netpol[]`/
   `authzpol[]`), конвенция именования, таблицы полей, валидации, запуск.
+- **Блок `generic` (`labels`/`annotations`)** - общие labels и annotations на все
+  генерируемые `NetworkPolicy`/`AuthorizationPolicy`. Собираются единым хелпером
+  `security-policies.metadata` (`labels:` + условный `annotations:`); `generic.labels`
+  дополнительно вливаются в `security-policies.labels`. Добавлены в `values.full.yaml`
+  и `values.schema.json` (в форме портала секция скрыта).
 
 ### Changed
 - **Namespace владельца - всегда `.Release.Namespace`.** Поля `namespace` у

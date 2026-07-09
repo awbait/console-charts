@@ -6,13 +6,47 @@ Chart name.
 {{- end -}}
 
 {{/*
-Common labels.
+Common labels: chart identity + generic.labels.
 */}}
 {{- define "security-policies.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | quote }}
 app.kubernetes.io/name: {{ include "security-policies.name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+{{- range $k, $v := (.Values.generic | default dict).labels }}
+{{ $k }}: {{ tpl (toString $v) $ | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Common metadata (labels + annotations) for every chart resource. Renders the
+full "labels:" block and, only when non-empty, the "annotations:" block, so a
+resource wires both in one call and never silently drops generic.* on a new
+manifest. Parameters:
+  .context     - root context ($), required;
+  .labels      - optional dict of extra per-resource labels;
+  .annotations - optional dict of extra per-resource annotations.
+Call right under metadata.name/namespace:
+  {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
+*/}}
+{{- define "security-policies.metadata" -}}
+{{- $ctx := .context -}}
+labels:
+  {{- include "security-policies.labels" $ctx | nindent 2 }}
+  {{- range $k, $v := .labels }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+{{- $ann := (.context.Values.generic | default dict).annotations | default dict -}}
+{{- $extra := .annotations | default dict -}}
+{{- if or $ann $extra }}
+annotations:
+  {{- range $k, $v := $ann }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+  {{- range $k, $v := $extra }}
+  {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
+  {{- end }}
+{{- end }}
 {{- end -}}
 
 {{/*
