@@ -29,7 +29,6 @@ The element is skipped when enabled: false.
 {{- $supportsMatches := or (eq $routeKind "HTTPRoute") (eq $routeKind "GRPCRoute") }}
 {{- $supportsFilters := $supportsMatches }}
 {{- $supportsHostnames := or $supportsMatches (eq $routeKind "TLSRoute") }}
-{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
 {{- if not $route.parentRefs }}
 {{- fail (printf "xroutes[%d].parentRefs is required for route %s" $index $routeName) }}
 {{- end }}
@@ -59,12 +58,7 @@ kind: {{ $routeKind }}
 metadata:
   name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" $routeKind "name" $routeName "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   parentRefs:
     {{- range $parent := $route.parentRefs }}

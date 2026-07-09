@@ -15,19 +15,13 @@ egress is provided by the user (networkPolicy.egress, required when enabled).
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
 {{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
 {{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gatewayName "context" $root) }}
-{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "NetworkPolicy" "name" $gatewayName "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     matchLabels:

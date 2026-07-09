@@ -12,19 +12,13 @@ The element is skipped when enabled: false.
 {{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
 {{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gatewayName "context" $root) }}
 {{- $configMapName := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ConfigMap" "name" $gatewayName "context" $root) }}
-{{- $genericAnnotations := include "ingress-gateway.helpers.app.genericAnnotations" $root }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ $gatewayFullname }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "ingress-gateway.helpers.app.labels" $root | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   gatewayClassName: istio
   infrastructure:
