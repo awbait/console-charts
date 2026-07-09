@@ -12,6 +12,9 @@ metadata:
     {{- with .Values.namespace.annotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
+    {{- range $k, $v := (.Values.generic | default dict).annotations }}
+    {{ $k }}: {{ tpl (toString $v) $ | quote }}
+    {{- end }}
   labels:
     cpaas.io/cluster: {{ .Values.namespace.clusterName }}
     cpaas.io/project: {{ .Values.namespace.projectName }}

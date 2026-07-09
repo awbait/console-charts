@@ -5,6 +5,10 @@
 global:
   enable: false
 
+generic:
+  labels: {}           # общие labels на ВСЕ ресурсы чарта (Namespace/ResourceQuota/Subnet)
+  annotations: {}      # общие annotations на ВСЕ ресурсы чарта
+
 namespace:
   namespaceName: "project-dev-ns-default"
   projectName: project

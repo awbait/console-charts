@@ -18,6 +18,31 @@
       "type": "object",
       "ui:widget": "hidden"
     },
+    "generic": {
+      "additionalProperties": false,
+      "description": "Common labels/annotations applied to all chart resources (Namespace, ResourceQuota, Subnet).",
+      "properties": {
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "title": "Common labels",
+          "type": "object"
+        },
+        "annotations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "title": "Common annotations",
+          "type": "object"
+        }
+      },
+      "title": "Generic settings",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
     "namespace": {
       "additionalProperties": false,
       "description": "Values for the Namespace being created",

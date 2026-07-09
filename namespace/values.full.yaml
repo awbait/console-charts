@@ -10,6 +10,22 @@ global:
   enable: true
 
 # ----------------------------------------------------------------------------
+# generic - общие labels/annotations на ВСЕ ресурсы чарта
+# (Namespace, ResourceQuota, Subnet). Задаются только глобально;
+# в форме портала секция скрыта (ui:widget: hidden).
+# ----------------------------------------------------------------------------
+generic:
+  # Общие labels для всех ресурсов чарта. Результат: metadata.labels.
+  labels:
+    environment: production
+    team: platform
+
+  # Общие annotations для всех ресурсов чарта. Результат: metadata.annotations.
+  annotations:
+    owner: platform-team
+    monitoring: "true"
+
+# ----------------------------------------------------------------------------
 # namespace - parameters of the Namespace being created
 # ----------------------------------------------------------------------------
 namespace:

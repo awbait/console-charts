@@ -19,6 +19,22 @@
 
 ---
 
+## [1.4.0] - 2026-07-09
+
+### Added
+- **Блок `generic` (`labels`/`annotations`)** - общие labels и annotations на все
+  ресурсы чарта (`Namespace`, `ResourceQuota`, `Subnet`). Собираются единым
+  хелпером `managed-ns.metadata` (`labels:` + условный `annotations:`);
+  `generic.labels` дополнительно вливаются в `managed-ns.labels`. Добавлены в
+  `values.full.yaml` и `values.schema.json` (в форме портала секция скрыта).
+
+### Changed
+- `ResourceQuota` и `Subnet` теперь тоже несут стандартные labels чарта
+  (`managed-ns.labels`) и `generic.*` - раньше у них не было ни labels, ни
+  annotations.
+
+---
+
 ## [1.3.1] - 2026-06-25
 
 ### Changed

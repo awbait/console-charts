@@ -4,6 +4,7 @@ kind: ResourceQuota
 metadata:
   name: {{ .Values.resourceQuotas.name | default "default" }}
   namespace: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+  {{- include "managed-ns.metadata" (dict "context" .) | nindent 2 }}
 spec:
   hard:
     limits.cpu: {{ .Values.resourceQuotas.limits.cpu }}
