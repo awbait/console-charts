@@ -140,6 +140,38 @@ Common annotations (generic.annotations). Empty -> outputs nothing.
 {{- end -}}
 
 {{/*
+Common metadata (labels + annotations) for every chart resource. Renders the
+full "labels:" block and, only when non-empty, the "annotations:" block, so a
+resource wires both in one call and never silently drops generic.* on a new
+manifest. Parameters:
+  .context     - root context ($), required;
+  .labels      - optional dict of extra per-resource labels;
+  .annotations - optional dict of extra per-resource annotations.
+Call right under metadata.name/namespace:
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
+*/}}
+{{- define "egress-gateway.helpers.app.metadata" -}}
+{{- $ctx := .context -}}
+labels:
+  {{- include "egress-gateway.helpers.app.labels" $ctx | nindent 2 }}
+  {{- with .labels }}
+  {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $ctx) | nindent 2 }}
+  {{- end }}
+{{- $generic := include "egress-gateway.helpers.app.genericAnnotations" $ctx | trim -}}
+{{- $extra := "" -}}
+{{- with .annotations }}{{- $extra = include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $ctx) | trim -}}{{- end -}}
+{{- if or $generic $extra }}
+annotations:
+  {{- with $generic }}
+  {{- . | nindent 2 }}
+  {{- end }}
+  {{- with $extra }}
+  {{- . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Generic templated-value rendering. Params: .value, .context.
 */}}
 {{- define "egress-gateway.helpers.tplvalues.render" -}}

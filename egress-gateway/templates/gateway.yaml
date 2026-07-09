@@ -17,21 +17,13 @@ The whole gateway is skipped when enabled: false.
 {{- if not $gw.listeners }}
 {{- fail "egressGateway.listeners must contain at least one listener" }}
 {{- end }}
-{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ $gwFullname }}
   namespace: {{ $.Release.Namespace | quote }}
-  labels:
-    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
-  annotations:
-    networking.istio.io/service-type: ClusterIP
-    istio.io/waypoint-for: service
-    {{- if $genericAnnotations }}
-    {{- $genericAnnotations | nindent 4 }}
-    {{- end }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $ "annotations" (dict "networking.istio.io/service-type" "ClusterIP" "istio.io/waypoint-for" "service")) | nindent 2 }}
 spec:
   gatewayClassName: istio-waypoint
   infrastructure:

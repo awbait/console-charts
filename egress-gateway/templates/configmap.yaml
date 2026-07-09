@@ -8,19 +8,13 @@ Skipped when the gateway is disabled.
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
-{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
   namespace: {{ $.Release.Namespace | quote }}
-  labels:
-    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
 data:
   service: |
     spec:

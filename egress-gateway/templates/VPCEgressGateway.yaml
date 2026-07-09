@@ -31,8 +31,7 @@ kind: VpcEgressGateway
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" (required (printf "vpcEgressGateway[%d].name is required" $index) $veg.name) "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
-  labels:
-    {{- include "egress-gateway.helpers.app.labels" $root | nindent 4 }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   vpc: ovn-cluster
   replicas: {{ len $externalIPs }}

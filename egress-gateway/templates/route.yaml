@@ -14,7 +14,6 @@ The whole section is skipped when the gateway is disabled.
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
-{{- $genericAnnotations := include "egress-gateway.helpers.app.genericAnnotations" $ }}
 {{- range $index, $listener := $gw.listeners }}
 {{- $lName := required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name }}
 {{- $hostname := required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname }}
@@ -29,12 +28,7 @@ kind: {{ $routeKind }}
 metadata:
   name: {{ $routeName }}
   namespace: {{ $.Release.Namespace | quote }}
-  labels:
-    {{- include "egress-gateway.helpers.app.labels" $ | nindent 4 }}
-  {{- if $genericAnnotations }}
-  annotations:
-    {{- $genericAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
 spec:
   parentRefs:
     - group: gateway.networking.k8s.io

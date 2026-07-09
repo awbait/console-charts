@@ -19,6 +19,16 @@
 
 ---
 
+## [2.0.1] - 2026-07-09
+
+### Changed
+- Labels и annotations всех ресурсов теперь собираются одним хелпером `egress-gateway.helpers.app.metadata` (`labels:` + условный `annotations:` из `generic.*`). Раньше каждый манифест повторял этот блок вручную. Ресурс-специфичные аннотации `Gateway` (`networking.istio.io/service-type`, `istio.io/waypoint-for`) передаются в хелпер параметром.
+
+### Fixed
+- `VpcEgressGateway` теперь тоже получает `generic.annotations` - раньше на нём выводились только labels.
+
+---
+
 ## [2.0.0] - 2026-06-25
 
 BREAKING: структура `values.yaml` изменена. `egressGateway` теперь один объект
