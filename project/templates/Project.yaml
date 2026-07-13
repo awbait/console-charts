@@ -1,0 +1,15 @@
+{{- if .Values.global.enable }}
+{{- $name := include "project.helpers.name" . }}
+{{- /* Structural cpaas annotations are merged with generic.annotations via the metadata helper. */}}
+{{- $ann := dict "cpaas.io/creator" (.Values.project.creator | default "lk") }}
+{{- with .Values.project.displayName }}{{- $_ := set $ann "cpaas.io/display-name" . }}{{- end }}
+{{- with .Values.project.description }}{{- $_ := set $ann "cpaas.io/description" . }}{{- end }}
+apiVersion: auth.alauda.io/v1
+kind: Project
+metadata:
+  name: {{ $name }}
+  {{- include "project.helpers.metadata" (dict "context" . "labels" (dict "cpaas.io/project" $name) "annotations" $ann) | nindent 2 }}
+spec:
+  clusters:
+    {{- include "project.helpers.clusters" . | nindent 4 }}
+{{- end -}}

@@ -1,0 +1,68 @@
+# ============================================================================
+#  Helm chart: project - full values reference
+#  Creates an Alauda multi-cluster Project (auth.alauda.io/v1) with per-cluster
+#  resource quotas. The resource is created only when global.enable=true.
+# ============================================================================
+
+global:
+  # Main chart switch. false -> no resource is created.
+  # Service field, hidden in the portal form; enabled by the console on order.
+  enable: true
+
+# ----------------------------------------------------------------------------
+# generic - общие labels/annotations на ВСЕ ресурсы чарта (Project).
+# Задаются только глобально; в форме портала секция скрыта (ui:widget: hidden).
+# Собираются единым хелпером project.helpers.metadata.
+# ----------------------------------------------------------------------------
+generic:
+  # Общие labels для всех ресурсов чарта. Результат: metadata.labels.
+  labels:
+    environment: production
+    team: platform
+
+  # Общие annotations для всех ресурсов чарта. Результат: metadata.annotations.
+  annotations:
+    owner: platform-team
+    monitoring: "true"
+
+# ----------------------------------------------------------------------------
+# project - параметры создаваемого Project
+# ----------------------------------------------------------------------------
+project:
+  # Имя проекта. Обязательно. Только строчные буквенно-цифровые символы и дефис
+  # (RFC 1123, DNS-формат), максимум 63 символа. Подставляется в metadata.name
+  # и в label cpaas.io/project.
+  name: project-name
+
+  # Отображаемое имя проекта (annotation cpaas.io/display-name).
+  # Опционально: без значения аннотация не выводится.
+  displayName: "Project display name"
+
+  # Описание проекта (annotation cpaas.io/description).
+  # Опционально: без значения аннотация не выводится.
+  description: "Project description"
+
+  # Создатель проекта (annotation cpaas.io/creator). Default "lk".
+  # Скрыто в форме портала; при заказе из консоли подставляется "console".
+  creator: lk
+
+# ----------------------------------------------------------------------------
+# clusters - список кластеров, к которым привязан проект, и их квоты.
+# Обязателен минимум один кластер. Имя каждого кластера обязательно.
+# quota - произвольный набор ключей ResourceQuota (значения - строки Quantity):
+#   limits.cpu / limits.memory / requests.storage / requests.cpu / ...
+# ----------------------------------------------------------------------------
+clusters:
+  - # Имя кластера Alauda. Обязательно.
+    name: dev
+    # Квоты ресурсов кластера в формате { <ключ ResourceQuota>: <Quantity> }.
+    quota:
+      limits.cpu: "1"          # лимит CPU (например "1", "1000m")
+      limits.memory: 2Gi       # лимит памяти (например "2Gi", "2048Mi")
+      requests.storage: 3Gi    # лимит на хранилище
+
+  - name: global
+    quota:
+      limits.cpu: "4"
+      limits.memory: 8Gi
+      requests.storage: 10Gi

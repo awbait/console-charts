@@ -1,0 +1,9 @@
+apiVersion: v2
+
+name: project
+
+description: A Helm chart for an Alauda multi-cluster Project (auth.alauda.io/v1) with per-cluster resource quotas
+
+type: application
+
+version: "1.0.0"
