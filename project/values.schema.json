@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/project/values.schema.json",
+  "title": "Project Helm chart values",
+  "description": "Значения чарта project: Alauda multi-cluster Project (auth.alauda.io/v1) с квотами ресурсов по кластерам.",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyOrder": ["project", "clusters", "generic", "global"],
+  "required": ["global", "project", "clusters"],
+  "properties": {
+    "global": {
+      "additionalProperties": false,
+      "description": "Global chart settings",
+      "properties": {
+        "enable": {
+          "description": "Enable creation of chart resources",
+          "default": false,
+          "title": "Enable",
+          "type": "boolean",
+          "ui:widget": "hidden"
+        }
+      },
+      "title": "global",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "generic": {
+      "additionalProperties": false,
+      "description": "Common labels/annotations applied to all chart resources (Project).",
+      "properties": {
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "title": "Common labels",
+          "type": "object"
+        },
+        "annotations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "title": "Common annotations",
+          "type": "object"
+        }
+      },
+      "title": "Generic settings",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "project": {
+      "additionalProperties": false,
+      "description": "Значения создаваемого Project",
+      "properties": {
+        "name": {
+          "description": "Имя проекта. Только строчные буквенно-цифровые символы и дефис (RFC 1123), максимум 63 символа",
+          "default": "project-name",
+          "title": "Имя проекта",
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "displayName": {
+          "description": "Отображаемое имя проекта (annotation cpaas.io/display-name)",
+          "default": "Project display name",
+          "title": "Отображаемое имя",
+          "type": "string"
+        },
+        "description": {
+          "description": "Описание проекта (annotation cpaas.io/description)",
+          "default": "Project description",
+          "title": "Описание",
+          "type": "string"
+        },
+        "creator": {
+          "description": "Создатель проекта (annotation cpaas.io/creator). При заказе из консоли подставляется console",
+          "default": "lk",
+          "title": "Создатель",
+          "type": "string",
+          "ui:widget": "hidden"
+        }
+      },
+      "required": ["name"],
+      "title": "Project",
+      "type": "object"
+    },
+    "clusters": {
+      "description": "Список кластеров, к которым привязан проект, и их квоты. Минимум один кластер",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "description": "Имя кластера Alauda",
+            "default": "global",
+            "title": "Имя кластера",
+            "type": "string"
+          },
+          "quota": {
+            "description": "Квоты ресурсов кластера в формате { <ключ ResourceQuota>: <Quantity> }, например limits.cpu, limits.memory, requests.storage",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Квоты ресурсов",
+            "type": "object"
+          }
+        }
+      },
+      "title": "Кластеры",
+      "defaultSnippets": [
+        {
+          "label": "cluster",
+          "body": {
+            "name": "$1",
+            "quota": {
+              "limits.cpu": "$2",
+              "limits.memory": "$3",
+              "requests.storage": "$4"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

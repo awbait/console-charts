@@ -1,0 +1,17 @@
+# project - minimal working example.
+# Creates one Project with a resource quota on a single cluster.
+
+global:
+  enable: true
+
+project:
+  name: demo-project
+  displayName: "Demo project"
+  description: "Demo project for team X"
+
+clusters:
+  - name: global
+    quota:
+      limits.cpu: "4"
+      limits.memory: 8Gi
+      requests.storage: 10Gi

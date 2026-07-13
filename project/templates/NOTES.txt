@@ -1,0 +1,9 @@
+project ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
+
+{{- if .Values.global.enable }}
+Created:
+  Project: {{ include "project.helpers.name" . }}
+           (clusters: {{ range $i, $c := .Values.clusters }}{{ if $i }}, {{ end }}{{ $c.name }}{{ end }})
+{{- else }}
+Resources not created: global.enable=false.
+{{- end }}

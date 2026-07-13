@@ -1,0 +1,23 @@
+# project - default values (minimal, so rendering passes).
+# When global.enable=false the chart creates no resources.
+# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
+
+global:
+  enable: false
+
+generic:
+  labels: {}           # общие labels на ВСЕ ресурсы чарта (Project)
+  annotations: {}      # общие annotations на ВСЕ ресурсы чарта
+
+project:
+  name: project-name
+  displayName: "Project display name"
+  description: "Project description"
+  creator: lk
+
+clusters:
+  - name: global
+    quota:
+      limits.cpu: "1"
+      limits.memory: 2Gi
+      requests.storage: 3Gi
