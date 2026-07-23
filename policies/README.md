@@ -11,10 +11,19 @@
 | `authzpol[]` | только `AuthorizationPolicy`                                          | L7 (`when`, кастомные principals) или NP заданы иначе |
 
 `policies[]` - основная секция: один блок описывает workload (owner) и его связи.
-Каждое egress-правило, помимо записи в owner-манифестах, **зеркалится** в namespace
-получателя (ingress `NetworkPolicy` + mirror `AuthorizationPolicy` с principal
-owner-а). Несколько egress-правил с одним target namespace мерджатся в один
-зеркальный манифест (порты объединяются).
+Правила зеркалятся в namespace второй стороны, чтобы связь работала без
+отдельного релиза чарта там:
+
+- **egress** -> в namespace получателя: ingress `NetworkPolicy` + mirror
+  `AuthorizationPolicy` (principal owner-а);
+- **ingress** -> в namespace отправителя: egress `NetworkPolicy` (разрешение
+  отправителю дойти до owner-а).
+
+Зеркалятся только peers формы `namespace` (+ `selector`); `ipBlock` и raw
+`namespaceSelector`/`podSelector` зеркал не создают. Несколько правил с одним
+peer namespace мерджатся в один зеркальный манифест (порты объединяются); если
+один namespace выступает и получателем egress, и отправителем ingress, обе
+стороны попадают в один манифест и должны использовать одинаковый selector.
 
 ## Конвенция именования
 
@@ -68,9 +77,10 @@ Reference `values.yaml` описывает по одному примеру на
 
 ### `policies[]`
 
-Один блок описывает owner-workload и его ingress/egress. На запись создаётся до 4
-манифестов: `np`+`ap` в namespace релиза (`.Release.Namespace`) и зеркала
-`np`(ingress)+`ap` в каждом target namespace из egress-правил.
+Один блок описывает owner-workload и его ingress/egress. На запись создаются:
+`np`+`ap` в namespace релиза (`.Release.Namespace`), зеркала `np`(ingress)+`ap`
+в каждом target namespace из egress-правил и зеркала `np`(egress) в каждом
+namespace отправителя из ingress-правил.
 
 | Поле             | Обязательно                    | Описание                                                       |
 |------------------|--------------------------------|----------------------------------------------------------------|
@@ -78,7 +88,7 @@ Reference `values.yaml` описывает по одному примеру на
 | `enabled`        | нет (true)                     | `false` -> вся policy пропускается                            |
 | `serviceAccount` | при наличии egress             | SA owner-а; идёт в principal зеркальных AP                      |
 | `selector`       | да                             | Pod selector owner-а (podSelector в NP, selector в AP)         |
-| `ingress[]`      | нет                            | Кому разрешено ходить В owner (`from` + `ports`)               |
+| `ingress[]`      | нет                            | Кому разрешено ходить В owner (`from` + `ports`); egress-зеркало у отправителя |
 | `egress[]`       | нет                            | Куда owner может ходить (`to` + `ports`); зеркалится в target   |
 
 Owner-ресурсы создаются в namespace релиза - ставь чарт в namespace целевого
