@@ -74,9 +74,10 @@ defaults:
 # ============================================================================
 # policies - universal policies (NetworkPolicy + AuthorizationPolicy)
 # ============================================================================
-# One entry -> up to 4 manifests:
+# One entry -> the following manifests:
 #   - in the release namespace:  {name}-np (ingress+egress) and {name}-ap
 #   - in each target namespace:  {name}-np (ingress) and {name}-ap (mirror)
+#   - in each sender namespace:  {name}-np (egress mirror from ingress rules)
 #
 # Several egress rules with the same target.namespace are merged into a single
 # manifest on the target side (ports are combined).
@@ -98,7 +99,9 @@ policies:
       app.kubernetes.io/name: netbox
 
     # Ingress rules: who is allowed to reach the owner.
-    # Each rule -> spec.ingress (NP) and one entry in spec.rules (AP).
+    # Each rule -> spec.ingress (NP) and one entry in spec.rules (AP), plus an
+    # egress NetworkPolicy mirror in the sender namespace (namespace+selector
+    # peers only), so the sender needs no separate policies release.
     ingress:
       - # Traffic sources. Supported forms:
         #   namespace + selector (+ optional serviceAccount for AP principals)

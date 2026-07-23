@@ -22,6 +22,14 @@
 ## [Unreleased]
 
 ### Added
+- **Egress-зеркало для ingress-правил `policies[]`.** Ingress-правило теперь
+  создаёт три политики: egress `NetworkPolicy` в namespace **отправителя**
+  (peers формы `namespace`+`selector`), плюс прежние ingress `NetworkPolicy` и
+  `AuthorizationPolicy` в namespace релиза. Раньше отправителю требовался
+  отдельный релиз policies с egress-правилом, который дублировал ingress
+  NP/AP на стороне получателя. Если один namespace - и получатель egress, и
+  отправитель ingress, обе стороны мерджатся в один манифест (selector должен
+  совпадать, иначе рендер падает с подсказкой).
 - **`README.md`** - usage-документ чарта: секции (`policies[]`/`netpol[]`/
   `authzpol[]`), конвенция именования, таблицы полей, валидации, запуск.
 - **Блок `generic` (`labels`/`annotations`)** - общие labels и annotations на все
