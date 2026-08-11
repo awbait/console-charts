@@ -1,4 +1,4 @@
-# managed-namespace - минимальный рабочий пример.
+# namespace - минимальный рабочий пример.
 # Создаёт Namespace и ResourceQuota, без выделенной подсети.
 
 global:

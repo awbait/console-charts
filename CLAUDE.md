@@ -21,7 +21,7 @@ Helm-чартами платформы. Он лежит внутри рабоч�
 - `waypoint/` - Istio ambient waypoint proxy.
 - `policies/` - декларативные правила доступа между сервисами: `NetworkPolicy` +
   Istio `AuthorizationPolicy`.
-- `namespace/` (`managed-namespace`) - namespace + ResourceQuota + subnet.
+- `namespace/` - namespace + ResourceQuota + subnet.
 
 Чарты публикуются в Harbor и заказываются через портал; репозиторий `console`
 chart-agnostic, реальные чарты приходят отсюда (см. `docs/chart-convention.md` в

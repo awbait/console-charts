@@ -2,12 +2,12 @@
 {{ if .Values.subnet.enable }}
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}
-{{- $gatewayIP := include "managed-ns.getGatewayIP" .cidrBlock -}}
+{{- $gatewayIP := include "namespace.helpers.getGatewayIP" .cidrBlock -}}
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
   name: {{ .name | lower | trunc 63 | trimSuffix "-" }}
-  {{- include "managed-ns.metadata" (dict "context" $root) | nindent 2 }}
+  {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   default: false
   protocol: IPv4

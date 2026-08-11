@@ -1,5 +1,5 @@
-managed-namespace ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
-Identity labels on every resource: {{ include "managed-ns.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
+{{ .Chart.Name }} ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
+Identity labels on every resource: {{ include "namespace.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{- if .Values.global.enable }}
 Created:

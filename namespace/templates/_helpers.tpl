@@ -1,4 +1,4 @@
-{{- define "managed-ns.parseStorageQuotas" -}}
+{{- define "namespace.helpers.parseStorageQuotas" -}}
 {{- if .Values.resourceQuotas.storage }}
 {{- fromJson .Values.resourceQuotas.storage | toYaml }}
 {{- else }}
@@ -10,7 +10,7 @@
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "managed-ns.chart" -}}
+{{- define "namespace.helpers.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -21,7 +21,7 @@ Each label is rendered only when the matching identity.* value is set, so a
 partially filled identity block never produces an empty label value. Values are
 lower-cased.
 */}}
-{{- define "managed-ns.identityLabels" -}}
+{{- define "namespace.helpers.identityLabels" -}}
 {{- $identity := .Values.identity | default dict -}}
 {{- with $identity.instance }}
 ecpk/instance: {{ . | toString | lower | quote }}
@@ -37,15 +37,15 @@ ecpk/project: {{ . | toString | lower | quote }}
 {{/*
 Common labels: chart identity + ecpk identity labels + generic.labels.
 */}}
-{{- define "managed-ns.labels" -}}
-helm.sh/chart: {{ include "managed-ns.chart" . }}
+{{- define "namespace.helpers.labels" -}}
+helm.sh/chart: {{ include "namespace.helpers.chart" . }}
 app: {{ .Chart.Name }}
 app.cpaas.io/name: {{ .Release.Name }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- include "managed-ns.identityLabels" . }}
+{{- include "namespace.helpers.identityLabels" . }}
 {{- range $k, $v := (.Values.generic | default dict).labels }}
 {{ $k }}: {{ tpl (toString $v) $ | quote }}
 {{- end }}
@@ -60,12 +60,12 @@ manifest. Parameters:
   .labels      - optional dict of extra per-resource labels;
   .annotations - optional dict of extra per-resource annotations.
 Call right under metadata.name/namespace:
-  {{- include "managed-ns.metadata" (dict "context" $root) | nindent 2 }}
+  {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
 */}}
-{{- define "managed-ns.metadata" -}}
+{{- define "namespace.helpers.metadata" -}}
 {{- $ctx := .context -}}
 labels:
-  {{- include "managed-ns.labels" $ctx | nindent 2 }}
+  {{- include "namespace.helpers.labels" $ctx | nindent 2 }}
   {{- range $k, $v := .labels }}
   {{ $k }}: {{ tpl (toString $v) $ctx | quote }}
   {{- end }}
@@ -86,9 +86,9 @@ annotations:
 {{/*
 Parses a JSON list and renders it as YAML list.
 Usage:
-  {{ include "managed-ns.jsonListToYamlList" .Values.myJsonString }}
+  {{ include "namespace.helpers.jsonListToYamlList" .Values.myJsonString }}
 */}}
-{{- define "managed-ns.jsonListToYamlList" -}}
+{{- define "namespace.helpers.jsonListToYamlList" -}}
 {{- $unmarshaled := fromJson . -}}
 {{- toYaml $unmarshaled | nindent 0 -}}
 {{- end -}}
@@ -97,7 +97,7 @@ Usage:
 Get the gateway IP from cidrBlock by incrementing the last octet of an IP address by 1
 Net mask is supposed to be >= 24
 */}}
-{{- define "managed-ns.getGatewayIP" -}}
+{{- define "namespace.helpers.getGatewayIP" -}}
 {{- $cidr := . -}}
 
 {{/* Split CIDR to get IP part */}}
