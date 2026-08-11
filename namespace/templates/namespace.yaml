@@ -26,7 +26,7 @@ metadata:
     istio-discovery: enabled
     istio.io/dataplane-mode: ambient
     {{- end }}
-    {{- include "managed-ns.labels" . | nindent 4 }}
+    {{- include "namespace.helpers.labels" . | nindent 4 }}
     {{- with .Values.namespace.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}

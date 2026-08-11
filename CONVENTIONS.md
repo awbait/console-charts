@@ -9,7 +9,7 @@
 Эталон, на который равняемся: `ingress-gateway`, `egress-gateway`, `waypoint`,
 `policies`. Два чарта - исключения по историческим причинам и описаны отдельно в
 разделе [Исключения](#исключения): `console` (деплой-артефакт портала, компонентный
-нейминг) и `namespace`/`managed-namespace` (cpaas-нейминг, доделывается).
+нейминг) и `namespace` с `project` (cpaas-нейминг).
 
 Язык: Markdown-документы (`README.md`, `CHANGELOG.md`, этот файл) и комментарии во
 **всех** файлах значений (`values.yaml`, `values.minimal.yaml`, `values.full.yaml`) -
@@ -54,7 +54,6 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 ```
 
 - `name` = имя директории = scope в Conventional Commits (`feat(<name>): ...`).
-  Исключение: директория `namespace/`, а `name: managed-namespace`.
 - `version` - версия **чарта** (SemVer), `appVersion` - версия **приложения**.
   Они независимы: правка только шаблонов двигает `version`, новый образ портала -
   `appVersion`. У чартов без отдельного приложения (`namespace`, `policies`)
@@ -515,8 +514,8 @@ lefthook install
   `console.*`; есть `Deployment`/`Service`/`ServiceAccount`/RBAC. Блока
   `identity` и `values.schema.json` пока нет. Связь его env-ключей с `config.go`/
   `.env.example` основного репозитория описана в `CLAUDE.md`.
-- **`namespace`/`managed-namespace`** - cpaas-нейминг (labels `cpaas.io/*`,
-  `app.cpaas.io/name`; хелперы `managed-ns.*`): имена ресурсов задаёт платформа,
+- **`namespace`** (до версии 3.0.0 назывался `managed-namespace`) - cpaas-нейминг
+  (labels `cpaas.io/*`, `app.cpaas.io/name`): имена ресурсов задаёт платформа,
   5-частная схема не применяется. Блок `identity` есть, но участвует только в
   identity-labels. Чарт в процессе доработки (RBAC, Istio-лейблы, deny-default
   NetworkPolicy, параметризация `creator`) - см. `idp/TODO.md`.

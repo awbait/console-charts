@@ -80,7 +80,7 @@
 
 ### 3.2. cpaas-чарт (Alauda/cpaas-нейминг)
 
-Эталоны: `namespace` (`managed-namespace`), `project`.
+Эталоны: `namespace`, `project`.
 
 - Ресурс - объект Alauda/cpaas (`Namespace`, `auth.alauda.io/v1 Project`, ...). Имя
   ресурса берётся напрямую из значения (`namespace.namespaceName`, `project.name`),
@@ -91,9 +91,9 @@
   чарт не создаёт ничего).
 - Хелперы `<chart>.helpers.*`: `chart`, `labels`, `metadata` и валидаторы имён.
 
-> Исторически `namespace` использует префикс хелперов `managed-ns.*`, а `console` -
-> `console.*`. Для **новых** чартов префикс - строго `<chart>.helpers.*`, где
-> `<chart>` совпадает с полем `name` из `Chart.yaml`.
+> Исторические исключения: `policies` использует префикс `security-policies.*`, а
+> `console` - `console.*`. Для **новых** чартов префикс - строго
+> `<chart>.helpers.*`, где `<chart>` совпадает с полем `name` из `Chart.yaml`.
 
 Если сомневаешься - твой ресурс относится к cpaas/Alauda? Бери образцом `project`
 или `namespace`. Иначе - `egress-gateway`.
@@ -294,8 +294,8 @@ helm template release <chart> -f <chart>/values.full.yaml
   В монорепо чарт - обычная папка, без своего `.git`.
 - **Скопирован не тот класс** (5-частный нейминг в cpaas-чарт или наоборот). Сверься
   с разделом 3.
-- **Префикс хелперов не `<chart>.helpers.*`.** Исторические `managed-ns.*`/`console.*`
-  не копируй в новый чарт.
+- **Префикс хелперов не `<chart>.helpers.*`.** Исторические
+  `security-policies.*`/`console.*` не копируй в новый чарт.
 
 ---
 
