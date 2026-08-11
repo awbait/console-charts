@@ -73,7 +73,7 @@ defaults:
   namespaceLabelKey: kubernetes.io/metadata.name
 
   # Протокол по умолчанию для портов в NetworkPolicy.
-  # Переопределяется у конкретного порта: ports: [{ port: 53, protocol: UDP }]
+  # Переопределяется у конкретного порта: ports: [{ port: 1053, protocol: UDP }]
   protocol: TCP
 
 

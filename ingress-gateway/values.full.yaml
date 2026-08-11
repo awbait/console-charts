@@ -89,9 +89,9 @@ networkPolicy:
             matchLabels:
               k8s-app: kube-dns
       ports:
-        - port: 53
+        - port: 1053
           protocol: TCP
-        - port: 53
+        - port: 1053
           protocol: UDP
 
 
@@ -207,7 +207,7 @@ gateways:
             - kind: TCPRoute
 
       - name: udp-dns
-        port: 53
+        port: 1053
         protocol: UDP
         allowedRoutes:
           namespaces:
@@ -333,7 +333,7 @@ xroutes:
     rules:
       - backendRefs:
           - name: dns-service
-            port: 53
+            port: 1053
             weight: 100
 
   - name: intapp
