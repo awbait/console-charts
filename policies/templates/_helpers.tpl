@@ -6,13 +6,35 @@ Chart name.
 {{- end -}}
 
 {{/*
-Common labels: chart identity + generic.labels.
+Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
+
+Each label is rendered only when the matching identity.* value is set, so a
+partially filled identity block never produces an empty label value. Values are
+lower-cased, exactly as they go into the resource name.
+*/}}
+{{- define "security-policies.identityLabels" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- with $identity.instance }}
+ecpk/instance: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.cluster }}
+ecpk/cluster: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.project }}
+ecpk/project: {{ . | toString | lower | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Common labels: chart identity + ecpk identity labels + generic.labels.
 */}}
 {{- define "security-policies.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | quote }}
+app: {{ include "security-policies.name" . | quote }}
 app.kubernetes.io/name: {{ include "security-policies.name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+{{- include "security-policies.identityLabels" . }}
 {{- range $k, $v := (.Values.generic | default dict).labels }}
 {{ $k }}: {{ tpl (toString $v) $ | quote }}
 {{- end }}
@@ -62,7 +84,7 @@ true
 {{- end -}}
 
 {{/*
-Validate a DNS tag (instanceTag, clusterTag). Params: .label, .value.
+Validate a DNS tag (identity.instance, identity.cluster). Params: .label, .value.
 Returns the value lower-cased.
 */}}
 {{- define "security-policies.tag" -}}
@@ -74,13 +96,16 @@ Returns the value lower-cased.
 {{- end -}}
 
 {{/*
-Validate a 2..6-char DNS token (projectTag, policy.name). Params: .label, .value.
+Validate a short DNS token (identity.project, policy.name). Params: .label,
+.value and the optional bounds .min (default 2) and .max (default 6).
 Returns the value lower-cased.
 */}}
 {{- define "security-policies.shortToken" -}}
+{{- $min := .min | default 2 | int -}}
+{{- $max := .max | default 6 | int -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
-{{- if or (lt (len $value) 2) (gt (len $value) 6) -}}
-{{- fail (printf "%s must be from 2 to 6 characters, got %q" .label $value) -}}
+{{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
+{{- fail (printf "%s must be from %d to %d characters, got %q" .label $min $max $value) -}}
 {{- end -}}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
 {{- fail (printf "%s must match DNS-like format, got %q" .label $value) -}}
@@ -90,7 +115,7 @@ Returns the value lower-cased.
 
 {{/*
 Resource name following the convention:
-  {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+  {instance}-{cluster}-{kindShort}-{project}-{name}
 
 Params: .context, .shortkind (np|ap), .name (2..6 characters).
 
@@ -103,10 +128,10 @@ Examples:
 - ru1-k8s1-ap-nbox-core
 */}}
 {{- define "security-policies.resourceName" -}}
-{{- $naming := .context.Values.naming | default dict -}}
-{{- $instance := include "security-policies.tag" (dict "label" "naming.instanceTag" "value" $naming.instanceTag) -}}
-{{- $cluster := include "security-policies.tag" (dict "label" "naming.clusterTag" "value" $naming.clusterTag) -}}
-{{- $project := include "security-policies.shortToken" (dict "label" "naming.projectTag" "value" $naming.projectTag) -}}
+{{- $identity := .context.Values.identity | default dict -}}
+{{- $instance := include "security-policies.tag" (dict "label" "identity.instance" "value" $identity.instance) -}}
+{{- $cluster := include "security-policies.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $project := include "security-policies.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "shortkind is required" .shortkind | toString | lower -}}
 {{- if not (has $kind (list "np" "ap")) -}}
 {{- fail (printf "shortkind must be one of np|ap, got %q" $kind) -}}

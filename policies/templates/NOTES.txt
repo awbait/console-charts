@@ -1,0 +1,53 @@
+policies ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
+Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
+Identity labels on every resource: {{ include "security-policies.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
+
+Owner resources are created in the release namespace, so the release must live in
+the namespace of the target workload. Mirrors are created in the peer namespaces.
+
+{{- $policies := list }}
+{{- range $p := default (list) .Values.policies }}{{ if eq (include "security-policies.enabled" (dict "policy" $p)) "true" }}{{ $policies = append $policies $p }}{{ end }}{{ end }}
+{{- if $policies }}
+
+Policies (NetworkPolicy + AuthorizationPolicy, section policies[]):
+{{- range $p := $policies }}
+  - {{ include "security-policies.resourceName" (dict "name" $p.name "shortkind" "np" "context" $) }}
+    {{ include "security-policies.resourceName" (dict "name" $p.name "shortkind" "ap" "context" $) }}
+    ingress rules: {{ len (default (list) $p.ingress) }}, egress rules: {{ len (default (list) $p.egress) }}
+  {{- $senders := list }}
+  {{- range $r := default (list) $p.ingress }}{{ range $peer := default (list) $r.from }}{{ with $peer.namespace }}{{ $senders = append $senders . }}{{ end }}{{ end }}{{ end }}
+  {{- $targets := list }}
+  {{- range $r := default (list) $p.egress }}{{ range $peer := default (list) $r.to }}{{ with $peer.namespace }}{{ $targets = append $targets . }}{{ end }}{{ end }}{{ end }}
+  {{- with (uniq $senders) }}
+    egress mirrors in: {{ join ", " . }}
+  {{- end }}
+  {{- with (uniq $targets) }}
+    ingress mirrors in: {{ join ", " . }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{- $netpol := list }}
+{{- range $p := default (list) .Values.netpol }}{{ if eq (include "security-policies.enabled" (dict "policy" $p)) "true" }}{{ $netpol = append $netpol $p }}{{ end }}{{ end }}
+{{- if $netpol }}
+
+NetworkPolicy only (section netpol[], no mirrors):
+{{- range $p := $netpol }}
+  - {{ include "security-policies.resourceName" (dict "name" $p.name "shortkind" "np" "context" $) }}
+{{- end }}
+{{- end }}
+
+{{- $authzpol := list }}
+{{- range $p := default (list) .Values.authzpol }}{{ if eq (include "security-policies.enabled" (dict "policy" $p)) "true" }}{{ $authzpol = append $authzpol $p }}{{ end }}{{ end }}
+{{- if $authzpol }}
+
+AuthorizationPolicy only (section authzpol[]):
+{{- range $p := $authzpol }}
+  - {{ include "security-policies.resourceName" (dict "name" $p.name "shortkind" "ap" "context" $) }}
+{{- end }}
+{{- end }}
+
+{{- if not (or $policies $netpol $authzpol) }}
+
+No policies are described: all three sections are empty, nothing was created.
+{{- end }}
