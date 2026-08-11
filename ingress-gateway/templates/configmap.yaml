@@ -4,7 +4,7 @@ of the gateways list. It has the same name as the Gateway (kindShort cm); the
 Gateway references it via parametersRef (see gateway.yaml).
 data.deployment - a patch for the auto-created Deployment (securityContext, resources
 of the istio-proxy container). data.service - a patch for the Service (LoadBalancer, disabling
-NodePort, removing port 15021; when ipAddress is set - a MetalLB annotation).
+NodePort, single-stack IPv4, removing port 15021; when ipAddress is set - a MetalLB annotation).
 data.horizontalPodAutoscaler - added when hpa.enabled.
 The element is skipped when enabled: false.
 */}}
@@ -65,6 +65,9 @@ data:
       allocateLoadBalancerNodePorts: false
       type: LoadBalancer
       externalTrafficPolicy: Cluster
+      ipFamilies:
+        - IPv4
+      ipFamilyPolicy: SingleStack
       ports:
         - $patch: delete
           port: 15021
