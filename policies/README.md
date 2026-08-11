@@ -120,7 +120,7 @@ namespace, где живёт сам сервис. Namespace второй сто�
 | `defaults.protocol`          | Протокол портов в `NetworkPolicy`. По умолчанию `TCP`                              |
 
 Протокол переопределяется у конкретного порта, например
-`ports: [{ port: 53, protocol: UDP }]`.
+`ports: [{ port: 1053, protocol: UDP }]`.
 
 ## Секция `policies[]`
 

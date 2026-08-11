@@ -1,18 +1,18 @@
-# Minimal example: one Gateway with a single HTTP listener and one HTTPRoute.
-# Plus NetworkPolicy and AuthorizationPolicy for the Gateway workload.
+# Минимальный пример: один Gateway с HTTP-listener'ом и один HTTPRoute,
+# плюс NetworkPolicy и AuthorizationPolicy для workload'а шлюза.
 #
-# Resource names by convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-# Output (with the naming below):
-# - Gateway             ru1-k8s1-igw-nbox-main
-# - ConfigMap           ru1-k8s1-cm-nbox-main
-# - NetworkPolicy       ru1-k8s1-np-nbox-main
-# - AuthorizationPolicy ru1-k8s1-ap-nbox-main
-# - HTTPRoute           ru1-k8s1-hr-nbox-app
+# Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
+# С тегами ниже получится:
+# - Gateway             ed-dev-igw-nbox-main
+# - ConfigMap           ed-dev-cm-nbox-main
+# - NetworkPolicy       ed-dev-np-nbox-main
+# - AuthorizationPolicy ed-dev-ap-nbox-main
+# - HTTPRoute           ed-dev-hr-nbox-app
 
-naming:
-  instanceTag: ru1     # required, DNS format
-  clusterTag: k8s1     # required, DNS format
-  projectTag: nbox     # required, 2..6 characters
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}

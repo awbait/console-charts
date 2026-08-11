@@ -525,8 +525,8 @@ lefthook install
 
 ### Что ещё не выровнено под эту версию конвенций
 
-Конвенция описана по `policies` 0.4.0 - он ей соответствует полностью. В
-`ingress-gateway`, `egress-gateway` и `waypoint` пока остались:
+Конвенции соответствуют `policies` и `ingress-gateway`. В `egress-gateway` и
+`waypoint` пока остались:
 
 - блок `naming` (`instanceTag`/`clusterTag`/`projectTag`) вместо `identity`
   (`instance`/`cluster`/`project`);

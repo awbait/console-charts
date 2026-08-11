@@ -166,10 +166,10 @@ collector:
 # below is a working example.
 ingressGateway:
   enabled: false
-  naming:
-    instanceTag: ru1
-    clusterTag: k8s1
-    projectTag: cnsl
+  identity:
+    instance: ed
+    cluster: dev
+    project: cnsl
   gateways:
     - name: main
       enabled: true

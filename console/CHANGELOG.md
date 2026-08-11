@@ -19,6 +19,17 @@
 
 ---
 
+## [0.3.2] - 2026-08-11
+
+### Changed
+- Опциональный вход через сабчарт `ingress-gateway` переведён на его версию
+  `4.0.0`: блок значений `ingressGateway.naming` переименован в
+  `ingressGateway.identity` (`instance`/`cluster`/`project`), теги окружения в
+  примере заменены на допустимые. Если вход включён (`ingressGateway.enabled`),
+  этот блок в своих values нужно переименовать.
+
+---
+
 ## [0.3.1] - 2026-06-25
 
 ### Changed

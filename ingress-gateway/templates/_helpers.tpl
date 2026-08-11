@@ -6,14 +6,14 @@ Chart name for helm.sh/chart.
 {{- end -}}
 
 {{/*
-Base application name (for labels) = projectTag.
+Base application name (for labels) = identity.project.
 */}}
 {{- define "ingress-gateway.helpers.app.name" -}}
-{{- required "naming.projectTag is required" (.Values.naming | default dict).projectTag | toString | lower | trunc 63 | trimSuffix "-" -}}
+{{- required "identity.project is required" (.Values.identity | default dict).project | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-DNS tag validation (instanceTag, clusterTag). Parameters: .label, .value.
+DNS tag validation (identity.instance, identity.cluster). Parameters: .label, .value.
 Returns the value in lower-case.
 */}}
 {{- define "ingress-gateway.helpers.tag" -}}
@@ -25,13 +25,16 @@ Returns the value in lower-case.
 {{- end -}}
 
 {{/*
-Validation of a short 2..6-character DNS tag (projectTag, name).
-Parameters: .label, .value. Returns the value in lower-case.
+Validation of a short DNS tag (identity.project, name). Parameters: .label,
+.value and the optional bounds .min (default 2) and .max (default 6).
+Returns the value in lower-case.
 */}}
 {{- define "ingress-gateway.helpers.shortToken" -}}
+{{- $min := .min | default 2 | int -}}
+{{- $max := .max | default 6 | int -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
-{{- if or (lt (len $value) 2) (gt (len $value) 6) -}}
-{{- fail (printf "%s must be 2..6 characters, got %q" .label $value) -}}
+{{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
+{{- fail (printf "%s must be %d..%d characters, got %q" .label $min $max $value) -}}
 {{- end -}}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
 {{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
@@ -64,9 +67,9 @@ tcr (TCPRoute), ur (UDPRoute), secret (Secret). Unknown kind -> fail.
 {{/*
 TLS secret name for a listener by hostname (tlsMode: Terminate). Parameters: .hostname, .context.
 The name is ALWAYS generated automatically (the user does not set tlsSecretName):
-  contains "idp.ecpk.test" -> {instanceTag}-{clusterTag}-secret-{projectTag}-idptls (predefined wildcard cert)
-  contains "edp.ecpk.test" -> {instanceTag}-{clusterTag}-secret-{projectTag}-edptls (predefined wildcard cert)
-  otherwise              -> {instanceTag}-{clusterTag}-secret-{projectTag}-tls   (empty secret / change me)
+  contains "idp.ecpk.test" -> {instance}-{cluster}-secret-{project}-idptls (predefined wildcard cert)
+  contains "edp.ecpk.test" -> {instance}-{cluster}-secret-{project}-edptls (predefined wildcard cert)
+  otherwise              -> {instance}-{cluster}-secret-{project}-tls   (empty secret / change me)
 */}}
 {{- define "ingress-gateway.helpers.app.tlsSecretName" -}}
 {{- $hostname := .hostname | default "" | toString | lower -}}
@@ -79,17 +82,17 @@ The name is ALWAYS generated automatically (the user does not set tlsSecretName)
 
 {{/*
 Resource name by convention:
-  {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+  {instance}-{cluster}-{kindShort}-{project}-{name}
 Parameters: .context, .kind (k8s kind), .name (2..6 characters).
 kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
 The result is truncated to 63 characters.
-Examples: ru1-k8s1-igw-nbox-main, ru1-k8s1-hr-nbox-app.
+Examples: ed-dev-igw-nbox-main, ed-dev-hr-nbox-app.
 */}}
 {{- define "ingress-gateway.helpers.app.resourceName" -}}
-{{- $naming := .context.Values.naming | default dict -}}
-{{- $instance := include "ingress-gateway.helpers.tag" (dict "label" "naming.instanceTag" "value" $naming.instanceTag) -}}
-{{- $cluster := include "ingress-gateway.helpers.tag" (dict "label" "naming.clusterTag" "value" $naming.clusterTag) -}}
-{{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "naming.projectTag" "value" $naming.projectTag) -}}
+{{- $identity := .context.Values.identity | default dict -}}
+{{- $instance := include "ingress-gateway.helpers.tag" (dict "label" "identity.instance" "value" $identity.instance) -}}
+{{- $cluster := include "ingress-gateway.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kindShort := include "ingress-gateway.helpers.app.kindShort" (required "resourceName.kind is required" .kind) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name) -}}
 {{- printf "%s-%s-%s-%s-%s" $instance $cluster $kindShort $project $name | trunc 63 | trimSuffix "-" -}}
@@ -101,11 +104,31 @@ Selector labels - stable identification of chart resources.
 {{- define "ingress-gateway.helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "ingress-gateway.helpers.app.name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
-app: {{ include "ingress-gateway.helpers.app.name" . | quote }}
+app: {{ .Chart.Name | quote }}
 {{- end -}}
 
 {{/*
-Standard labels: selector + chart/managed-by/version + generic.labels.
+Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
+
+Each label is rendered only when the matching identity.* value is set, so a
+partially filled identity block never produces an empty label value. Values are
+lower-cased, exactly as they go into the resource name.
+*/}}
+{{- define "ingress-gateway.helpers.identityLabels" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- with $identity.instance }}
+ecpk/instance: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.cluster }}
+ecpk/cluster: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.project }}
+ecpk/project: {{ . | toString | lower | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Standard labels: selector + chart/managed-by/version + identity + generic.labels.
 */}}
 {{- define "ingress-gateway.helpers.app.labels" -}}
 {{ include "ingress-gateway.helpers.app.selectorLabels" . }}
@@ -114,6 +137,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
+{{- include "ingress-gateway.helpers.identityLabels" . }}
 {{- range $k, $v := (.Values.generic | default dict).labels }}
 {{ $k }}: {{ tpl (toString $v) $ | quote }}
 {{- end }}
