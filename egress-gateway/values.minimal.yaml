@@ -3,18 +3,18 @@
 # ServiceEntry и один TLSRoute (Kind маршрута берётся из протокола listener).
 # Плюс один VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот Gateway.
 #
-# Имена ресурсов по конвенции: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-# Результат (при нейминге ниже):
-# - ConfigMap        ru1-k8s1-egw-nbox-wp
-# - Gateway          ru1-k8s1-egw-nbox-wp
-# - ServiceEntry     ru1-k8s1-egw-nbox-nx
-# - TLSRoute         ru1-k8s1-egw-wp-nbox-nx   (parent = Gateway, name = listener)
-# - VpcEgressGateway ru1-k8s1-veg-nbox-core
+# Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
+# С тегами ниже получится:
+# - ConfigMap        ed-dev-egw-nbox-wp
+# - Gateway          ed-dev-egw-nbox-wp
+# - ServiceEntry     ed-dev-egw-nbox-nx
+# - TLSRoute         ed-dev-egw-wp-nbox-nx   (parent = Gateway, name = listener)
+# - VpcEgressGateway ed-dev-veg-nbox-core
 
-naming:
-  instanceTag: ru1     # обязателен, DNS-формат
-  clusterTag: k8s1     # обязателен, DNS-формат
-  projectTag: nbox     # обязателен, 2..6 символов
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}

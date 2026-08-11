@@ -6,15 +6,37 @@ Chart name and version for the helm.sh/chart label.
 {{- end -}}
 
 {{/*
-Common labels: chart identity + generic.labels.
+Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
+
+Each label is rendered only when the matching identity.* value is set, so a
+partially filled identity block never produces an empty label value. Values are
+lower-cased.
+*/}}
+{{- define "project.helpers.identityLabels" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- with $identity.instance }}
+ecpk/instance: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.cluster }}
+ecpk/cluster: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.project }}
+ecpk/project: {{ . | toString | lower | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Common labels: chart identity + ecpk identity labels + generic.labels.
 */}}
 {{- define "project.helpers.labels" -}}
 helm.sh/chart: {{ include "project.helpers.chart" . }}
+app: {{ .Chart.Name }}
 app.cpaas.io/name: {{ .Release.Name }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- include "project.helpers.identityLabels" . }}
 {{- range $k, $v := (.Values.generic | default dict).labels }}
 {{ $k }}: {{ tpl (toString $v) $ | quote }}
 {{- end }}

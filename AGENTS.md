@@ -71,11 +71,11 @@
 Эталоны: `ingress-gateway`, `egress-gateway`, `waypoint`, `policies`.
 
 - Ресурсы именуются по 5-частной схеме
-  `{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}` (детали и реестр
+  `{instance}-{cluster}-{kindShort}-{project}-{name}` (детали и реестр
   `kindShort` - в `CONVENTIONS.md`).
-- Есть блок `naming` (`instanceTag`/`clusterTag`/`projectTag`), списки сущностей с
+- Есть блок `identity` (`instance`/`cluster`/`project`), списки сущностей с
   `enabled`, хелперы `<chart>.helpers.*` (`app.fullname`, `tag`, `shortToken`,
-  `app.metadata`, ...).
+  `identityLabels`, `app.metadata`, ...).
 - Это стиль по умолчанию для **нового** сетевого/политик-ресурса.
 
 ### 3.2. cpaas-чарт (Alauda/cpaas-нейминг)
@@ -85,7 +85,8 @@
 - Ресурс - объект Alauda/cpaas (`Namespace`, `auth.alauda.io/v1 Project`, ...). Имя
   ресурса берётся напрямую из значения (`namespace.namespaceName`, `project.name`),
   а не собирается по 5-частной схеме.
-- labels в cpaas-стиле (`app.cpaas.io/name`, `cpaas.io/*`), нет блока `naming`.
+- labels в cpaas-стиле (`app.cpaas.io/name`, `cpaas.io/*`). Блок `identity` есть,
+  но в имена не входит: из него собираются только labels `ecpk/*`.
 - Есть служебный флаг `global.enable` (консоль включает его при заказе; при `false`
   чарт не создаёт ничего).
 - Хелперы `<chart>.helpers.*`: `chart`, `labels`, `metadata` и валидаторы имён.

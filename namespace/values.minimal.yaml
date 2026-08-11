@@ -1,8 +1,13 @@
-# managed-namespace - minimal working example.
-# Creates a Namespace and ResourceQuota (without a dedicated subnet).
+# managed-namespace - минимальный рабочий пример.
+# Создаёт Namespace и ResourceQuota, без выделенной подсети.
 
 global:
   enable: true
+
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: demo        # тег проекта, до 9 символов
 
 namespace:
   namespaceName: "demo-dev-ns-app"

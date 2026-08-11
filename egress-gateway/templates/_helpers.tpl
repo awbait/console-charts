@@ -6,14 +6,14 @@ Chart name for helm.sh/chart.
 {{- end -}}
 
 {{/*
-Base application name (for labels) = projectTag.
+Base application name (for labels) = identity.project.
 */}}
 {{- define "egress-gateway.helpers.app.name" -}}
-{{- required "naming.projectTag is required" (.Values.naming | default dict).projectTag | toString | lower | trunc 63 | trimSuffix "-" -}}
+{{- required "identity.project is required" (.Values.identity | default dict).project | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
-DNS tag validation (instanceTag, clusterTag). Params: .label, .value.
+DNS tag validation (identity.instance, identity.cluster). Params: .label, .value.
 Returns the value in lower-case.
 */}}
 {{- define "egress-gateway.helpers.tag" -}}
@@ -25,13 +25,16 @@ Returns the value in lower-case.
 {{- end -}}
 
 {{/*
-Short 2..6-character DNS tag validation (projectTag, name).
-Params: .label, .value. Returns the value in lower-case.
+Short DNS tag validation (identity.project, name). Params: .label, .value and
+the optional bounds .min (default 2) and .max (default 6).
+Returns the value in lower-case.
 */}}
 {{- define "egress-gateway.helpers.shortToken" -}}
+{{- $min := .min | default 2 | int -}}
+{{- $max := .max | default 6 | int -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
-{{- if or (lt (len $value) 2) (gt (len $value) 6) -}}
-{{- fail (printf "%s must be 2..6 characters, got %q" .label $value) -}}
+{{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
+{{- fail (printf "%s must be %d..%d characters, got %q" .label $min $max $value) -}}
 {{- end -}}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
 {{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
@@ -41,16 +44,16 @@ Params: .label, .value. Returns the value in lower-case.
 
 {{/*
 Full resource name by convention:
-  without parent: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-  with parent:    {instanceTag}-{clusterTag}-{kindShort}-{parent}-{projectTag}-{name}
+  without parent: {instance}-{cluster}-{kindShort}-{project}-{name}
+  with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
 Params: .context, .kindShort (igw|egw|veg), .name (2..6 characters),
         .parent (optional, parent Gateway name, 2..6 characters; for TLSRoute).
 */}}
 {{- define "egress-gateway.helpers.app.fullname" -}}
-{{- $naming := .context.Values.naming | default dict -}}
-{{- $instance := include "egress-gateway.helpers.tag" (dict "label" "naming.instanceTag" "value" $naming.instanceTag) -}}
-{{- $cluster := include "egress-gateway.helpers.tag" (dict "label" "naming.clusterTag" "value" $naming.clusterTag) -}}
-{{- $project := include "egress-gateway.helpers.shortToken" (dict "label" "naming.projectTag" "value" $naming.projectTag) -}}
+{{- $identity := .context.Values.identity | default dict -}}
+{{- $instance := include "egress-gateway.helpers.tag" (dict "label" "identity.instance" "value" $identity.instance) -}}
+{{- $cluster := include "egress-gateway.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $project := include "egress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "kindShort is required" .kindShort | toString | lower -}}
 {{- if not (has $kind (list "igw" "egw" "veg")) -}}
 {{- fail (printf "kindShort must be one of igw|egw|veg, got %q" $kind) -}}
@@ -112,11 +115,31 @@ Selector labels - stable workload identification.
 {{- define "egress-gateway.helpers.app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "egress-gateway.helpers.app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app: {{ include "egress-gateway.helpers.app.name" . }}
+app: {{ .Chart.Name }}
 {{- end -}}
 
 {{/*
-Standard labels: selector + chart/managed-by/version + generic.labels.
+Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
+
+Each label is rendered only when the matching identity.* value is set, so a
+partially filled identity block never produces an empty label value. Values are
+lower-cased, exactly as they go into the resource name.
+*/}}
+{{- define "egress-gateway.helpers.identityLabels" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- with $identity.instance }}
+ecpk/instance: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.cluster }}
+ecpk/cluster: {{ . | toString | lower | quote }}
+{{- end }}
+{{- with $identity.project }}
+ecpk/project: {{ . | toString | lower | quote }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Standard labels: selector + chart/managed-by/version + identity + generic.labels.
 */}}
 {{- define "egress-gateway.helpers.app.labels" -}}
 {{ include "egress-gateway.helpers.app.selectorLabels" . }}
@@ -125,6 +148,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
+{{- include "egress-gateway.helpers.identityLabels" . }}
 {{- with (.Values.generic | default dict).labels }}
 {{ include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $) }}
 {{- end }}

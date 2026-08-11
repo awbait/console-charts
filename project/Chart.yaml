@@ -6,4 +6,4 @@ description: A Helm chart for an Alauda multi-cluster Project (auth.alauda.io/v1
 
 type: application
 
-version: "1.0.0"
+version: "2.0.0"

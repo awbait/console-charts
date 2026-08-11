@@ -1,8 +1,13 @@
-# project - minimal working example.
-# Creates one Project with a resource quota on a single cluster.
+# project - минимальный рабочий пример.
+# Создаёт один Project с квотой ресурсов на одном кластере.
 
 global:
   enable: true
+
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: demo        # тег проекта, до 9 символов
 
 project:
   name: demo-project

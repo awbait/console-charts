@@ -1,9 +1,16 @@
-# project - default values (minimal, so rendering passes).
-# When global.enable=false the chart creates no resources.
-# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
+# project - значения по умолчанию (минимум, при котором проходит рендер).
+# При global.enable=false чарт не создаёт ни одного ресурса.
+# Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
 global:
   enable: false
+
+# Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
+# ecpk/project на всех ресурсах. Допустимые значения - в README.md.
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}           # общие labels на ВСЕ ресурсы чарта (Project)

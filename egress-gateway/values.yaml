@@ -2,14 +2,16 @@
 # Пустые дефолты: ничего не создаётся. Чарт автоматически подгружает этот файл
 # при каждом `helm template`, поэтому в нём НЕ должно быть примера
 # egressGateway/vpcEgressGateway (иначе они домержатся в каждый заказ, который
-# опускает эти ключи). Заказ передаёт свои значения; naming.* обязателен
+# опускает эти ключи). Заказ передаёт свои значения; блок identity обязателен
 # (валидируется через values.schema.json).
 # Полный reference параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
 
-naming:
-  instanceTag: ru1     # обязателен, DNS-формат lower-case
-  clusterTag: k8s1     # обязателен, DNS-формат lower-case
-  projectTag: nbox     # обязателен, 2..6 символов
+# Теги окружения и проекта: попадают в имя каждого ресурса и в labels
+# ecpk/instance, ecpk/cluster, ecpk/project. Допустимые значения - в README.md.
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}

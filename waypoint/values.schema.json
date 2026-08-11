@@ -6,18 +6,18 @@
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
-    "naming",
+    "identity",
     "generic",
     "waypoints"
   ],
   "required": [
-    "naming"
+    "identity"
   ],
   "properties": {
-    "naming": {
-      "title": "Naming tags",
-      "description": "Common tags for generating resource names by the convention {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}. kindShort: wp.",
-      "$ref": "#/definitions/naming"
+    "identity": {
+      "title": "Identity",
+      "description": "Environment and project tags for generating resource names by the convention {instance}-{cluster}-{kindShort}-{project}-{name} (kindShort: wp). The same tags are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource.",
+      "$ref": "#/definitions/identity"
     },
     "generic": {
       "title": "Generic settings",
@@ -59,41 +59,66 @@
       "maxLength": 6,
       "description": "DNS token 2..6 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
     },
+    "projectToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9,
+      "description": "DNS token 2..9 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+    },
     "tplStringMap": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
       }
     },
-    "naming": {
+    "identity": {
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
-        "instanceTag",
-        "clusterTag",
-        "projectTag"
+        "instance",
+        "cluster",
+        "project"
       ],
       "properties": {
-        "instanceTag": {
-          "title": "instanceTag",
-          "description": "Instance tag (table 50). Required, lower-case DNS format.",
-          "$ref": "#/definitions/k8sName"
+        "instance": {
+          "title": "instance",
+          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "type": "string",
+          "enum": [
+            "in",
+            "id",
+            "ed",
+            "pr"
+          ]
         },
-        "clusterTag": {
-          "title": "clusterTag",
-          "description": "Cluster tag (table 52). Required, lower-case DNS format.",
-          "$ref": "#/definitions/k8sName"
+        "cluster": {
+          "title": "cluster",
+          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "type": "string",
+          "enum": [
+            "inf",
+            "dev",
+            "tco",
+            "tst",
+            "gl",
+            "obs",
+            "tcc",
+            "cmi",
+            "ml",
+            "cme"
+          ]
         },
-        "projectTag": {
-          "title": "projectTag",
-          "description": "Project tag. Required, 2..6 characters, lower-case DNS format.",
-          "$ref": "#/definitions/shortToken"
+        "project": {
+          "title": "project",
+          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
+          "$ref": "#/definitions/projectToken"
         }
       },
       "required": [
-        "instanceTag",
-        "clusterTag",
-        "projectTag"
+        "instance",
+        "cluster",
+        "project"
       ]
     },
     "generic": {
