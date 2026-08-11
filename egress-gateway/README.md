@@ -1,163 +1,175 @@
-# egress-gateway - usage
+# egress-gateway
 
-Чарт разворачивает egress через Istio Waypoint / Gateway API и kube-ovn
-`VpcEgressGateway`. Из секций `values.yaml` генерируются ресурсы.
+Чарт разворачивает выход из кластера наружу через Istio waypoint и Gateway API,
+а при необходимости и через `VpcEgressGateway` kube-ovn. Вы перечисляете внешние
+сервисы, к которым нужен доступ, а чарт создаёт шлюз и все сопутствующие
+ресурсы.
 
-| Секция              | Что генерирует                                                              | Когда использовать                       |
-|---------------------|-----------------------------------------------------------------------------|------------------------------------------|
-| `egressGateway`     | один `Gateway` + `ConfigMap`; на каждый listener - `ServiceEntry` и `Route` | Точка egress на базе Istio waypoint      |
-| `vpcEgressGateway[]`| `VpcEgressGateway` (kube-ovn)                                                | Egress на уровне VPC (SNAT, externalIPs) |
+## Что создаёт чарт
 
-На релиз создаётся **один** `Gateway`, но в нём может быть несколько listener'ов.
-Каждый listener - это один внешний сервис: из него выводятся listener в Gateway,
-`ServiceEntry` и один `Route`. `VpcEgressGateway` сам нацеливается на под'ы этого
-Gateway (см. ниже).
+| Секция               | Что создаётся                                                              | Когда брать                                       |
+|----------------------|----------------------------------------------------------------------------|---------------------------------------------------|
+| `egressGateway`      | Один `Gateway` и `ConfigMap`, на каждый listener - `ServiceEntry` и маршрут | Нужен выход к внешним сервисам через Istio        |
+| `vpcEgressGateway[]` | `VpcEgressGateway` (kube-ovn)                                               | Выход нужен на уровне VPC: внешние адреса и SNAT  |
 
-Связь по hostname: `listener.hostname` = `ServiceEntry.hosts` = `Route.hostnames`
-= `Route.backendRefs[].name`.
+На релиз создаётся один `Gateway`, но listener'ов в нём может быть несколько.
+Каждый listener - это один внешний сервис: из него выводятся listener в
+`Gateway`, `ServiceEntry` и маршрут. `VpcEgressGateway` сам нацеливается на поды
+этого шлюза.
 
-## Конвенция именования
+Связь идёт по hostname: `listener.hostname` попадает и в `ServiceEntry.hosts`, и
+в `hostnames` маршрута, и в его backend.
 
-Имя каждого ресурса строится так:
+## Куда ставится релиз
+
+Все ресурсы создаются в namespace релиза. `VpcEgressGateway` - ресурс уровня
+кластера, но его селекторы указывают на namespace релиза и поды созданного
+шлюза, поэтому секция работает только вместе с включённым `egressGateway`.
+
+## Теги окружения и проекта
+
+Секция `identity` задаётся один раз на релиз. Из неё собираются имена ресурсов
+и labels, по которым ресурсы потом находятся в кластере.
+
+| Поле                | Что это                                                                       |
+|---------------------|--------------------------------------------------------------------------------|
+| `identity.instance` | Тег инстанса окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.cluster`  | Тег кластера окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.project`  | Тег проекта. Обязателен, до 9 символов: строчные латинские буквы, цифры и дефис |
+
+Дефис в теге проекта не может быть первым или последним символом.
+
+Пара тегов окружения:
+
+| Окружение      | `identity.cluster` | `identity.instance` |
+|----------------|--------------------|---------------------|
+| Infra-dev-ecpk | `inf`              | `in`                |
+| dev-ecpk       | `dev`              | `id`                |
+| techsec-dev    | `tco`              | `ed`                |
+| dev-common     | `dev`              | `ed`                |
+| test-common    | `tst`              | `ed`                |
+| global         | `gl`               | `pr`                |
+| observability  | `obs`              | `pr`                |
+| techsec        | `tcc`              | `pr`                |
+| int-common     | `cmi`              | `pr`                |
+| ML             | `ml`               | `pr`                |
+| ext-common     | `cme`              | `pr`                |
+
+Оба поля описаны в схеме значений перечислением, поэтому в форме портала они
+выбираются из списка. Берите значения строкой таблицы: схема проверяет каждое
+поле по отдельности и не поймает пару из разных окружений.
+
+## Имена ресурсов
+
+Имя каждого ресурса собирается из пяти частей:
 
 ```
-{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+{instance}-{cluster}-{kindShort}-{project}-{name}
 ```
 
-| Часть         | Откуда                            | Ограничения                     |
-|---------------|-----------------------------------|---------------------------------|
-| `instanceTag` | `naming.instanceTag` (таблица 50) | DNS-формат lower-case, required |
-| `clusterTag`  | `naming.clusterTag` (таблица 52)  | DNS-формат lower-case, required |
-| `kindShort`   | тип ресурса (таблица 57)          | `egw` / `veg`                   |
-| `projectTag`  | `naming.projectTag`               | 2..6 символов, DNS, required    |
-| `name`        | поле `name` ресурса               | 2..6 символов, DNS, required    |
+- `instance`, `cluster`, `project` - теги из секции `identity`;
+- `kindShort` - `egw` для ресурсов Istio (`Gateway`, `ConfigMap`,
+  `ServiceEntry`, маршрут) и `veg` для `VpcEgressGateway`;
+- `name` - имя элемента: от 2 до 6 символов, строчные латинские буквы, цифры и
+  дефис.
 
-`kindShort` подставляется автоматически: `egw` - Istio Egress (Gateway,
-ConfigMap, ServiceEntry, TLSRoute/HTTPRoute), `veg` - VPC Egress
-(VpcEgressGateway). ConfigMap носит то же имя, что и Gateway. Итог обрезается до
-63 символов.
+`ConfigMap` носит то же имя, что и его `Gateway`. Итоговое имя обрезается до 63
+символов. Пример: `ed-dev-egw-nbox-wp`.
 
-**Route** использует расширенную конвенцию с именем родительского Gateway и
-именем listener:
+У маршрута в имя добавляется имя родительского шлюза, чтобы маршруты разных
+шлюзов не сталкивались:
 
 ```
-{instanceTag}-{clusterTag}-egw-{gatewayName}-{projectTag}-{listenerName}
+{instance}-{cluster}-egw-{gatewayName}-{project}-{listenerName}
 ```
 
-Пример: `ru1-k8s1-egw-wp-nbox-nx`.
+Пример: `ed-dev-egw-wp-nbox-nx`.
 
----
+## Labels на ресурсах
 
-## Quick start
+На каждый ресурс чарта проставляется:
 
-```sh
-helm template release-name . -f values.minimal.yaml
-helm install  release-name . -f values.minimal.yaml
-```
+| Label                          | Значение                                               |
+|--------------------------------|--------------------------------------------------------|
+| `app`                          | `egress-gateway` - имя чарта, не зависит от имени релиза |
+| `app.kubernetes.io/name`       | Тег проекта из `identity.project`                       |
+| `app.kubernetes.io/instance`   | Имя релиза                                              |
+| `app.kubernetes.io/managed-by` | `Helm`                                                  |
+| `app.kubernetes.io/version`    | Версия приложения из чарта                              |
+| `helm.sh/chart`                | Имя и версия чарта                                      |
+| `ecpk/instance`                | `identity.instance`, если тег задан                     |
+| `ecpk/cluster`                 | `identity.cluster`, если тег задан                      |
+| `ecpk/project`                 | `identity.project`, если тег задан                      |
 
-Минимальный пример (`values.minimal.yaml`) создаёт: ConfigMap, Gateway с одним
-TLS listener, один ServiceEntry, один TLSRoute и один VpcEgressGateway.
+Значения `ecpk/*` приводятся к нижнему регистру, то есть совпадают с тем, что
+попало в имя ресурса. По ним отбираются все ресурсы окружения или проекта.
 
----
+Свои labels и annotations добавляются через `generic.labels` и
+`generic.annotations`. Задаются только на весь релиз сразу, отдельно по ресурсам
+их не задать.
 
-## Секции `values.yaml`
+## Секция `egressGateway`
 
-### Общие параметры
+Один шлюз на релиз: создаются `Gateway` и `ConfigMap` с одинаковым именем.
 
-| Поле                   | Тип    | Описание                                              |
-|------------------------|--------|-------------------------------------------------------|
-| `naming.instanceTag`   | string | Тег инстанса (таблица 50), required, DNS              |
-| `naming.clusterTag`    | string | Тег кластера (таблица 52), required, DNS              |
-| `naming.projectTag`    | string | Тег проекта, required, 2..6 символов, DNS             |
-| `generic.labels`       | map    | Общие labels для всех ресурсов                        |
-| `generic.annotations`  | map    | Общие annotations для всех ресурсов                   |
+| Поле          | Нужно указать            | Что это                                        |
+|---------------|--------------------------|-------------------------------------------------|
+| `name`        | да                       | Имя шлюза, от 2 до 6 символов                   |
+| `enabled`     | нет, по умолчанию `true` | При `false` из этой секции ничего не создаётся  |
+| `listeners[]` | да                       | Минимум один listener, см. ниже                 |
 
-### `egressGateway`
+Каждый listener описывает один внешний сервис:
 
-Один шлюз на релиз. Создаётся `Gateway` и `ConfigMap` с тем же именем
-(kindShort `egw`).
+| Поле         | Нужно указать                    | Что это                                                            |
+|--------------|----------------------------------|---------------------------------------------------------------------|
+| `name`       | да                               | Имя, от 2 до 6 символов. Попадает в имена `ServiceEntry` и маршрута |
+| `hostname`   | да                               | Имя внешнего хоста, оно же SNI и backend маршрута                   |
+| `port`       | да                               | Порт listener'а, `ServiceEntry` и backend'а маршрута                |
+| `protocol`   | нет, по умолчанию `TLS`          | `TLS` или `HTTPS`, от него зависит тип маршрута                     |
+| `addresses`  | нет                              | Постоянные адреса внешнего сервиса. Заданы - резолвинг статический, иначе по DNS |
+| `exportTo`   | нет, по умолчанию текущий namespace | Кому виден `ServiceEntry`                                        |
+| `location`   | нет, по умолчанию вне mesh       | Положение сервиса относительно mesh                                 |
+| `resolution` | нет                              | Явный способ резолвинга `ServiceEntry`                              |
 
-| Поле          | Обязательно | Описание                                                       |
-|---------------|-------------|----------------------------------------------------------------|
-| `name`        | да          | 2..6 символов; `{name}` в имени Gateway/ConfigMap             |
-| `enabled`     | нет (true)  | `false` -> ничего из этой секции не создаётся                  |
-| `listeners[]` | да          | Минимум один listener (см. ниже)                               |
+Режим TLS у listener'а всегда `Passthrough`, настраивать его не нужно.
 
-Каждый `listener` описывает один внешний сервис. Из него генерируются listener в
-Gateway, `ServiceEntry` **и** один `Route`:
+### Маршруты
 
-| Поле         | Обязательно            | Описание                                                       |
-|--------------|------------------------|----------------------------------------------------------------|
-| `name`       | да                     | 2..6 символов; `{name}` в имени `ServiceEntry` и `Route`      |
-| `hostname`   | да                     | hostname / SNI; идёт в `ServiceEntry.hosts` и backend маршрута |
-| `port`       | да                     | Порт listener, ServiceEntry и backend маршрута                |
-| `protocol`   | нет (`TLS`)            | `TLS` или `HTTPS`; задаёт Kind маршрута (см. ниже)            |
-| `addresses`  | нет                    | Статические IP -> `resolution STATIC` + endpoints, иначе `DNS` |
-| `exportTo`   | нет (`["."]`)          | Видимость `ServiceEntry`                                      |
-| `location`   | нет (`MESH_EXTERNAL`)  | Положение относительно mesh                                  |
-| `resolution` | нет                    | Override резолвинга `ServiceEntry`                            |
+На каждый listener создаётся ровно один маршрут, задавать его вручную не нужно.
+Всё выводится из listener'а: тип (`TLS` даёт `TLSRoute`, `HTTPS` - `HTTPRoute`),
+имя по конвенции с именем шлюза, hostname и единственный backend с портом
+listener'а. Маршрут привязывается к своему listener'у.
 
-`tls.mode` на listener **всегда** `Passthrough` (не настраивается).
+## Секция `vpcEgressGateway[]`
 
-#### Маршруты (генерируются автоматически)
+| Поле          | Нужно указать            | Что это                                              |
+|---------------|--------------------------|-------------------------------------------------------|
+| `name`        | да                       | Имя, от 2 до 6 символов                               |
+| `enabled`     | нет, по умолчанию `true` | При `false` ресурс не создаётся                       |
+| `externalIPs` | да                       | Внешние адреса. Сколько адресов, столько и реплик     |
 
-На каждый listener создаётся ровно один `Route`. Вручную задавать маршруты не
-нужно - всё выводится из listener:
+Остальное чарт заполняет сам: число реплик по количеству адресов и селекторы,
+указывающие на поды созданного шлюза. Параметры VPC (сама VPC, внешняя подсеть,
+политика трафика, размещение по узлам) зашиты в шаблоне и через значения не
+настраиваются.
 
-- **Kind** - из протокола: `TLS` -> `TLSRoute`, `HTTPS` -> `HTTPRoute`.
-- **Имя** - из имени listener по конвенции с родителем (см. выше).
-- **hostnames** - hostname listener'а.
-- **backendRefs** - один backend: `name` = hostname, `port` = `listener.port`,
-  `weight` = `100`.
-- Маршрут привязан к своему listener через `parentRefs[].sectionName`.
+## Когда рендер останавливается
 
-> Labels/annotations на ресурсы задаются только глобально через `generic.labels`
-> и `generic.annotations`. Per-resource labels/annotations не поддерживаются.
+- не заданы `identity.instance` или `identity.cluster` либо в них недопустимые
+  символы;
+- `identity.project` длиннее 9 символов или содержит недопустимые символы;
+- имя шлюза, listener'а или `VpcEgressGateway` короче 2 или длиннее 6 символов;
+- у шлюза не задано имя или список listener'ов пуст;
+- у listener'а не заданы имя, hostname или порт;
+- протокол listener'а не `TLS` и не `HTTPS`;
+- у `VpcEgressGateway` не заданы имя или внешние адреса;
+- `VpcEgressGateway` задан, а шлюз выключен или у него нет имени.
 
-### `vpcEgressGateway[]` (kube-ovn)
+## Файлы чарта
 
-Захардкожены в `templates/VPCEgressGateway.yaml` (не настраиваются через values):
-`vpc` (`ovn-cluster`), `externalSubnet` (`egress-vip`), `trafficPolicy`
-(`Cluster`), `nodeSelector`, `policies`. Менять - в шаблоне.
-
-Выводятся автоматически (не задаются в values):
-
-- `replicas` = число `externalIPs`;
-- `selectors` - `namespaceSelector` + `podSelector` указывают на созданный egress
-  Gateway: namespace релиза и под'ы waypoint этого Gateway (label
-  `gateway.networking.k8s.io/gateway-name`).
-
-Пользователь задаёт:
-
-| Поле          | Обязательно | Описание                                         |
-|---------------|-------------|--------------------------------------------------|
-| `name`        | да          | 2..6 символов; `{name}` в имени ресурса (veg)    |
-| `enabled`     | нет (true)  | `false` -> ресурс не создаётся                    |
-| `externalIPs` | да          | Внешние IP (число реплик = число IP)             |
-
-Секция требует включённого `egressGateway` (селекторы нацелены на его под'ы).
-
----
-
-## Валидации (при которых рендер падает)
-
-- `naming.instanceTag`/`clusterTag` не заданы или не DNS-формат.
-- `naming.projectTag` или любое `name` не 2..6 символов / не DNS-формат.
-- `egressGateway.name` не задан, или `listeners` пуст.
-- `egressGateway.listeners[].name`/`hostname`/`port` не заданы.
-- `egressGateway.listeners[].protocol` не `TLS` и не `HTTPS`.
-- `vpcEgressGateway[].name`/`externalIPs` не заданы.
-- `vpcEgressGateway` задан, но `egressGateway` выключен или без `name`.
-
----
-
-## Запуск
-
-```sh
-helm lint .
-helm template release-name . [-f my-values.yaml]
-helm install  release-name . [-f my-values.yaml]
-```
-
-Полный reference всех параметров - в `values.full.yaml`. Минимальный пример -
-в `values.minimal.yaml`. `values.yaml` - дефолт (без `egressGateway`, ничего не создаёт).
+| Файл                  | Для чего                                                             |
+|-----------------------|-----------------------------------------------------------------------|
+| `values.yaml`         | Значения по умолчанию: шлюза нет, ресурсы не создаются                 |
+| `values.minimal.yaml` | Короткий рабочий пример: шлюз с одним listener'ом и один VpcEgressGateway |
+| `values.full.yaml`    | Полный справочник: все параметры с пояснениями                         |
+| `values.schema.json`  | Схема значений: проверка при установке и форма заказа в портале        |

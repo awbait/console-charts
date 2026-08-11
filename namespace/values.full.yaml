@@ -1,13 +1,32 @@
 # ============================================================================
-#  Helm chart: managed-namespace - full values reference
-#  Creates a Namespace (cpaas/Alauda), ResourceQuota and kube-ovn Subnet.
-#  Any resource is created only when global.enable=true.
+#  Helm-чарт managed-namespace - полный справочник значений
+#  Создаёт Namespace (cpaas/Alauda), ResourceQuota и подсеть kube-ovn.
+#  Ресурсы создаются только при global.enable=true.
 # ============================================================================
 
 global:
-  # Main chart switch. false -> no resource is created.
-  # Service field, hidden in the portal form; enabled by the console on order.
+  # Главный выключатель чарта. false -> не создаётся ни один ресурс.
+  # Служебное поле, в форме портала скрыто: его проставляет консоль при заказе.
   enable: true
+
+# ----------------------------------------------------------------------------
+# identity - теги окружения и проекта
+# ----------------------------------------------------------------------------
+# В имена ресурсов не входят (их формат задаёт платформа), но проставляются
+# на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: ed
+
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: dev
+
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  project: nbox
 
 # ----------------------------------------------------------------------------
 # generic - общие labels/annotations на ВСЕ ресурсы чарта
@@ -26,99 +45,100 @@ generic:
     monitoring: "true"
 
 # ----------------------------------------------------------------------------
-# namespace - parameters of the Namespace being created
+# namespace - параметры создаваемого Namespace
 # ----------------------------------------------------------------------------
 namespace:
-  # Namespace name. Format: <product>-<env>-ns-<purpose>. Required.
+  # Имя namespace. Формат: <продукт>-<среда>-ns-<назначение>. Обязательно.
   namespaceName: "project-dev-ns-default"
 
-  # Name of the project the Namespace belongs to. Required.
+  # Проект, которому принадлежит namespace. Обязательно.
   projectName: project
 
-  # Alauda cluster name.
+  # Имя кластера Alauda.
   clusterName: common
 
-  # Display name (annotation cpaas.io/display-name).
+  # Отображаемое имя (annotation cpaas.io/display-name).
   displayName: "Managed namespace"
 
-  # Namespace creator (annotation cpaas.io/creator). Default "lk".
-  # Hidden in the portal form; on order from the console "console" is substituted.
+  # Создатель namespace (annotation cpaas.io/creator). По умолчанию "lk".
+  # Скрыто в форме портала; при заказе из консоли подставляется "console".
   creator: lk
 
-  # Namespace role -> namespace-role label. Allowed: ingress | egress | other.
-  # Optional: without a value the label is not set.
+  # Роль namespace -> label namespace-role. Допустимо: ingress | egress | other.
+  # Опционально: без значения label не проставляется.
   role: other
 
-  # Additional annotations on the Namespace.
+  # Дополнительные annotations на Namespace.
   annotations: {}
 
-  # Additional labels on the Namespace.
+  # Дополнительные labels на Namespace.
   labels: {}
 
 # ----------------------------------------------------------------------------
-# serviceMesh - integration with Istio (ambient) and network policies
+# serviceMesh - подключение Istio (ambient) и сетевых политик
 # ----------------------------------------------------------------------------
-# Enabled at the environment level (not by the user): on DEV by a flag, on
-# other environments Service Mesh is always enabled. When enabled=true the
-# Namespace gets:
-#   labels:      istio-discovery=enabled, istio.io/dataplane-mode=ambient
-#   annotation:  networking.k8s.io/enable-netpol="true"
+# Включается на уровне окружения, а не пользователем: на DEV по флагу, на
+# остальных окружениях Service Mesh включён всегда. При enabled=true namespace
+# получает:
+#   labels:     istio-discovery=enabled, istio.io/dataplane-mode=ambient
+#   annotation: networking.k8s.io/enable-netpol="true"
 serviceMesh:
   enabled: false
 
 # ----------------------------------------------------------------------------
-# resourceQuotas - ResourceQuota for the Namespace
+# resourceQuotas - квоты ресурсов namespace
 # ----------------------------------------------------------------------------
 resourceQuotas:
-  # Hard limits on the namespace.
+  # Жёсткие лимиты namespace.
   limits:
     cpu: "4"
     memory: "8Gi"
 
-  # Requests. If not set - taken from limits.
+  # Запросы ресурсов. Не заданы - берутся из лимитов.
   requests:
     cpu: "2"
     memory: "4Gi"
 
-  # Maximum number of pods (in practice limited by the subnet mask).
-  # Service field, hidden in the portal form.
+  # Максимальное число подов (на практике ограничено маской подсети).
+  # Служебное поле, в форме портала скрыто.
   podsAmount: 1000
 
-  # Block storage quotas in the format { <StorageClass>: <Quota> }.
+  # Квоты на блочные хранилища в формате { <StorageClass>: <квота> }.
   storage:
     storages: {}
     # storages:
     #   fast-ssd: 100Gi
 
 # ----------------------------------------------------------------------------
-# subnet - kube-ovn Subnet(s) for the Namespace
+# subnet - подсети kube-ovn для namespace
 # ----------------------------------------------------------------------------
-# Some Subnet fields are fixed in the template and not configurable:
-#   default=false           - user subnets are always non-default.
-#   protocol=IPv4           - protocol type (IPv6/Dual not used).
-#   natOutgoing=false       - for an isolated (private=true) subnet NAT is off.
-#   gateway                 - Virtual-Router address, computed from cidrBlock.
-#   gatewayType=centralized - egress gateway type.
-#   private=true            - the subnet is isolated.
-#   enableEcmp=false        - ECMP balancing of egress traffic is off.
-#   namespaces              - the subnet is bound to exactly one Namespace.
+# Часть полей подсети зафиксирована в шаблоне и не настраивается:
+#   default=false           - пользовательские подсети никогда не по умолчанию;
+#   protocol=IPv4           - тип протокола (IPv6 и Dual не используются);
+#   natOutgoing=false       - у изолированной подсети (private=true) NAT выключен;
+#   gateway                 - адрес виртуального маршрутизатора, считается из cidrBlock;
+#   gatewayType=centralized - тип шлюза для исходящего трафика;
+#   private=true            - подсеть изолирована;
+#   enableEcmp=false        - балансировка ECMP исходящего трафика выключена;
+#   namespaces              - подсеть привязана ровно к одному namespace.
 subnet:
-  # Enable only when the CIDR is guaranteed to be reserved in Netbox.
-  # Service field, hidden in the portal form.
+  # Включайте, только если CIDR точно зарезервирован в Netbox.
+  # Служебное поле, в форме портала скрыто.
   enable: false
 
-  # List of subnets (at least one when enable=true).
+  # Список подсетей (при enable=true нужна хотя бы одна).
   subnets:
-    - # Subnet name. Format: <product>-<env>-subnet-<purpose>. Required.
+    - # Имя подсети. Формат: <продукт>-<среда>-subnet-<назначение>. Обязательно.
       name: "project-dev-subnet-default"
 
-      # CIDR block reserved in Netbox (IP/mask, mask >= 24). Required.
+      # CIDR-блок, зарезервированный в Netbox (адрес/маска, маска не меньше 24).
+      # Обязательно.
       cidrBlock: ""
 
-      # Reserved IPs that are not handed out to pods.
-      # The gateway IP is added to the exclusions automatically.
+      # Зарезервированные адреса, которые не выдаются подам.
+      # Адрес шлюза добавляется в исключения сам.
       excludeIps: []
 
-      # Subnets allowed for connectivity.
-      # ovn-default and Service-Subnet (172.30.0.0/15) are already included by the template.
+      # Подсети, с которыми разрешена связность.
+      # ovn-default и Service-Subnet (172.30.0.0/15) шаблон добавляет сам.
       allowSubnets: []

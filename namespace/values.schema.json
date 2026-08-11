@@ -18,6 +18,60 @@
       "type": "object",
       "ui:widget": "hidden"
     },
+    "identity": {
+      "additionalProperties": false,
+      "description": "Environment and project tags. They do not take part in resource names, but are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource.",
+      "propertyOrder": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "properties": {
+        "instance": {
+          "title": "instance",
+          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "type": "string",
+          "enum": [
+            "in",
+            "id",
+            "ed",
+            "pr"
+          ]
+        },
+        "cluster": {
+          "title": "cluster",
+          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "type": "string",
+          "enum": [
+            "inf",
+            "dev",
+            "tco",
+            "tst",
+            "gl",
+            "obs",
+            "tcc",
+            "cmi",
+            "ml",
+            "cme"
+          ]
+        },
+        "project": {
+          "title": "project",
+          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "minLength": 2,
+          "maxLength": 9
+        }
+      },
+      "required": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "title": "Identity",
+      "type": "object"
+    },
     "generic": {
       "additionalProperties": false,
       "description": "Common labels/annotations applied to all chart resources (Namespace, ResourceQuota, Subnet).",
@@ -272,6 +326,7 @@
   },
   "required": [
     "global",
+    "identity",
     "namespace",
     "resourceQuotas",
     "subnet"

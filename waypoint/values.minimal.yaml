@@ -1,13 +1,13 @@
-# Minimal example: a single namespace waypoint proxy.
+# Минимальный пример: один waypoint-прокси на namespace.
 #
-# Resource name by convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-# Result (with the naming below):
-# - Gateway ru1-k8s1-wp-nbox-mesh
+# Имя ресурса по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
+# С тегами ниже получится:
+# - Gateway ed-dev-wp-nbox-mesh
 
-naming:
-  instanceTag: ru1     # required, DNS format
-  clusterTag: k8s1     # required, DNS format
-  projectTag: nbox     # required, 2..6 characters
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}

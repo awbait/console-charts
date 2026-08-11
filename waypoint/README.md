@@ -1,95 +1,116 @@
-# waypoint - usage
+# waypoint
 
-Чарт разворачивает Istio ambient **waypoint proxy** - `Gateway` (Gateway API,
-класс `istio-waypoint`) с listener'ом mesh-трафика (HBONE, порт 15008).
+Чарт разворачивает waypoint-прокси Istio ambient: `Gateway` класса
+`istio-waypoint` с listener'ом mesh-трафика. Через waypoint проходит трафик тех
+сервисов, которые к нему привязаны, и на нём работают правила уровня L7.
 
-| Секция         | Что генерирует                          | Когда использовать                       |
-|----------------|-----------------------------------------|------------------------------------------|
-| `waypoints[]`  | `Gateway` (класс `istio-waypoint`) на элемент | Waypoint-перехват L7 в ambient mesh |
+## Что создаёт чарт
 
-Pod'ы/сервисы/namespace привязываются к waypoint через label
-`istio.io/use-waypoint: <имя Gateway>`.
+| Секция        | Что создаётся                                  | Когда брать                                   |
+|---------------|------------------------------------------------|-----------------------------------------------|
+| `waypoints[]` | `Gateway` класса `istio-waypoint` на элемент   | Нужен перехват трафика L7 в ambient mesh      |
 
-## Конвенция именования
+Сервисы, поды или целый namespace привязываются к waypoint'у меткой
+`istio.io/use-waypoint` с именем созданного `Gateway`. Имя печатается после
+установки.
 
-Имя каждого ресурса строится так:
+## Куда ставится релиз
+
+Все ресурсы создаются в namespace релиза, поэтому чарт ставится в тот же
+namespace, чьи сервисы должны ходить через waypoint.
+
+## Теги окружения и проекта
+
+Секция `identity` задаётся один раз на релиз. Из неё собираются имена ресурсов
+и labels, по которым ресурсы потом находятся в кластере.
+
+| Поле                | Что это                                                                       |
+|---------------------|--------------------------------------------------------------------------------|
+| `identity.instance` | Тег инстанса окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.cluster`  | Тег кластера окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.project`  | Тег проекта. Обязателен, до 9 символов: строчные латинские буквы, цифры и дефис |
+
+Дефис в теге проекта не может быть первым или последним символом.
+
+Пара тегов окружения:
+
+| Окружение      | `identity.cluster` | `identity.instance` |
+|----------------|--------------------|---------------------|
+| Infra-dev-ecpk | `inf`              | `in`                |
+| dev-ecpk       | `dev`              | `id`                |
+| techsec-dev    | `tco`              | `ed`                |
+| dev-common     | `dev`              | `ed`                |
+| test-common    | `tst`              | `ed`                |
+| global         | `gl`               | `pr`                |
+| observability  | `obs`              | `pr`                |
+| techsec        | `tcc`              | `pr`                |
+| int-common     | `cmi`              | `pr`                |
+| ML             | `ml`               | `pr`                |
+| ext-common     | `cme`              | `pr`                |
+
+Оба поля описаны в схеме значений перечислением, поэтому в форме портала они
+выбираются из списка. Берите значения строкой таблицы: схема проверяет каждое
+поле по отдельности и не поймает пару из разных окружений.
+
+## Имена ресурсов
+
+Имя каждого ресурса собирается из пяти частей:
 
 ```
-{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+{instance}-{cluster}-{kindShort}-{project}-{name}
 ```
 
-| Часть         | Откуда                            | Ограничения                     |
-|---------------|-----------------------------------|---------------------------------|
-| `instanceTag` | `naming.instanceTag` (таблица 50) | DNS-формат lower-case, required |
-| `clusterTag`  | `naming.clusterTag` (таблица 52)  | DNS-формат lower-case, required |
-| `kindShort`   | тип ресурса                       | `wp` (waypoint Gateway)         |
-| `projectTag`  | `naming.projectTag`               | 2..6 символов, DNS, required    |
-| `name`        | `waypoints[].name`                | 2..6 символов, DNS, required    |
+- `instance`, `cluster`, `project` - теги из секции `identity`;
+- `kindShort` - всегда `wp`;
+- `name` - имя waypoint'а: от 2 до 6 символов, строчные латинские буквы, цифры
+  и дефис.
 
-Пример: `ru1-k8s1-wp-nbox-mesh`. Итог обрезается до 63 символов.
+Пример: `ed-dev-wp-nbox-mesh`. Итоговое имя обрезается до 63 символов.
 
----
+## Labels на ресурсах
 
-## Quick start
+| Label                          | Значение                                          |
+|--------------------------------|---------------------------------------------------|
+| `app`                          | `waypoint` - имя чарта, не зависит от имени релиза |
+| `app.kubernetes.io/name`       | Тег проекта из `identity.project`                  |
+| `app.kubernetes.io/instance`   | Имя релиза                                         |
+| `app.kubernetes.io/managed-by` | `Helm`                                             |
+| `app.kubernetes.io/version`    | Версия приложения из чарта                         |
+| `helm.sh/chart`                | Имя и версия чарта                                 |
+| `ecpk/instance`                | `identity.instance`, если тег задан                |
+| `ecpk/cluster`                 | `identity.cluster`, если тег задан                 |
+| `ecpk/project`                 | `identity.project`, если тег задан                 |
 
-```sh
-helm template release-name . -f minimal-values.yaml
-helm install  release-name . -f minimal-values.yaml
-```
+Значения `ecpk/*` приводятся к нижнему регистру, то есть совпадают с тем, что
+попало в имя ресурса. По ним отбираются все ресурсы окружения или проекта.
 
-Минимальный пример (`minimal-values.yaml`) создаёт один `Gateway` класса
-`istio-waypoint`.
+Свои labels и annotations добавляются через `generic.labels` и
+`generic.annotations`. Задаются только на весь релиз сразу, отдельно по ресурсам
+их не задать.
 
-После установки привяжите namespace (или workload) к waypoint:
+## Секция `waypoints[]`
 
-```sh
-kubectl label ns <namespace> istio.io/use-waypoint=ru1-k8s1-wp-nbox-mesh
-```
+На каждый элемент создаётся один `Gateway` класса `istio-waypoint`.
 
----
+| Поле      | Нужно указать               | Что это                                                          |
+|-----------|-----------------------------|-------------------------------------------------------------------|
+| `name`    | да                          | Имя, от 2 до 6 символов. Подставляется в имя `Gateway`            |
+| `enabled` | нет, по умолчанию `true`    | При `false` `Gateway` не создаётся                                |
+| `for`     | нет, по умолчанию `service` | Что перехватывать: `service`, `workload` или `all`                |
 
-## Секции `values.yaml`
+## Когда рендер останавливается
 
-### Общие параметры
+- не заданы `identity.instance` или `identity.cluster` либо в них недопустимые
+  символы;
+- `identity.project` длиннее 9 символов или содержит недопустимые символы;
+- имя waypoint'а короче 2 или длиннее 6 символов;
+- значение `for` не `service`, не `workload` и не `all`.
 
-| Поле                   | Тип    | Описание                                              |
-|------------------------|--------|-------------------------------------------------------|
-| `naming.instanceTag`   | string | Тег инстанса (таблица 50), required, DNS              |
-| `naming.clusterTag`    | string | Тег кластера (таблица 52), required, DNS              |
-| `naming.projectTag`    | string | Тег проекта, required, 2..6 символов, DNS             |
-| `generic.labels`       | map    | Общие labels для всех ресурсов                        |
-| `generic.annotations`  | map    | Общие annotations для всех ресурсов                   |
+## Файлы чарта
 
-### `waypoints[]`
-
-На каждый элемент создаётся `Gateway` класса `istio-waypoint`.
-
-| Поле      | Обязательно | Описание                                                       |
-|-----------|-------------|----------------------------------------------------------------|
-| `name`    | да          | 2..6 символов; `{name}` в имени Gateway                        |
-| `enabled` | нет (true)  | `false` → Gateway не создаётся                                 |
-| `for`     | нет (`service`) | `istio.io/waypoint-for`: `service` / `workload` / `all`    |
-
-> Labels/annotations задаются только глобально через `generic.labels` и
-> `generic.annotations`. Per-resource labels/annotations не поддерживаются.
-
----
-
-## Валидации (при которых рендер падает)
-
-- `naming.instanceTag`/`clusterTag` не заданы или не DNS-формат.
-- `naming.projectTag` или любое `waypoints[].name` не 2..6 символов / не DNS.
-- `waypoints[].for` вне `service`/`workload`/`all`.
-
----
-
-## Запуск
-
-```sh
-helm lint .
-helm template release-name . [-f my-values.yaml]
-helm install  release-name . [-f my-values.yaml]
-```
-
-Полный reference всех параметров - в `values.yaml`. Минимальный пример -
-в `minimal-values.yaml`.
+| Файл                  | Для чего                                                       |
+|-----------------------|-----------------------------------------------------------------|
+| `values.yaml`         | Значения по умолчанию: список пустой, ресурсы не создаются       |
+| `values.minimal.yaml` | Короткий рабочий пример: один waypoint                           |
+| `values.full.yaml`    | Полный справочник: все параметры с пояснениями                   |
+| `values.schema.json`  | Схема значений: проверка при установке и форма заказа в портале  |

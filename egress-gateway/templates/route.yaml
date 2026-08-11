@@ -4,7 +4,7 @@ section). Everything is derived from the listener:
   - kind            from protocol: TLS -> TLSRoute, HTTPS -> HTTPRoute
                     (apiVersion follows the kind: TLSRoute v1alpha2, HTTPRoute v1);
   - name            from the listener name, by the parent convention
-                    {instanceTag}-{clusterTag}-egw-{gatewayName}-{projectTag}-{listenerName};
+                    {instance}-{cluster}-egw-{gatewayName}-{project}-{listenerName};
   - parentRefs      bound to this gateway and pinned to the listener via sectionName;
   - hostnames       the listener hostname;
   - rules[0].backendRefs[0] = {name: hostname, port: listener.port, weight: 100}.

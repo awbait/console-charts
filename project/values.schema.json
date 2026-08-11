@@ -5,9 +5,63 @@
   "description": "Значения чарта project: Alauda multi-cluster Project (auth.alauda.io/v1) с квотами ресурсов по кластерам.",
   "type": "object",
   "additionalProperties": false,
-  "propertyOrder": ["project", "clusters", "generic", "global"],
-  "required": ["global", "project", "clusters"],
+  "propertyOrder": ["identity", "project", "clusters", "generic", "global"],
+  "required": ["global", "identity", "project", "clusters"],
   "properties": {
+    "identity": {
+      "additionalProperties": false,
+      "description": "Environment and project tags. They do not take part in the Project name, but are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource. The cluster tag is the environment the release goes to, not the clusters listed below.",
+      "propertyOrder": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "properties": {
+        "instance": {
+          "title": "instance",
+          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "type": "string",
+          "enum": [
+            "in",
+            "id",
+            "ed",
+            "pr"
+          ]
+        },
+        "cluster": {
+          "title": "cluster",
+          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "type": "string",
+          "enum": [
+            "inf",
+            "dev",
+            "tco",
+            "tst",
+            "gl",
+            "obs",
+            "tcc",
+            "cmi",
+            "ml",
+            "cme"
+          ]
+        },
+        "project": {
+          "title": "project",
+          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "minLength": 2,
+          "maxLength": 9
+        }
+      },
+      "required": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "title": "Identity",
+      "type": "object"
+    },
     "global": {
       "additionalProperties": false,
       "description": "Global chart settings",

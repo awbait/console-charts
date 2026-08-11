@@ -1,53 +1,59 @@
 # ============================================================================
-#  Helm chart: waypoint - full values reference
-#  The chart provisions an Istio ambient waypoint proxy (Gateway API, class
-#  istio-waypoint, listener HBONE/15008). Single section:
+#  Helm-чарт waypoint - полный справочник значений
+#  Чарт разворачивает waypoint-прокси Istio ambient (Gateway API, класс
+#  istio-waypoint, listener HBONE на порту 15008). Секция одна:
 #
-#    waypoints[] - list of waypoints. A Gateway is created per item.
+#    waypoints[] - список waypoint'ов, на каждый создаётся Gateway.
 #
-#  Resource naming convention:
-#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
-#  kindShort: wp (waypoint Gateway).
+#  Имя каждого ресурса:
+#    {instance}-{cluster}-{kindShort}-{project}-{name}
+#  kindShort: wp (Gateway waypoint'а).
 # ============================================================================
 
 
 # ----------------------------------------------------------------------------
-# naming - common tags for resource names (see convention above)
+# identity - теги окружения и проекта (см. схему имени выше)
 # ----------------------------------------------------------------------------
-# instanceTag / clusterTag / projectTag are set once per release.
-# kindShort is substituted automatically (wp). name is set per waypoint
-# (2..6 characters, DNS format).
-naming:
-  # Instance tag (table 50). Required, lower-case DNS format.
-  instanceTag: ru1
+# instance / cluster / project задаются один раз на релиз.
+# kindShort подставляется автоматически (wp), name задаётся у каждого waypoint'а
+# (2..6 символов, DNS-формат).
+#
+# Эти же теги проставляются на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: ed
 
-  # Cluster tag (table 52). Required, lower-case DNS format.
-  clusterTag: k8s1
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: dev
 
-  # Project tag. Required, 2..6 characters, lower-case DNS format.
-  projectTag: nbox
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  project: nbox
 
 generic:
-  # Common labels for all chart resources.
+  # Общие labels для всех ресурсов чарта.
   labels:
     environment: production
     team: platform
 
-  # Common annotations for all chart resources.
+  # Общие annotations для всех ресурсов чарта.
   annotations:
     owner: platform-team
     monitoring: "true"
 
 
 # ============================================================================
-# waypoints - list of waypoint proxies (a Gateway per item)
+# waypoints - список waypoint-прокси (на элемент создаётся Gateway)
 # ============================================================================
-# Pods/services are bound to a waypoint via the label
-#   istio.io/use-waypoint: {instanceTag}-{clusterTag}-wp-{projectTag}-{name}
-#   name    - required, 2..6 characters; {name} in the Gateway name
-#   enabled - default true; false -> Gateway is not created
-#   for     - interception scope (istio.io/waypoint-for):
-#             service (default) | workload | all
+# Поды и сервисы привязываются к waypoint'у через label
+#   istio.io/use-waypoint: {instance}-{cluster}-wp-{project}-{name}
+#   name    - обязательно, 2..6 символов; подставляется в {name} имени Gateway
+#   enabled - по умолчанию true; при false Gateway не создаётся
+#   for     - что перехватывать (istio.io/waypoint-for):
+#             service (по умолчанию) | workload | all
 waypoints:
   - name: mesh
     enabled: true

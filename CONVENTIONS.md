@@ -508,32 +508,25 @@ lefthook install
 
 ## Исключения
 
-Два чарта не следуют стандарту целиком - не копируй их как образец:
+Три чарта не следуют стандарту целиком - не копируй их как образец:
 
 - **`console`** - деплой-артефакт портала. Компонентный нейминг
   (`{release}-portal`, `{release}-collector`) вместо 5-частной схемы; хелперы
-  `console.*`; есть `Deployment`/`Service`/`ServiceAccount`/RBAC.
-  `values.schema.json` пока отсутствует. Связь его env-ключей с `config.go`/
+  `console.*`; есть `Deployment`/`Service`/`ServiceAccount`/RBAC. Блока
+  `identity` и `values.schema.json` пока нет. Связь его env-ключей с `config.go`/
   `.env.example` основного репозитория описана в `CLAUDE.md`.
 - **`namespace`/`managed-namespace`** - cpaas-нейминг (labels `cpaas.io/*`,
-  `app.cpaas.io/name`; хелперы `managed-ns.*`), нет блока `identity`, `NOTES.txt`,
-  README и `.helmignore`. Чарт в процессе доработки (RBAC, Istio-лейблы,
-  deny-default NetworkPolicy, параметризация `creator`) - см. `idp/TODO.md`.
+  `app.cpaas.io/name`; хелперы `managed-ns.*`): имена ресурсов задаёт платформа,
+  5-частная схема не применяется. Блок `identity` есть, но участвует только в
+  identity-labels. Чарт в процессе доработки (RBAC, Istio-лейблы, deny-default
+  NetworkPolicy, параметризация `creator`) - см. `idp/TODO.md`.
+- **`project`** - тот же cpaas-нейминг: имя ресурса берётся из `project.name`.
+  Блок `identity` есть и работает так же, как в `namespace`; тег `cluster` в нём
+  означает окружение релиза, а не кластеры проекта из секции `clusters`.
 
 Кроме того, в `policies` префикс хелперов - `security-policies.*` (исторически),
 а не `policies.helpers.*`. Для новых чартов используй `<chart>.helpers.*`.
 
-### Что ещё не выровнено под эту версию конвенций
-
-Конвенции соответствуют `policies` и `ingress-gateway`. В `egress-gateway` и
-`waypoint` пока остались:
-
-- блок `naming` (`instanceTag`/`clusterTag`/`projectTag`) вместо `identity`
-  (`instance`/`cluster`/`project`);
-- тег проекта длиной 2..6 символов вместо девяти;
-- нет identity-labels `ecpk/*`;
-- в `app` попадает тег проекта, а не имя чарта.
-
-Это правится при следующей содержательной правке каждого чарта: переименование
-блока значений ломает существующие values, поэтому идёт отдельным мажорным
-изменением с записью в `CHANGELOG.md` чарта.
+Всё остальное выровнено: `policies`, `ingress-gateway`, `egress-gateway` и
+`waypoint` собирают имена из `identity`, проставляют identity-labels и держат имя
+чарта в `app`.

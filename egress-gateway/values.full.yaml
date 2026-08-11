@@ -12,28 +12,34 @@
 #                         (externalIPs, SNAT-политики). Его селекторы выводятся
 #                         так, чтобы указывать на Gateway выше.
 #
-#  Конвенция именования ресурсов:
-#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+#  Имя каждого ресурса:
+#    {instance}-{cluster}-{kindShort}-{project}-{name}
 # ============================================================================
 
 
 # ----------------------------------------------------------------------------
-# naming - общие теги для имён ресурсов (см. конвенцию выше)
+# identity - теги окружения и проекта (см. схему имени выше)
 # ----------------------------------------------------------------------------
-# instanceTag / clusterTag / projectTag задаются один раз на релиз.
+# instance / cluster / project задаются один раз на релиз.
 # kindShort подставляется автоматически по типу ресурса:
 #   egw - Istio Egress-Gateway  (Gateway, ConfigMap, ServiceEntry, TLSRoute/HTTPRoute)
 #   veg - VPC Egress Gateway    (VpcEgressGateway)
 # name задаётся на каждый ресурс (2..6 символов, DNS-формат).
-naming:
-  # Тег инстанса (таблица 50). Обязателен, DNS-формат lower-case.
-  instanceTag: ru1
+#
+# Эти же теги проставляются на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: ed
 
-  # Тег кластера (таблица 52). Обязателен, DNS-формат lower-case.
-  clusterTag: k8s1
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: dev
 
-  # Тег проекта. Обязателен, 2..6 символов, DNS-формат lower-case.
-  projectTag: nbox
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  project: nbox
 
 generic:
   # Общие labels для всех ресурсов чарта.

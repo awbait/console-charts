@@ -1,4 +1,5 @@
 project ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
+Identity labels on every resource: {{ include "project.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{- if .Values.global.enable }}
 Created:

@@ -1,5 +1,6 @@
 waypoint ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
-Naming convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
+Identity labels on every resource: {{ include "waypoint.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{ $hasWp := false -}}
 {{- range .Values.waypoints }}{{ if eq (include "waypoint.helpers.app.enabled" .) "true" }}{{ $hasWp = true }}{{ end }}{{ end -}}
@@ -9,10 +10,13 @@ Waypoint proxies (Gateway, class istio-waypoint):
 {{- if eq (include "waypoint.helpers.app.enabled" $wp) "true" }}
 {{- $name := include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $wp.name "context" $) }}
   - {{ $name }} (waypoint-for: {{ $wp.for | default "service" }})
-    binding: kubectl label ns {{ $.Release.Namespace }} istio.io/use-waypoint={{ $name }}
+    binding: label the namespace with istio.io/use-waypoint={{ $name }}
 {{- end }}
 {{- end }}
+{{- else }}
+
+No waypoints are described: the waypoints list is empty, nothing was created.
 {{- end }}
 
-Check:
-  kubectl -n {{ .Release.Namespace }} get gateway -l app.kubernetes.io/instance={{ .Release.Name }}
+All resources of this release carry the labels app={{ .Chart.Name }} and
+app.kubernetes.io/instance={{ .Release.Name }}.

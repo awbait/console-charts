@@ -1,5 +1,6 @@
 egress-gateway ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
-Naming convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
+Identity labels on every resource: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
@@ -27,3 +28,6 @@ VpcEgressGateway (kube-ovn) - selectors point at the egress gateway above:
   * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (externalIPs: {{ len .externalIPs }}, replicas: {{ len .externalIPs }})
 {{- end }}
 {{- end }}
+
+All resources of this release carry the labels app={{ .Chart.Name }} and
+app.kubernetes.io/instance={{ .Release.Name }}.

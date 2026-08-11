@@ -1,13 +1,34 @@
 # ============================================================================
-#  Helm chart: project - full values reference
-#  Creates an Alauda multi-cluster Project (auth.alauda.io/v1) with per-cluster
-#  resource quotas. The resource is created only when global.enable=true.
+#  Helm-чарт project - полный справочник значений
+#  Создаёт мультикластерный Project Alauda (auth.alauda.io/v1) с квотами
+#  ресурсов по кластерам. Ресурс создаётся только при global.enable=true.
 # ============================================================================
 
 global:
-  # Main chart switch. false -> no resource is created.
-  # Service field, hidden in the portal form; enabled by the console on order.
+  # Главный выключатель чарта. false -> не создаётся ни один ресурс.
+  # Служебное поле, в форме портала скрыто: его проставляет консоль при заказе.
   enable: true
+
+# ----------------------------------------------------------------------------
+# identity - теги окружения и проекта
+# ----------------------------------------------------------------------------
+# В имя Project не входят (оно задаётся в project.name), но проставляются
+# на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+# Тег cluster - это окружение, куда ставится релиз, а не список кластеров
+# проекта: кластеры перечисляются ниже в секции clusters.
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: ed
+
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: dev
+
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  project: nbox
 
 # ----------------------------------------------------------------------------
 # generic - общие labels/annotations на ВСЕ ресурсы чарта (Project).
