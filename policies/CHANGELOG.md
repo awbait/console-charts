@@ -19,7 +19,7 @@
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2026-08-11
 
 ### Added
 - **Egress-зеркало для ingress-правил `policies[]`.** Ingress-правило теперь
@@ -30,13 +30,63 @@
   NP/AP на стороне получателя. Если один namespace - и получатель egress, и
   отправитель ingress, обе стороны мерджатся в один манифест (selector должен
   совпадать, иначе рендер падает с подсказкой).
-- **`README.md`** - usage-документ чарта: секции (`policies[]`/`netpol[]`/
-  `authzpol[]`), конвенция именования, таблицы полей, валидации, запуск.
+- **Labels `ecpk/instance`, `ecpk/cluster`, `ecpk/project`** на всех
+  генерируемых `NetworkPolicy` и `AuthorizationPolicy`. Значения берутся из
+  блока `identity` (label выводится только для заполненного поля) и приводятся
+  к нижнему регистру, то есть совпадают с тем, что попало в имя ресурса. Так
+  ресурсы чарта отбираются по окружению и проекту без разбора имени.
+- **Label `app` с именем чарта** (`app: policies`) на всех ресурсах - рядом с
+  `app.kubernetes.io/name`. В отличие от `app.kubernetes.io/instance` он не
+  зависит от имени релиза, поэтому по нему находятся политики любого релиза.
+- **Список допустимых значений `identity.instance` и `identity.cluster` в
+  `values.schema.json`**: теги окружений заданы перечислением, в форме портала
+  поле стало выбором из списка вместо свободного ввода.
+- **`NOTES.txt`** - сводка после установки: namespace релиза, конвенция имён,
+  теги identity и список созданных политик с именами ресурсов и namespace, куда
+  ушли зеркала.
+- **`.helmignore`** со стандартным набором паттернов.
+- **`view.schema.json`** - описание формы портала для этого чарта: вкладки
+  «Ingress правила» и «Egress правила», представления заказа и настроек,
+  включённый режим графа.
+- **Справочник тегов окружений** в `README.md`: какие `identity.instance` и
+  `identity.cluster` использовать для каждого окружения.
+
+### Changed
+- **Блок `naming` переименован в `identity`**: `naming.instanceTag` ->
+  `identity.instance`, `naming.clusterTag` -> `identity.cluster`,
+  `naming.projectTag` -> `identity.project`. Смысл полей не изменился.
+
+  **BREAKING**: секцию `naming` в своих values нужно переименовать, иначе
+  рендер упадёт на отсутствующих обязательных полях.
+- **`identity.project` - до 9 символов** (было 2..6): строчные латинские буквы,
+  цифры и дефис. Ограничение имён элементов секций (`policy.name`) осталось
+  прежним - 2..6 символов.
+- **Комментарии в `values.yaml`, `values.minimal.yaml` и `values.full.yaml`
+  переведены на русский** и приведены в соответствие с текущим поведением
+  чарта: имена ресурсов по конвенции вместо устаревших `{name}-np`/`{name}-ap`,
+  зеркала обеих сторон, labels из `identity`.
+- **`README.md` переписан**: разделы про то, что создаёт чарт, таблица тегов
+  окружений, labels на ресурсах, разбор секций и список проверок, на которых
+  рендер останавливается.
+
+---
+
+## [0.3.0] - 2026-07-09
+
+### Added
 - **Блок `generic` (`labels`/`annotations`)** - общие labels и annotations на все
   генерируемые `NetworkPolicy`/`AuthorizationPolicy`. Собираются единым хелпером
   `security-policies.metadata` (`labels:` + условный `annotations:`); `generic.labels`
   дополнительно вливаются в `security-policies.labels`. Добавлены в `values.full.yaml`
   и `values.schema.json` (в форме портала секция скрыта).
+
+---
+
+## [0.2.0] - 2026-06-30
+
+### Added
+- **`README.md`** - usage-документ чарта: секции (`policies[]`/`netpol[]`/
+  `authzpol[]`), конвенция именования, таблицы полей, валидации, запуск.
 
 ### Changed
 - **Namespace владельца - всегда `.Release.Namespace`.** Поля `namespace` у
@@ -49,10 +99,11 @@
   (опционально, fallback на `defaults.protocol`), как `networkPolicyPort` в
   `ingress-gateway`. Скалярная форма `ports: [8080]` больше не валидна по схеме.
 - **Конвенция именования ресурсов** - имя строится как
-  `{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}` (было `{name}-{np|ap}`).
-  Общие теги - в новом блоке `naming` (`instanceTag`/`clusterTag`/`projectTag`),
-  `kindShort` по типу ресурса (`np`/`ap`), `name` - это `policy.name` (2..6).
-  Все части валидируются (DNS-формат, длины, `kindShort ∈ {np,ap}`).
+  `{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}` (было
+  `{name}-{np|ap}`). Общие теги - в новом блоке `naming` (`instanceTag`/
+  `clusterTag`/`projectTag`), `kindShort` по типу ресурса (`np`/`ap`),
+  `name` - это `policy.name` (2..6). Все части валидируются (DNS-формат,
+  длины, `kindShort ∈ {np,ap}`).
 
   **BREAKING**: имена всех генерируемых `NetworkPolicy`/`AuthorizationPolicy`
   меняются; требуется заполнить секцию `naming` в `values.yaml`.

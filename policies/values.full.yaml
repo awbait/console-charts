@@ -1,47 +1,53 @@
 # ============================================================================
-#  Helm chart: policies - full values reference
-#  All parameters with descriptions. Three independent sections (any
-#  combination can be used):
+#  Helm-чарт policies - полный справочник значений
+#  Здесь перечислены все параметры с описанием. Секции независимы, можно
+#  использовать любое их сочетание:
 #
-#    policies[]  - universal policies. One block describes a source <-> target
-#                  link. NetworkPolicy and AuthorizationPolicy are generated
-#                  with auto-mirroring of egress rules into the target
-#                  namespace.
+#    policies[]  - универсальные политики. Один блок описывает связь
+#                  источник <-> получатель: создаются NetworkPolicy и
+#                  AuthorizationPolicy, а правила зеркалятся в namespace
+#                  второй стороны.
 #
-#    netpol[]    - NetworkPolicy only, no mirrors. Use when you need fine
-#                  L3/L4 control or an ipBlock without an Istio AP.
+#    netpol[]    - только NetworkPolicy, без зеркал. Для тонкого контроля
+#                  L3/L4 или правил по ipBlock без Istio.
 #
-#    authzpol[]  - AuthorizationPolicy only. Use for L7 (when, paths, custom
-#                  principals) or when NP are described another way.
+#    authzpol[]  - только AuthorizationPolicy. Для L7-сценариев Istio или
+#                  когда NetworkPolicy описаны иначе.
 #
-#  Resource naming convention:
-#    {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+#  Имя каждого ресурса:
+#    {instance}-{cluster}-{kindShort}-{project}-{name}
 #  kindShort: np (NetworkPolicy) | ap (AuthorizationPolicy).
-#  Names must be unique within (namespace, kind).
+#  Имя должно быть уникально в пределах пары (namespace, тип ресурса).
 # ============================================================================
 
 
 # ----------------------------------------------------------------------------
-# naming - common tags for resource names (see convention above)
+# identity - теги окружения и проекта (см. схему имени выше)
 # ----------------------------------------------------------------------------
-# instanceTag / clusterTag / projectTag are set once per release.
-# kindShort is substituted automatically by resource type (np | ap).
-# name is policy.name (2..6 characters, DNS) in the sections below.
-naming:
-  # Instance tag (table 50). Required, lower-case DNS format.
-  instanceTag: ru1
+# instance / cluster / project задаются один раз на релиз.
+# kindShort подставляется автоматически по типу ресурса (np | ap).
+# name - это имя элемента секции (policy.name) ниже.
+#
+# Эти же теги проставляются на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: ed
 
-  # Cluster tag (table 52). Required, lower-case DNS format.
-  clusterTag: k8s1
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: dev
 
-  # Project tag. Required, 2..6 characters, lower-case DNS format.
-  projectTag: nbox
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  project: nbox
 
 
 # ----------------------------------------------------------------------------
-# generic - общие labels/annotations на ВСЕ ресурсы чарта (NP + AP).
-# Задаются только глобально; в форме портала секция скрыта (ui:widget: hidden).
+# generic - общие labels/annotations на ВСЕ ресурсы чарта (NP + AP)
 # ----------------------------------------------------------------------------
+# Задаются только глобально; в форме портала секция скрыта.
 generic:
   # Общие labels для всех ресурсов чарта. Результат: metadata.labels.
   labels:
@@ -55,82 +61,85 @@ generic:
 
 
 # ----------------------------------------------------------------------------
-# defaults
+# defaults - значения по умолчанию для всех секций
 # ----------------------------------------------------------------------------
 defaults:
-  # Istio trust domain used to build a principal:
+  # Istio trust domain, из которого собирается principal:
   #   {trustDomain}/ns/{namespace}/sa/{serviceAccount}
   trustDomain: cluster.local
 
-  # Namespace label key for the NetworkPolicy namespaceSelector.
-  # The k8s standard is kubernetes.io/metadata.name (set automatically).
+  # Ключ label namespace для namespaceSelector в NetworkPolicy.
+  # Стандарт Kubernetes - kubernetes.io/metadata.name (проставляется сам).
   namespaceLabelKey: kubernetes.io/metadata.name
 
-  # Default protocol for ports in NetworkPolicy.
-  # Overridden per-port: ports: [{ port: 53, protocol: UDP }]
+  # Протокол по умолчанию для портов в NetworkPolicy.
+  # Переопределяется у конкретного порта: ports: [{ port: 53, protocol: UDP }]
   protocol: TCP
 
 
 # ============================================================================
-# policies - universal policies (NetworkPolicy + AuthorizationPolicy)
+# policies - универсальные политики (NetworkPolicy + AuthorizationPolicy)
 # ============================================================================
-# One entry -> the following manifests:
-#   - in the release namespace:  {name}-np (ingress+egress) and {name}-ap
-#   - in each target namespace:  {name}-np (ingress) and {name}-ap (mirror)
-#   - in each sender namespace:  {name}-np (egress mirror from ingress rules)
+# Одна запись -> следующие манифесты:
+#   - в namespace релиза:            np (ingress+egress) и ap владельца
+#   - в каждом namespace получателя: np (ingress) и ap (зеркало egress-правила)
+#   - в каждом namespace отправителя: np (egress, зеркало ingress-правила)
 #
-# Several egress rules with the same target.namespace are merged into a single
-# manifest on the target side (ports are combined).
+# Несколько правил с одним и тем же namespace второй стороны собираются в один
+# зеркальный манифест (порты объединяются).
 policies:
-  - # Short policy name (2..6 characters, DNS-format).
+  - # Имя политики: 2..6 символов, строчные латинские буквы, цифры и дефис.
+    # Подставляется в {name} имени ресурсов.
     name: core1
 
-    # Optional, default: true. If false, the whole policy is skipped.
+    # Необязательно, по умолчанию true. При false политика пропускается целиком.
     enabled: true
 
-    # ServiceAccount of the owner workload. Goes into the principal of the
-    # mirror AP on the target side. Required when egress rules are present.
+    # ServiceAccount workload-владельца. Идёт в principal зеркальной AP на
+    # стороне получателя. Обязателен, если есть egress-правила.
     serviceAccount: netbox
 
-    # Pod selector of the owner workload. Applied as:
-    #   - podSelector in the owner NetworkPolicy
-    #   - selector   in the owner AuthorizationPolicy
+    # Pod selector workload-владельца. Используется как:
+    #   - podSelector в NetworkPolicy владельца
+    #   - selector   в AuthorizationPolicy владельца
     selector:
       app.kubernetes.io/name: netbox
 
-    # Ingress rules: who is allowed to reach the owner.
-    # Each rule -> spec.ingress (NP) and one entry in spec.rules (AP), plus an
-    # egress NetworkPolicy mirror in the sender namespace (namespace+selector
-    # peers only), so the sender needs no separate policies release.
+    # Ingress-правила: кому разрешено ходить в owner.
+    # Каждое правило -> spec.ingress (NP) и запись в spec.rules (AP), плюс
+    # зеркальная egress NetworkPolicy в namespace отправителя (только для
+    # peers формы namespace + selector). Отдельный релиз чарта у отправителя
+    # для этого не нужен.
     ingress:
-      - # Traffic sources. Supported forms:
-        #   namespace + selector (+ optional serviceAccount for AP principals)
+      - # Источники трафика. Поддерживаются формы:
+        #   namespace + selector (+ необязательный serviceAccount для principal AP)
         #   ipBlock
-        #   namespaceSelector / podSelector (raw k8s format, advanced)
+        #   namespaceSelector / podSelector (сырой формат Kubernetes, для сложных случаев)
         from:
           - namespace: netbox-ingress
             selector:
               app.kubernetes.io/name: ingress-istio
-            # Optional: sender SA for the AP principal.
-            #   set     -> principals: cluster.local/ns/.../sa/<SA>
-            #   missing -> fallback to namespaces: [<namespace>]
+            # Необязательно: SA отправителя для principal в AP.
+            #   задан    -> principals: cluster.local/ns/.../sa/<SA>
+            #   не задан -> namespaces: [<namespace>]
             serviceAccount: netbox-ingress-gateway-istio
 
-        # Ports. Each entry is an object { port, protocol }:
-        #   - { port: 8080 }                (protocol from defaults.protocol)
-        #   - { port: 8080, protocol: TCP } (explicit protocol)
+        # Порты. Каждая запись - объект { port, protocol }:
+        #   - { port: 8080 }                (протокол из defaults.protocol)
+        #   - { port: 8080, protocol: TCP } (протокол задан явно)
         ports:
           - port: 8080
 
-    # Egress rules: where the owner may connect.
-    # Each rule -> spec.egress in the owner NP AND NP+AP mirrors in the target ns.
+    # Egress-правила: куда owner может ходить.
+    # Каждое правило -> spec.egress в NP владельца и зеркала NP+AP в namespace
+    # получателя.
     egress:
       - to:
           - namespace: netbox-postgresql
             selector:
               app.kubernetes.io/name: postgresql
-            # NOTE: peer.serviceAccount in egress is FORBIDDEN - render fails.
-            # The owner SA is taken from policy.serviceAccount.
+            # Внимание: peer.serviceAccount в egress запрещён - рендер упадёт.
+            # SA владельца берётся из policy.serviceAccount.
         ports:
           - port: 5432
 
@@ -144,20 +153,20 @@ policies:
 
 
 # ============================================================================
-# netpol - NetworkPolicy only (no AuthorizationPolicy and no mirrors)
+# netpol - только NetworkPolicy (без AuthorizationPolicy и без зеркал)
 # ============================================================================
-# Use for L3/L4-only scenarios or ipBlock rules.
+# Для сценариев уровня L3/L4 и правил по ipBlock.
 netpol:
-  - # Resource name: {name}-np.
+  - # Имя ресурса: {instance}-{cluster}-np-{project}-{name}.
     name: ing
 
     enabled: true
 
-    # podSelector. Empty/absent -> policy applies to all pods in the ns.
+    # podSelector. Не задан -> политика применяется ко всем подам namespace.
     selector:
       app.kubernetes.io/name: ingress-istio
 
-    # Ingress rules: list of {from: [...], ports: [...]}.
+    # Ingress-правила: список {from: [...], ports: [...]}.
     ingress:
       - from:
           - ipBlock:
@@ -169,7 +178,7 @@ netpol:
           - port: 15021
           - port: 15090
 
-    # Egress rules: list of {to: [...], ports: [...]}.
+    # Egress-правила: список {to: [...], ports: [...]}.
     egress:
       - to:
           - namespace: netbox-core
@@ -180,27 +189,28 @@ netpol:
 
 
 # ============================================================================
-# authzpol - AuthorizationPolicy only (no NetworkPolicy)
+# authzpol - только AuthorizationPolicy (без NetworkPolicy)
 # ============================================================================
-# Use for Istio L7 rules or when NP are described by another tool.
+# Для L7-правил Istio или когда NetworkPolicy описаны другим инструментом.
 authzpol:
-  - # Resource name: {name}-ap.
+  - # Имя ресурса: {instance}-{cluster}-ap-{project}-{name}.
     name: gate
 
     enabled: true
 
-    # action: ALLOW (default) | DENY | AUDIT | CUSTOM
+    # action: ALLOW (по умолчанию) | DENY | AUDIT | CUSTOM
     action: ALLOW
 
-    # selector - whom the policy applies to. Omitted -> all workloads in the ns.
+    # selector - к кому применяется политика. Не задан -> ко всем workload
+    # в namespace.
     selector:
       app.kubernetes.io/name: ingress-istio
 
-    # rules: list of rules. Each rule may contain from / ports / when.
+    # rules - список правил. В правиле могут быть from / ports / when.
     rules:
-      - # Source. Supported forms:
-        #   serviceAccounts - translated into principals
-        #   principals      - raw principal strings
+      - # Источник. Поддерживаются формы:
+        #   serviceAccounts - разворачиваются в principals
+        #   principals      - готовые строки principal
         #   ipBlocks
         #   namespaces
         from:
@@ -227,7 +237,7 @@ authzpol:
         ports:
           - port: 6379
 
-        # when conditions. Currently sourceNamespaces is supported.
+        # Условия when. Сейчас поддерживается sourceNamespaces.
         when:
           sourceNamespaces:
             - netbox-core

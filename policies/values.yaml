@@ -1,11 +1,13 @@
-# policies - default values (minimum for render to pass).
-# By default no policies are created (all lists are empty).
-# Full parameter reference - values.full.yaml; working example - values.minimal.yaml.
+# policies - значения по умолчанию (минимум, при котором проходит рендер).
+# По умолчанию политики не создаются: все три списка пустые.
+# Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
-naming:
-  instanceTag: ru1     # required, lower-case DNS format
-  clusterTag: k8s1     # required, lower-case DNS format
-  projectTag: nbox     # required, 2..6 characters
+# Теги окружения и проекта: попадают в имя каждого ресурса и в labels
+# ecpk/instance, ecpk/cluster, ecpk/project. Допустимые значения - в README.md.
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
 
 generic:
   labels: {}           # общие labels на ВСЕ ресурсы чарта

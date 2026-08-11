@@ -1,0 +1,143 @@
+{
+  "tabs": [
+    {
+      "id": "ingress",
+      "form": "ingress",
+      "items": "/policies/0/ingress",
+      "title": "Ingress правила",
+      "ui:table": [
+        {
+          "path": "from/*/namespace",
+          "label": "Неймспейс"
+        },
+        {
+          "path": "from/*/serviceAccount",
+          "label": "Сервисный аккаунт"
+        },
+        {
+          "path": "ports/*/port",
+          "label": "Порт"
+        },
+        {
+          "path": "ports/*/protocol",
+          "label": "Протокол"
+        }
+      ]
+    },
+    {
+      "id": "egress",
+      "form": "egress",
+      "items": "/policies/0/egress",
+      "title": "Egress правила",
+      "ui:table": [
+        {
+          "path": "to/*/namespace",
+          "label": "Неймспейс"
+        },
+        {
+          "path": "to/*/selector",
+          "label": "Podselector labels"
+        },
+        {
+          "path": "ports/*/port",
+          "label": "Порт"
+        },
+        {
+          "path": "ports/*/protocol",
+          "label": "Протокол"
+        }
+      ]
+    }
+  ],
+  "graph": {
+    "profile": "policies"
+  },
+  "views": {
+    "base": {
+      "include": [
+        "policies"
+      ],
+      "overrides": {
+        "policies": {
+          "title": "Settings",
+          "ui:view": {
+            "exclude": [
+              "enabled",
+              "ingress",
+              "egress",
+              "name"
+            ]
+          },
+          "ui:widget": "single",
+          "description": "Настройки имени serviceAccount и podSelector"
+        }
+      }
+    },
+    "order": {
+      "include": [
+        "identity",
+        "policies"
+      ],
+      "identity": "/policies/0/name",
+      "overrides": {
+        "policies": {
+          "title": "Policies",
+          "ui:view": {
+            "exclude": [
+              "enabled"
+            ],
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              },
+              "egress": {
+                "ui:view": {
+                  "overrides": {
+                    "to": {
+                      "title": "To",
+                      "ui:widget": "single"
+                    }
+                  }
+                }
+              },
+              "ingress": {
+                "ui:view": {
+                  "overrides": {
+                    "from": {
+                      "title": "From",
+                      "ui:widget": "single"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
+    "egress": {
+      "overrides": {
+        "to": {
+          "title": "To",
+          "ui:widget": "single"
+        }
+      }
+    },
+    "ingress": {
+      "overrides": {
+        "from": {
+          "title": "From",
+          "ui:widget": "single"
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "base",
+      "label": "Настройки"
+    }
+  ]
+}
