@@ -1,5 +1,6 @@
 ingress-gateway ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
-Naming convention: {instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
+Identity labels on every resource: {{ include "ingress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{ $hasGw := false -}}
 {{- range .Values.gateways }}{{ if eq (include "ingress-gateway.helpers.app.enabled" .) "true" }}{{ $hasGw = true }}{{ end }}{{ end -}}
@@ -32,5 +33,5 @@ Routes:
 OIDC: enabled (oauth2-proxy + Keycloak). Check the issuer and oauth2-proxy availability.
 {{- end }}
 
-Check:
-  kubectl -n {{ .Release.Namespace }} get gateway,httproute,grpcroute,tlsroute,tcproute,udproute,configmap,networkpolicy,authorizationpolicy -l app.kubernetes.io/instance={{ .Release.Name }}
+All resources of this release carry the labels app={{ .Chart.Name }} and
+app.kubernetes.io/instance={{ .Release.Name }}.

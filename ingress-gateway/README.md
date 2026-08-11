@@ -1,178 +1,213 @@
-# ingress-gateway - usage
+# ingress-gateway
 
-Чарт разворачивает ingress на базе Istio / Kubernetes Gateway API. Из
-независимых секций `values.yaml` генерируются ресурсы.
+Чарт разворачивает вход в кластер на базе Istio и Kubernetes Gateway API. Вы
+описываете в значениях точки входа и маршруты до сервисов, а чарт создаёт
+`Gateway`, маршруты, сетевые политики и, если нужно, вход через OIDC.
 
-| Секция                 | Что генерирует                                              | Когда использовать                          |
-|------------------------|------------------------------------------------------------|---------------------------------------------|
-| `gateways[]`           | `Gateway` + infrastructure `ConfigMap` на элемент          | Точка входа (Gateway API + Istio workload)  |
-| `xroutes[]`            | `HTTPRoute`/`GRPCRoute`/`TLSRoute`/`TCPRoute`/`UDPRoute`    | Маршрутизация к backend-сервисам            |
-| `networkPolicy`        | `NetworkPolicy` на каждый Gateway                          | L3/L4 ограничения для workload Gateway      |
-| `authorizationPolicy`  | `AuthorizationPolicy` (Istio) на каждый Gateway            | L7-авторизация трафика к Gateway            |
-| `oidcAuth`             | `HTTPRoute`/`ReferenceGrant`/`AuthorizationPolicy`/`RequestAuthentication` | OIDC через oauth2-proxy + Keycloak |
+## Что создаёт чарт
 
-Связь: `xroutes[].parentRefs[].gateway` = `gateways[].name`, а `sectionName` =
-`listeners[].name`.
+Значения разбиты на независимые секции, использовать можно любую или сразу
+несколько.
 
-## Конвенция именования
+| Секция                | Что создаётся                                                              | Когда брать                                       |
+|-----------------------|----------------------------------------------------------------------------|---------------------------------------------------|
+| `gateways[]`          | `Gateway` и инфраструктурный `ConfigMap` на каждый элемент                  | Нужна точка входа в кластер                       |
+| `xroutes[]`           | `HTTPRoute`, `GRPCRoute`, `TLSRoute`, `TCPRoute` или `UDPRoute`             | Нужно довести трафик от точки входа до сервиса    |
+| `networkPolicy`       | `NetworkPolicy` для workload'а каждого Gateway                              | Нужно ограничить, куда ходит сам шлюз             |
+| `authorizationPolicy` | `AuthorizationPolicy` (Istio) для workload'а каждого Gateway                | Нужны правила Istio на трафик к шлюзу             |
+| `oidcAuth`            | `HTTPRoute`, `ReferenceGrant`, две `AuthorizationPolicy` и `RequestAuthentication` | Вход в приложение должен идти через Keycloak |
 
-Имя каждого ресурса (кроме OIDC) строится так:
+Секции связаны по именам: `xroutes[].parentRefs[].gateway` указывает на
+`gateways[].name`, а `sectionName` - на `listeners[].name` этого Gateway.
+
+## Куда ставится релиз
+
+Все ресурсы создаются в namespace релиза. Исключение - `oidcAuth`: его ресурсы
+раскладываются по namespace приложения, шлюза и oauth2-proxy, потому что вход
+через OIDC связывает три стороны.
+
+## Теги окружения и проекта
+
+Секция `identity` задаётся один раз на релиз. Из неё собираются имена ресурсов
+и labels, по которым ресурсы потом находятся в кластере.
+
+| Поле                | Что это                                                                       |
+|---------------------|--------------------------------------------------------------------------------|
+| `identity.instance` | Тег инстанса окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.cluster`  | Тег кластера окружения. Обязателен, значение из таблицы ниже                    |
+| `identity.project`  | Тег проекта. Обязателен, до 9 символов: строчные латинские буквы, цифры и дефис |
+
+Дефис в теге проекта не может быть первым или последним символом.
+
+Пара тегов окружения:
+
+| Окружение      | `identity.cluster` | `identity.instance` |
+|----------------|--------------------|---------------------|
+| Infra-dev-ecpk | `inf`              | `in`                |
+| dev-ecpk       | `dev`              | `id`                |
+| techsec-dev    | `tco`              | `ed`                |
+| dev-common     | `dev`              | `ed`                |
+| test-common    | `tst`              | `ed`                |
+| global         | `gl`               | `pr`                |
+| observability  | `obs`              | `pr`                |
+| techsec        | `tcc`              | `pr`                |
+| int-common     | `cmi`              | `pr`                |
+| ML             | `ml`               | `pr`                |
+| ext-common     | `cme`              | `pr`                |
+
+Оба поля описаны в схеме значений перечислением, поэтому в форме портала они
+выбираются из списка. Берите значения строкой таблицы: схема проверяет каждое
+поле по отдельности и не поймает пару из разных окружений.
+
+## Имена ресурсов
+
+Имя каждого ресурса собирается из пяти частей:
 
 ```
-{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+{instance}-{cluster}-{kindShort}-{project}-{name}
 ```
 
-| Часть         | Откуда                            | Ограничения                     |
-|---------------|-----------------------------------|---------------------------------|
-| `instanceTag` | `naming.instanceTag` (таблица 50) | DNS-формат lower-case, required |
-| `clusterTag`  | `naming.clusterTag` (таблица 52)  | DNS-формат lower-case, required |
-| `kindShort`   | тип ресурса (см. ниже)            | по таблице kindShort            |
-| `projectTag`  | `naming.projectTag`               | 2..6 символов, DNS, required    |
-| `name`        | `gateways[].name` / `xroutes[].name` | 2..6 символов, DNS, required |
+- `instance`, `cluster`, `project` - теги из секции `identity`;
+- `kindShort` подставляется по типу ресурса, см. таблицу ниже;
+- `name` - имя элемента секции: от 2 до 6 символов, строчные латинские буквы,
+  цифры и дефис.
 
-`kindShort` подставляется автоматически по типу ресурса:
+| Тип ресурса           | `kindShort` | Тип ресурса | `kindShort` |
+|-----------------------|-------------|-------------|-------------|
+| `Gateway`             | `igw`       | `HTTPRoute` | `hr`        |
+| `ConfigMap`           | `cm`        | `GRPCRoute` | `gr`        |
+| `NetworkPolicy`       | `np`        | `TLSRoute`  | `tr`        |
+| `AuthorizationPolicy` | `ap`        | `TCPRoute`  | `tcr`       |
+| `Secret` (TLS)        | `secret`    | `UDPRoute`  | `ur`        |
 
-| Kind                  | kindShort | Kind        | kindShort |
-|-----------------------|-----------|-------------|-----------|
-| `Gateway`             | `igw`     | `HTTPRoute` | `hr`      |
-| `ConfigMap`           | `cm`      | `GRPCRoute` | `gr`      |
-| `NetworkPolicy`       | `np`      | `TLSRoute`  | `tr`      |
-| `AuthorizationPolicy` | `ap`      | `TCPRoute`  | `tcr`     |
-| `Secret` (TLS)        | `secret`  | `UDPRoute`  | `ur`      |
+ConfigMap носит то же имя, что и его Gateway, только с `cm` вместо `igw`.
+Итоговое имя обрезается до 63 символов. Примеры: `ed-dev-igw-nbox-main`,
+`ed-dev-hr-nbox-app`.
 
-ConfigMap носит то же имя, что и Gateway, но с kindShort `cm`. Итог обрезается
-до 63 символов. Примеры: `ru1-k8s1-igw-nbox-main`, `ru1-k8s1-hr-nbox-app`.
+Ресурсы OIDC этой схеме не следуют: их имена задаются в секции `oidcAuth`
+вручную.
 
-> Ресурсы OIDC (`oidcAuth`) создаются в namespace приложения / Gateway /
-> oauth2-proxy и носят пользовательские имена (вне 5-частной конвенции).
+## Labels на ресурсах
 
----
+На каждый ресурс чарта проставляется:
 
-## Quick start
+| Label                          | Значение                                                |
+|--------------------------------|---------------------------------------------------------|
+| `app`                          | `ingress-gateway` - имя чарта, не зависит от имени релиза |
+| `app.kubernetes.io/name`       | Тег проекта из `identity.project`                        |
+| `app.kubernetes.io/instance`   | Имя релиза                                               |
+| `app.kubernetes.io/managed-by` | `Helm`                                                   |
+| `app.kubernetes.io/version`    | Версия приложения из чарта                               |
+| `helm.sh/chart`                | Имя и версия чарта                                       |
+| `ecpk/instance`                | `identity.instance`, если тег задан                      |
+| `ecpk/cluster`                 | `identity.cluster`, если тег задан                       |
+| `ecpk/project`                 | `identity.project`, если тег задан                       |
 
-```sh
-helm template release-name . -f minimal-values.yaml
-helm install  release-name . -f minimal-values.yaml
-```
+Значения `ecpk/*` приводятся к нижнему регистру, то есть совпадают с тем, что
+попало в имя ресурса. По ним отбираются все ресурсы окружения или проекта.
 
-Минимальный пример (`minimal-values.yaml`) создаёт: `Gateway`, `ConfigMap`,
-`NetworkPolicy`, `AuthorizationPolicy` и один `HTTPRoute`.
+Свои labels и annotations добавляются через `generic.labels` и
+`generic.annotations`. Задаются только на весь релиз сразу, отдельно по ресурсам
+их не задать.
 
----
+## Секция `gateways[]`
 
-## Секции `values.yaml`
+Один элемент - одна точка входа: создаются `Gateway` и инфраструктурный
+`ConfigMap` с одинаковым именем и разным `kindShort`.
 
-### Общие параметры
+| Поле          | Нужно указать            | Что это                                                                     |
+|---------------|--------------------------|------------------------------------------------------------------------------|
+| `name`        | да                       | Имя, от 2 до 6 символов. На него ссылаются маршруты                          |
+| `enabled`     | нет, по умолчанию `true` | При `false` ни Gateway, ни ConfigMap не создаются                            |
+| `ipAddress`   | нет                      | Постоянный адрес балансировщика, уходит в аннотацию MetalLB                  |
+| `hpa`         | нет                      | Автомасштабирование: `enabled`, `minReplicas`, `maxReplicas`, `averageUtilization` |
+| `resources`   | нет                      | Ресурсы контейнера `istio-proxy`                                             |
+| `listeners[]` | да                       | Список listener'ов, см. ниже                                                 |
 
-| Поле                   | Тип    | Описание                                              |
-|------------------------|--------|-------------------------------------------------------|
-| `naming.instanceTag`   | string | Тег инстанса (таблица 50), required, DNS              |
-| `naming.clusterTag`    | string | Тег кластера (таблица 52), required, DNS              |
-| `naming.projectTag`    | string | Тег проекта, required, 2..6 символов, DNS             |
-| `generic.labels`       | map    | Общие labels для всех ресурсов                        |
-| `generic.annotations`  | map    | Общие annotations для всех ресурсов                   |
+Listener описывается полями:
 
-### `gateways[]`
+- `name` - имя, на него ссылается маршрут через `sectionName`. Длина не ограничена.
+- `port` и `protocol` - обязательны. Протокол: `HTTP`, `HTTPS`, `TCP`, `UDP` или `TLS`.
+- `hostname` - обязателен для `HTTPS` и `TLS`.
+- `tlsMode` - `Terminate` (по умолчанию для `HTTPS`) или `Passthrough` (для `TLS`).
+- `tlsSecretName` или `certificateRefs` - для `Terminate`, если секрет не создаётся сам.
+- `allowedRoutes` - какие маршруты listener принимает.
 
-На каждый элемент создаётся `Gateway` и infrastructure `ConfigMap` (одно имя,
-разный kindShort).
+### TLS-секреты
 
-| Поле          | Обязательно | Описание                                                       |
-|---------------|-------------|----------------------------------------------------------------|
-| `name`        | да          | 2..6 символов; `{name}` в имени Gateway/ConfigMap, ссылка из `xroutes` |
-| `enabled`     | нет (true)  | `false` → Gateway и ConfigMap не создаются                     |
-| `ipAddress`   | нет         | Статический IP LoadBalancer → аннотация MetalLB в ConfigMap   |
-| `hpa`         | нет         | `HorizontalPodAutoscaler` (`enabled`/`minReplicas`/`maxReplicas`/`averageUtilization`) |
-| `resources`   | нет         | Resources контейнера `istio-proxy` → `ConfigMap.data.deployment` |
-| `listeners[]` | да          | Список listener'ов (см. ниже)                                  |
+Для listener'а с `tlsMode: Terminate` секрет с сертификатом создаётся
+автоматически, если hostname попадает в платформенный домен:
 
-`listener`: `name` (sectionName в parentRefs; длина не ограничена 2..6),
-`port`/`protocol` (req; `HTTP`/`HTTPS`/`TCP`/`UDP`/`TLS`), `hostname`
-(обязателен для `HTTPS`/`TLS`), `tlsMode` (`Terminate` для HTTPS,
-`Passthrough` для TLS - по умолчанию), `tlsSecretName`/`certificateRefs`
-(для `Terminate`; см. авто-секреты ниже), `allowedRoutes`.
+| hostname          | Имя секрета                                    |
+|-------------------|------------------------------------------------|
+| `*.idp.ecpk.test` | `{instance}-{cluster}-secret-{project}-idptls`  |
+| `*edp.ecpk.test`  | `{instance}-{cluster}-secret-{project}-edptls`  |
+| остальные         | Секрет не создаётся, нужен `tlsSecretName` или `certificateRefs` |
 
-#### TLS-секреты (auto)
+Секрет создаётся как `kubernetes.io/tls`, сертификат и ключ приносите вы.
+Несколько listener'ов с одним и тем же паттерном имени дают один секрет.
 
-Для listener'а с `tlsMode: Terminate` (протоколы `HTTPS`/`TLS`) секрет с
-сертификатом создаётся автоматически по `hostname`:
+## Секция `xroutes[]`
 
-| hostname           | Имя секрета (kindShort `secret`)                       |
-|--------------------|--------------------------------------------------------|
-| `*.idp.ecpk.test`    | `{instanceTag}-{clusterTag}-secret-{projectTag}-idptls` |
-| `*edp.ecpk.test`     | `{instanceTag}-{clusterTag}-secret-{projectTag}-edptls` |
-| прочие             | секрет не создаётся → нужен `tlsSecretName`/`certificateRefs` |
+| Поле           | Нужно указать                 | Что это                                                                 |
+|----------------|-------------------------------|--------------------------------------------------------------------------|
+| `name`         | да                            | Имя, от 2 до 6 символов                                                  |
+| `enabled`      | нет, по умолчанию `true`      | При `false` маршрут не создаётся                                         |
+| `kind`         | нет, по умолчанию `HTTPRoute` | `HTTPRoute`, `GRPCRoute`, `TLSRoute`, `TCPRoute` или `UDPRoute`          |
+| `parentRefs[]` | да                            | `gateway` (имя из `gateways[]`) и `sectionName` (имя listener'а)         |
+| `hostnames[]`  | для HTTP, GRPC и TLS          | Имена хостов, у TLS это SNI                                              |
+| `rules[]`      | да                            | `matches` и `filters` только для HTTP и GRPC, `backendRefs` обязателен    |
 
-Секрет рендерится как `type: kubernetes.io/tls` с пустыми `tls.crt`/`tls.key` -
-сертификат и ключ (base64) подставляете сами. Несколько listener'ов с одним
-паттерном (`*.idp.ecpk.test`, `auth.idp.ecpk.test`, …) дают **один** секрет.
+В `backendRefs` обязательны `name` и `port`, а `namespace` и `weight` задаются
+по желанию.
 
-### `xroutes[]`
+Если включённый Gateway один, часть полей можно не писать: `parentRefs[].gateway`
+подставится сам, а `hostnames` возьмутся из listener'а, на который ссылается
+маршрут.
 
-| Поле          | Обязательно | Описание                                                       |
-|---------------|-------------|----------------------------------------------------------------|
-| `name`        | да          | 2..6 символов; `{name}` в имени Route                          |
-| `enabled`     | нет (true)  | `false` → Route не создаётся                                   |
-| `kind`        | нет (`HTTPRoute`) | `HTTPRoute`/`GRPCRoute`/`TLSRoute`/`TCPRoute`/`UDPRoute`; `apiVersion` выбирается автоматически |
-| `parentRefs[]`| да          | `gateway` (= `gateways[].name`) + `sectionName` (= `listener.name`) |
-| `hostnames[]` | для HTTP/GRPC/TLS | Hostname'ы (для TLS - SNI)                              |
-| `rules[]`     | да          | `matches`/`filters` только для HTTP/GRPC; `backendRefs` обязательны (`name`/`port`, опц. `namespace`/`weight`) |
+## Секция `networkPolicy`
 
-**Упрощения при единственном включённом Gateway:**
-- `parentRefs[].gateway` можно опустить - подставится имя этого Gateway (при
-  нескольких Gateway поле обязательно).
-- `hostnames` можно опустить - берутся из listener'ов, на которые ссылается
-  route через `parentRefs[].sectionName` (для HTTP/GRPC/TLS).
+По умолчанию включена. На каждый включённый Gateway создаётся `NetworkPolicy`
+для его workload'а. Входящий трафик разрешён на служебные порты Istio
+(80, 443, 15020, 15021, 15090). Секцию `egress` задаёте вы, и при включённой
+политике она обязательна.
 
-### `networkPolicy`
+## Секция `authorizationPolicy`
 
-`enabled` (default true). На каждый включённый Gateway создаётся `NetworkPolicy`.
-Workload выбирается по label `gateway.networking.k8s.io/gateway-name` = полное
-имя Gateway. Ingress по умолчанию разрешён на служебные порты Istio
-(80/443/15020/15021/15090). `egress` задаётся пользователем и **обязателен** при
-`enabled: true`.
+По умолчанию включена. На каждый включённый Gateway создаётся
+`AuthorizationPolicy` Istio, по умолчанию разрешающая трафик с любого адреса.
+Тонкая настройка правил в разработке.
 
-### `authorizationPolicy`
+## Секция `oidcAuth`
 
-`enabled` (default true). На каждый включённый Gateway создаётся
-`AuthorizationPolicy` (Istio), по умолчанию `ALLOW` для `0.0.0.0/0`. Тонкая
-настройка правил - в фазе доработки.
+По умолчанию выключена. При включении создаются маршрут для `/oauth2`,
+`ReferenceGrant`, две `AuthorizationPolicy` (внешняя авторизация и проверка
+групп) и `RequestAuthentication`. Обязательны `application`, `gateway`,
+`groupsPolicy.allowedGroups`, а также `keycloak.issuer` и `keycloak.jwksUri`.
 
-### `oidcAuth`
+## Когда рендер останавливается
 
-`enabled` (default false). При включении создаются `HTTPRoute` для `/oauth2`,
-`ReferenceGrant`, две `AuthorizationPolicy` (CUSTOM ext_authz и проверка групп)
-и `RequestAuthentication`. Имена - пользовательские. Обязательны `application`,
-`gateway`, `groupsPolicy.allowedGroups`, `keycloak.{issuer,jwksUri}`.
+Чарт не даёт выпустить незаконченную конфигурацию и называет поле, из-за
+которого остановился:
 
-> Labels/annotations на ресурсы задаются только глобально через `generic.labels`
-> и `generic.annotations`. Per-resource labels/annotations не поддерживаются.
+- не заданы `identity.instance` или `identity.cluster` либо в них недопустимые
+  символы;
+- `identity.project` длиннее 9 символов или содержит недопустимые символы;
+- имя Gateway или маршрута короче 2 или длиннее 6 символов;
+- у listener'а не задан порт или протокол;
+- у listener'а с протоколом `HTTPS` или `TLS` не задан hostname, а при
+  `tlsMode: Terminate` не задан секрет с сертификатом;
+- у маршрута не заданы `parentRefs` или `rules`;
+- `kind` маршрута не из поддерживаемого списка;
+- для маршрута `TLS`, `TCP` или `UDP` заданы `matches` или `filters`;
+- в `backendRefs` не задано имя или порт сервиса;
+- сетевая политика включена, но `networkPolicy.egress` не задан.
 
----
+## Файлы чарта
 
-## Валидации (при которых рендер падает)
-
-- `naming.instanceTag`/`clusterTag` не заданы или не DNS-формат.
-- `naming.projectTag` или любое `gateways[].name`/`xroutes[].name` не 2..6
-  символов / не DNS-формат.
-- `gateways[].name`, `.listeners[].port`/`protocol` не заданы.
-- `listener` с `protocol: HTTPS`/`TLS` без `hostname`; `tlsMode: Terminate` без
-  `tlsSecretName`/`certificateRefs`.
-- `xroutes[].name`/`parentRefs`/`rules` не заданы.
-- `xroutes[].kind` вне `HTTPRoute`/`GRPCRoute`/`TLSRoute`/`TCPRoute`/`UDPRoute`.
-- `matches`/`filters` заданы для TLS/TCP/UDP Route.
-- `rules[].backendRefs[].name`/`port` не заданы.
-- `networkPolicy.enabled=true`, но `networkPolicy.egress` не задан.
-
----
-
-## Запуск
-
-```sh
-helm lint .
-helm template release-name . [-f my-values.yaml]
-helm install  release-name . [-f my-values.yaml]
-```
-
-Полный reference всех параметров - в `values.yaml`. Минимальный пример -
-в `minimal-values.yaml`.
+| Файл                  | Для чего                                                                |
+|-----------------------|--------------------------------------------------------------------------|
+| `values.yaml`         | Значения по умолчанию: пустые секции, ресурсов не создаёт                 |
+| `values.minimal.yaml` | Короткий рабочий пример: один Gateway, один маршрут и политики            |
+| `values.full.yaml`    | Полный справочник: все параметры с пояснениями                            |
+| `values.schema.json`  | Схема значений: проверка при установке и форма заказа в портале           |
