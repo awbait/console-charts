@@ -27,9 +27,10 @@
 | `values.full.yaml`          | да         | Полный reference: все параметры с описанием                       |
 | `values.minimal.yaml`       | желательно | Базовый рабочий пример чарта                                      |
 | `values.schema.json`        | да         | Схема для валидации и формы портала (см. ниже)                    |
+| `view.schema.json`          | желательно | Как форма заказа и карта связей выглядят в портале                |
 | `templates/_helpers.tpl`    | да         | Имена ресурсов, labels, валидации - вся общая логика              |
 | `templates/NOTES.txt`       | да         | Пост-установочная сводка                                          |
-| `README.md`                 | да         | Usage: секции, конвенция имён, валидации, запуск                  |
+| `README.md`                 | да         | Usage: что создаётся, теги, labels, секции, проверки              |
 | `CHANGELOG.md`              | да         | История версий по SemVer                                          |
 | `.helmignore`               | да         | Стандартный набор игнор-паттернов                                 |
 
@@ -72,20 +73,21 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 Имя каждого создаваемого ресурса строится по 5-частной схеме:
 
 ```
-{instanceTag}-{clusterTag}-{kindShort}-{projectTag}-{name}
+{instance}-{cluster}-{kindShort}-{project}-{name}
 ```
 
-| Часть         | Откуда                  | Ограничения                            |
-|---------------|-------------------------|----------------------------------------|
-| `instanceTag` | `naming.instanceTag`    | DNS-формат lower-case, required        |
-| `clusterTag`  | `naming.clusterTag`     | DNS-формат lower-case, required        |
-| `kindShort`   | тип ресурса (реестр ниже) | из реестра kindShort                 |
-| `projectTag`  | `naming.projectTag`     | 2..6 символов, DNS, required           |
-| `name`        | поле `name` элемента    | 2..6 символов, DNS, required           |
+| Часть       | Откуда                    | Ограничения                            |
+|-------------|---------------------------|----------------------------------------|
+| `instance`  | `identity.instance`       | DNS-формат lower-case, required        |
+| `cluster`   | `identity.cluster`        | DNS-формат lower-case, required        |
+| `kindShort` | тип ресурса (реестр ниже) | из реестра kindShort                   |
+| `project`   | `identity.project`        | до 9 символов, DNS, required           |
+| `name`      | поле `name` элемента      | 2..6 символов, DNS, required           |
 
-`instanceTag`/`clusterTag` валидируются хелпером `tag`, `projectTag`/`name` -
-хелпером `shortToken` (см. `_helpers.tpl`). Итоговое имя обрезается до 63 символов
-(`trunc 63 | trimSuffix "-"`). Пример: `ru1-k8s1-igw-nbox-main`.
+`instance`/`cluster` валидируются хелпером `tag`, `project`/`name` - хелпером
+`shortToken` с нужными границами длины (см. `_helpers.tpl`). Итоговое имя
+обрезается до 63 символов (`trunc 63 | trimSuffix "-"`). Пример:
+`ed-dev-igw-nbox-main`.
 
 ### Расширенная форма с родителем
 
@@ -93,10 +95,10 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 `Gateway` в `egress-gateway`), в имя добавляется тег родителя:
 
 ```
-{instanceTag}-{clusterTag}-{kindShort}-{parentName}-{projectTag}-{name}
+{instance}-{cluster}-{kindShort}-{parentName}-{project}-{name}
 ```
 
-Пример: `ru1-k8s1-egw-wp-nbox-rnx`.
+Пример: `ed-dev-egw-wp-nbox-rnx`.
 
 ### Реестр kindShort
 
@@ -150,9 +152,10 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | Хелпер                          | Назначение                                                        |
 |---------------------------------|-------------------------------------------------------------------|
 | `*.app.chart`                   | значение label `helm.sh/chart` (`{name}-{version}`)               |
-| `*.app.name`                    | базовое имя приложения (= `projectTag`) для labels                |
-| `*.tag`                         | валидация DNS-тега (`instanceTag`/`clusterTag`), возврат lower-case |
-| `*.shortToken`                  | валидация 2..6-символьного DNS-тега (`projectTag`/`name`)         |
+| `*.app.name`                    | базовое имя приложения (= `identity.project`) для labels          |
+| `*.tag`                         | валидация DNS-тега (`identity.instance`/`identity.cluster`), возврат lower-case |
+| `*.shortToken`                  | валидация короткого DNS-тега (`identity.project` до 9, `name` 2..6) |
+| `*.identityLabels`              | labels `ecpk/instance`, `ecpk/cluster`, `ecpk/project` из `identity` |
 | `*.app.fullname` / `*.app.resourceName` | сборка имени ресурса по 5-частной схеме                  |
 | `*.app.selectorLabels`          | стабильные selector labels                                        |
 | `*.app.labels`                  | selector + chart/managed-by/version + `generic.labels`           |
@@ -182,14 +185,33 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 Selector labels (стабильны, не меняются между релизами):
 
 ```yaml
-app.kubernetes.io/name: {{ include "<chart>.helpers.app.name" . }}   # = projectTag
-app.kubernetes.io/instance: {{ .Release.Name }}
-app: {{ include "<chart>.helpers.app.name" . }}
+app.kubernetes.io/name: {{ include "<chart>.helpers.app.name" . }}   # = identity.project
+app.kubernetes.io/instance: {{ .Release.Name }}                      # имя релиза
+app: {{ .Chart.Name }}                                               # имя чарта
 ```
+
+`app` - это **имя чарта**, а не имя релиза и не тег проекта: по нему находятся
+все ресурсы чарта в кластере, сколько бы релизов ни было выкачено. Имя релиза
+остаётся в `app.kubernetes.io/instance`.
+
+> В `ingress-gateway`, `egress-gateway` и `waypoint` в `app` пока попадает тег
+> проекта - выравниваем при следующей правке этих чартов.
 
 Полный набор labels = selector + `helm.sh/chart` + `app.kubernetes.io/managed-by`
 (`.Release.Service`) + `app.kubernetes.io/version` (если задан `appVersion`) +
-пользовательские `generic.labels`.
+identity-labels + пользовательские `generic.labels`.
+
+Identity-labels повторяют теги из блока `identity` и выводятся только для
+заполненных полей (значение приводится к нижнему регистру, то есть совпадает с
+тем, что попало в имя ресурса):
+
+```yaml
+ecpk/instance: {{ .Values.identity.instance }}
+ecpk/cluster: {{ .Values.identity.cluster }}
+ecpk/project: {{ .Values.identity.project }}
+```
+
+По ним отбираются ресурсы окружения или проекта независимо от имени релиза.
 
 ### Единый блок metadata
 
@@ -222,16 +244,37 @@ waypoint или `networking.istio.io/service-type` у egress-Gateway) перед
 Эти параметры одинаковы во всех стандартных чартах - заводи их в новом чарте с
 теми же именами и семантикой.
 
-### `naming` (required)
+### `identity` (required)
 
 ```yaml
-naming:
-  instanceTag: ru1     # тег инстанса (таблица 50), required, DNS lower-case
-  clusterTag: k8s1     # тег кластера (таблица 52), required, DNS lower-case
-  projectTag: nbox     # тег проекта, required, 2..6 символов, DNS
+identity:
+  instance: ed         # тег инстанса окружения, required, DNS lower-case
+  cluster: dev         # тег кластера окружения, required, DNS lower-case
+  project: nbox        # тег проекта, required, до 9 символов, DNS
 ```
 
-Задаётся один раз на релиз, участвует в имени каждого ресурса.
+Задаётся один раз на релиз, участвует в имени каждого ресурса и в
+identity-labels (см. «Стандартные labels»).
+
+Теги окружения идут парой - берутся строкой этой таблицы:
+
+| Окружение      | `cluster` | `instance` |
+|----------------|-----------|------------|
+| Infra-dev-ecpk | `inf`     | `in`       |
+| dev-ecpk       | `dev`     | `id`       |
+| techsec-dev    | `tco`     | `ed`       |
+| dev-common     | `dev`     | `ed`       |
+| test-common    | `tst`     | `ed`       |
+| global         | `gl`      | `pr`       |
+| observability  | `obs`     | `pr`       |
+| techsec        | `tcc`     | `pr`       |
+| int-common     | `cmi`     | `pr`       |
+| ML             | `ml`      | `pr`       |
+| ext-common     | `cme`     | `pr`       |
+
+В `values.schema.json` оба поля задаются перечислением этих значений, чтобы в
+форме портала они выбирались из списка. Пару схема не проверяет: поля
+независимы, правильное сочетание - на стороне того, кто заполняет values.
 
 ### `generic` (опц.)
 
@@ -281,8 +324,8 @@ labels/annotations намеренно не поддерживаются (уни�
   "description": "<editor-oriented описание>",
   "type": "object",
   "additionalProperties": false,
-  "propertyOrder": ["naming", "generic", "..."],
-  "required": ["naming"],
+  "propertyOrder": ["identity", "generic", "..."],
+  "required": ["identity"],
   "properties": { "...": { "$ref": "#/definitions/..." } },
   "definitions": { "...": {} }
 }
@@ -293,8 +336,8 @@ labels/annotations намеренно не поддерживаются (уни�
 - **`draft-07`**, `additionalProperties: false` на корне и во вложенных объектах -
   чтобы опечатки в ключах ловились схемой.
 - **Переиспользуй `definitions` + `$ref`**, не дублируй структуры инлайн.
-- **`propertyOrder`** задаёт порядок полей в форме портала; держи `naming` первым.
-- **`required`** - как минимум `naming`. Внутри - обязательные поля элементов.
+- **`propertyOrder`** задаёт порядок полей в форме портала; держи `identity` первым.
+- **`required`** - как минимум `identity`. Внутри - обязательные поля элементов.
 - **`title`/`description`** - человекочитаемые, описания на русском (их видит
   пользователь в форме).
 - **`ui:widget: "hidden"`** - скрыть поле из формы, оставив в схеме: для
@@ -302,8 +345,9 @@ labels/annotations намеренно не поддерживаются (уни�
   (см. в `ingress-gateway`: `xroutes[].enabled`/`hostnames`/`parentRefs[].gateway`).
 - **`defaultSnippets`** - готовые заготовки элементов списка для редактора
   (label + body). Удобны для `gateways[]`/`xroutes[]` и т.п.
-- **`shortToken`-поля** (`projectTag`, `name`) ограничивай в схеме по длине/паттерну
-  под ту же 2..6 DNS-валидацию, что и в шаблоне, - чтобы форма не давала отправить
+- **`shortToken`-поля** (`identity.project`, `name`) ограничивай в схеме по
+  длине/паттерну под ту же DNS-валидацию, что и в шаблоне (`identity.project` -
+  до 9 символов, `name` элемента - 2..6), чтобы форма не давала отправить
   заведомо невалидное.
 - **Совместимость с сабчартом**: если чарт может подключаться сабчартом, добавь в
   корень опциональные `global` (Helm инжектит его в любой сабчарт) и `enabled`
@@ -342,22 +386,27 @@ labels/annotations намеренно не поддерживаются (уни�
 живёт в `values.full.yaml` и `values.schema.json`, а не здесь. Цель README - чтобы
 человек без контекста смог заказать/развернуть сервис.
 
-Структура (см. `ingress-gateway`, `egress-gateway`, `waypoint`):
+Команд в README нет: ни `helm lint`/`template`/`install`, ни `kubectl`. Человек,
+который заказывает сервис через портал, их не выполняет, а тому, кто ставит чарт
+руками, они и так известны.
+
+Структура (образец - `policies`):
 
 1. **Заголовок и одно-два предложения** - что чарт разворачивает.
-2. **Таблица секций** - `Секция | Что генерирует | Когда использовать`. Сразу
-   после неё - как секции связаны между собой (по `name`/`hostname`/`parentRefs`).
-3. **Конвенция именования** - 5-частная схема, таблица частей, какие kindShort
-   использует чарт, примеры имён, явная пометка про ресурсы вне схемы.
-4. **Quick start** - `helm template`/`install` с `values.minimal.yaml` и что он
-   создаёт.
-5. **Секции параметров** - подразделы на каждую секцию с таблицами полей
-   (`Поле | Обязательно | Описание`), начиная с «Общие параметры» (`naming`,
-   `generic`).
-6. **Валидации** - список условий, при которых рендер падает (зеркало `fail`/
-   `required` в шаблонах).
-7. **Запуск** - `helm lint`/`template`/`install`; ссылка на `values.full.yaml` как
-   полный reference и на `values.minimal.yaml` как рабочий пример.
+2. **Таблица секций** - `Секция | Что создаётся | Когда брать`. Сразу после неё -
+   как секции связаны между собой (по `name`/`hostname`/`parentRefs`).
+3. **Куда ставится релиз** - в каком namespace оказываются ресурсы и что чарт
+   создаёт за его пределами.
+4. **Теги окружения и проекта** - блок `identity`, таблица окружений.
+5. **Имена ресурсов** - 5-частная схема, какие kindShort использует чарт, пример
+   имени, явная пометка про ресурсы вне схемы.
+6. **Labels** - что проставляется на каждый ресурс и как этим пользоваться.
+7. **Секции параметров** - подразделы на каждую секцию с таблицами полей
+   (`Поле | Нужно указать | Что это`).
+8. **Когда рендер останавливается** - список условий, при которых чарт не даёт
+   выпустить неверное правило (зеркало `fail`/`required` в шаблонах).
+9. **Файлы чарта** - назначение `values.yaml`, `values.minimal.yaml`,
+   `values.full.yaml`, `values.schema.json` и `view.schema.json`.
 
 ---
 
@@ -467,9 +516,24 @@ lefthook install
   `values.schema.json` пока отсутствует. Связь его env-ключей с `config.go`/
   `.env.example` основного репозитория описана в `CLAUDE.md`.
 - **`namespace`/`managed-namespace`** - cpaas-нейминг (labels `cpaas.io/*`,
-  `app.cpaas.io/name`; хелперы `managed-ns.*`), нет `naming`-блока, `NOTES.txt`,
+  `app.cpaas.io/name`; хелперы `managed-ns.*`), нет блока `identity`, `NOTES.txt`,
   README и `.helmignore`. Чарт в процессе доработки (RBAC, Istio-лейблы,
   deny-default NetworkPolicy, параметризация `creator`) - см. `idp/TODO.md`.
 
 Кроме того, в `policies` префикс хелперов - `security-policies.*` (исторически),
 а не `policies.helpers.*`. Для новых чартов используй `<chart>.helpers.*`.
+
+### Что ещё не выровнено под эту версию конвенций
+
+Конвенция описана по `policies` 0.4.0 - он ей соответствует полностью. В
+`ingress-gateway`, `egress-gateway` и `waypoint` пока остались:
+
+- блок `naming` (`instanceTag`/`clusterTag`/`projectTag`) вместо `identity`
+  (`instance`/`cluster`/`project`);
+- тег проекта длиной 2..6 символов вместо девяти;
+- нет identity-labels `ecpk/*`;
+- в `app` попадает тег проекта, а не имя чарта.
+
+Это правится при следующей содержательной правке каждого чарта: переименование
+блока значений ломает существующие values, поэтому идёт отдельным мажорным
+изменением с записью в `CHANGELOG.md` чарта.
