@@ -3,7 +3,7 @@
 # Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
 global:
-  enable: false
+  enable: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
 # ecpk/project на всех ресурсах. Допустимые значения - в README.md.
