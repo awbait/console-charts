@@ -2,8 +2,8 @@ apiVersion: v2
 
 name: project
 
-description: A Helm chart for an Alauda multi-cluster Project (auth.alauda.io/v1) with per-cluster resource quotas
+description: Заводит проект команды сразу в нескольких кластерах и распределяет между ними квоты на ресурсы.
 
 type: application
 
-version: "2.1.0"
+version: "2.1.1"

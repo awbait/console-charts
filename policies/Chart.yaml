@@ -1,5 +1,5 @@
 apiVersion: v2
 name: policies
-description: Declarative management of access rules between services in Kubernetes and Istio.
+description: Задаёт, каким сервисам разрешено обращаться к вашим и по каким портам. Правила рисуются на карте связей.
 type: application
-version: 0.4.0
+version: 0.4.1
