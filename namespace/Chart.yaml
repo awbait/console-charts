@@ -2,4 +2,4 @@ apiVersion: v2
 name: namespace
 description: A Helm chart for providing namespace, resource quotas and subnet
 type: application
-version: "3.0.0"
+version: "3.1.0"
