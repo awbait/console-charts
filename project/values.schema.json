@@ -68,7 +68,7 @@
       "properties": {
         "enable": {
           "description": "Enable creation of chart resources",
-          "default": false,
+          "default": true,
           "title": "Enable",
           "type": "boolean",
           "ui:widget": "hidden"
