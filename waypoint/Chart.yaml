@@ -1,6 +1,6 @@
 apiVersion: v2
 name: waypoint
-description: Helm chart for Istio ambient namespace waypoint proxy (Gateway API)
+description: Пропускает через себя обмен внутри вашего пространства, чтобы работали правила доступа между сервисами.
 type: application
-version: 2.0.0
+version: 2.0.1
 appVersion: "1.0.0"

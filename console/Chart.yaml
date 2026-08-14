@@ -1,8 +1,8 @@
 apiVersion: v2
 name: console
-description: "Helm chart for Console (self-service developer portal): a single Go service serving the API and the embedded SPA"
+description: "Портал Console: каталог сервисов, заказы и согласования в одном месте."
 type: application
-version: 0.3.2
+version: 0.3.3
 appVersion: "0.2.0"
 
 # Optional ingress via the in-repo ingress-gateway chart (Istio Gateway API),
@@ -10,7 +10,7 @@ appVersion: "0.2.0"
 # `helm dependency build` before packaging (charts/ and Chart.lock are gitignored).
 dependencies:
   - name: ingress-gateway
-    version: "4.0.0"
+    version: "4.0.1"
     repository: "file://../ingress-gateway"
     alias: ingressGateway
     condition: ingressGateway.enabled

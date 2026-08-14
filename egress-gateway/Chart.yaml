@@ -1,6 +1,6 @@
 apiVersion: v2
 name: egress-gateway
-description: Helm chart for Istio waypoint-based egress gateway
+description: Выпускает трафик ваших сервисов наружу через одну контролируемую точку. Нужен, когда во внешние системы можно ходить только с известного адреса.
 type: application
-version: 3.0.0
+version: 3.0.1
 appVersion: "1.0.0"
