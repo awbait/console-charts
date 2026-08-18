@@ -19,6 +19,33 @@
 
 ---
 
+## [0.4.0] - 2026-08-18
+
+### Fixed
+- `portal.config.STATUS_UPDATE_MODE` по умолчанию был `polling` - такого режима в
+  портале нет с версии, где появились вебхуки, и портал с этим значением отказывался
+  стартовать. Теперь `hybrid`: периодический reconcile плюс вебхуки поверх. Второе
+  допустимое значение - `webhook`. Если вы переопределяли этот ключ значением
+  `polling`, замените его на `hybrid`.
+
+### Added
+- В `portal.config` добавлены переменные, которые портал читает, а чарт не описывал:
+  `CHART_REGISTRY` (OCI-эндпоинт Harbor, на который манифест заказа ссылается как на
+  источник чарта), `GITLAB_WEBHOOK_URL` и `GITLAB_WEBHOOK_SCOPE` (портал сам
+  регистрирует свой вебхук в GitLab), `GRAFANA_URL`, `OIDC_POST_LOGOUT_REDIRECT`,
+  `RBAC_TEAM_GROUP_REGEX`, `HARBOR_INSECURE_TLS`, `HARBOR_TIMEOUT`, `GITLAB_TIMEOUT`,
+  `DATABASE_MAX_CONNS`.
+- В `portal.secrets` добавлены `GITLAB_WEBHOOK_TOKEN` и `HARBOR_WEBHOOK_SECRET`.
+
+### Changed
+- `appVersion` поднят до `0.4.0`: тег образа портала по умолчанию брался из него и
+  указывал на сборку двух релизов назад.
+- Обязательные переменные (`HARBOR_URL`, `GITLAB_URL`, `ARGOCD_URL`, `GITLAB_TOKEN`,
+  `ARGOCD_TOKEN`) помечены в `values.yaml` как обязательные: без них портал не
+  стартует и называет недостающие сам.
+- Комментарии в `values.yaml` переведены на русский - как в остальных чартах
+  репозитория.
+
 ## [0.3.3] - 2026-08-12
 
 ### Changed

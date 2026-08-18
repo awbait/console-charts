@@ -31,7 +31,7 @@ imageRegistry: ghcr.io/awbait
 portal:
   image:
     repository: console/portal
-    tag: "0.2.0"
+    tag: "0.4.0"
   config:
     PUBLIC_URL: https://console.example.com
     OIDC_ISSUER: https://keycloak.example.com/realms/internal
@@ -39,6 +39,7 @@ portal:
     HARBOR_URL: https://harbor.example.com
     GITLAB_URL: https://gitlab.example.com
     ARGOCD_URL: https://argocd.example.com
+    CHART_REGISTRY: harbor.example.com
   secrets:
     DATABASE_URL: postgres://portal:pass@postgres:5432/portal?sslmode=disable
     REDIS_URL: redis://redis:6379/0
