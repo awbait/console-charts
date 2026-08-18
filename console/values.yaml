@@ -1,9 +1,9 @@
-# Default values for the console chart.
-# console is a single component: portal (Go backend) which listens on :8080 and
-# serves both the API and the embedded SPA. There is no separate web/nginx anymore.
+# Значения по умолчанию для чарта console.
+# console - один компонент: portal (Go-бэкенд), который слушает :8080 и отдаёт
+# и API, и встроенный SPA. Отдельного web/nginx больше нет.
 
-# Registry prefix for the image (for example registry.example.com).
-# Empty - the image is pulled as is (repository:tag).
+# Префикс реестра для образа (например registry.example.com).
+# Пусто - образ тянется как есть (repository:tag).
 imageRegistry: ""
 imagePullSecrets: []
 
@@ -15,21 +15,21 @@ serviceAccount:
   name: ""
   annotations: {}
 
-# Portal: API + embedded SPA.
+# Portal: API + встроенный SPA.
 portal:
   replicaCount: 1
   image:
-    # Portal image: {imageRegistry}/console/portal. imageRegistry sets the registry
-    # prefix (for example ghcr.io/awbait).
+    # Образ портала: {imageRegistry}/console/portal. imageRegistry задаёт префикс
+    # реестра (например ghcr.io/awbait).
     repository: console/portal
-    # default tag = .Chart.AppVersion
+    # тег по умолчанию = .Chart.AppVersion
     tag: ""
     pullPolicy: IfNotPresent
   service:
     port: 8080
-  # Prometheus metrics are exposed on a separate port (config METRICS_PORT below).
-  # enabled adds the port to the Service and containerPort; scrapeAnnotations sets
-  # prometheus.io/* on the pod (scrape without a ServiceMonitor). port must match
+  # Prometheus-метрики отдаются на отдельном порту (config METRICS_PORT ниже).
+  # enabled добавляет порт в Service и containerPort; scrapeAnnotations проставляет
+  # на под prometheus.io/* (скрейп без ServiceMonitor). port должен совпадать с
   # config METRICS_PORT.
   metrics:
     enabled: true
@@ -43,94 +43,137 @@ portal:
   podSecurityContext: {}
   securityContext: {}
 
-  # Non-secret environment variables for the portal. Keys match the env tags in
-  # internal/config/config.go. Empty values are not rendered (the default from
-  # config.go applies). See the full list of variables in the .env.example of the
-  # console repository.
+  # Несекретные переменные окружения портала. Ключи совпадают с env-тегами в
+  # internal/config/config.go репозитория console. Пустые значения не рендерятся
+  # (применяется дефолт из config.go). Полный список с описаниями - в .env.example
+  # того же репозитория.
+  #
+  # Переменные, помеченные ниже как обязательные, портал требует на старте
+  # (required,notEmpty в config.go): без них под не поднимется.
   config:
     HTTP_PORT: "8080"
     PUBLIC_URL: "https://console.example.com"
-    # Stores: postgres|memory, redis|memory.
+    # Хранилища: postgres|memory, redis|memory.
     STORE: postgres
     CACHE: redis
-    # Authentication: oidc only (the single valid mode).
+    # Аутентификация: только oidc (единственный валидный режим).
     AUTH_MODE: oidc
     OIDC_ISSUER: "https://keycloak.example.com/realms/internal"
     OIDC_CLIENT_ID: portal
     OIDC_REDIRECT_URL: "https://console.example.com/api/v1/auth/callback"
     OIDC_SCOPES: "openid,profile,email,groups"
-    # RBAC: Keycloak groups for roles.
+    OIDC_POST_LOGIN_REDIRECT: "/"
+    # Куда браузер уходит после выхода. Адрес должен быть зарегистрирован на
+    # клиенте как post-logout; пусто - используется адрес входа.
+    OIDC_POST_LOGOUT_REDIRECT: ""
+    # RBAC: группы Keycloak для ролей.
     RBAC_ADMIN_GROUPS: platform-admins
     RBAC_SUPPORT_GROUPS: support
     RBAC_SECURITY_GROUPS: security
     RBAC_TEAM_GROUP_PREFIX: team-
+    # Выражение, первая группа захвата которого - имя команды. Если задано,
+    # используется вместо префикса: пример "(?:^|/)team-([^/]+)".
+    RBAC_TEAM_GROUP_REGEX: ""
+    # Harbor. HARBOR_URL обязателен.
     HARBOR_URL: ""
+    # Проекты Harbor, из которых собирается каталог.
+    HARBOR_PROJECTS: "platform,managed-services"
+    # Пропустить проверку сертификата Harbor - для стендов с самоподписанным.
+    HARBOR_INSECURE_TLS: "false"
+    HARBOR_TIMEOUT: "30s"
+    # GitLab. GITLAB_URL обязателен.
     GITLAB_URL: ""
-    ARGOCD_URL: ""
-    # Observability. Prometheus metrics - on a separate port (must match
-    # portal.metrics.port above).
-    METRICS_PORT: "2112"
-    LOG_LEVEL: info
-    LOG_FORMAT: json
-    # Sessions and cookie.
-    SESSION_TTL: "24h"
-    SESSION_COOKIE_NAME: idp_session
-    COOKIE_SECURE: "true"
-    OIDC_POST_LOGIN_REDIRECT: "/"
-    # GitLab GitOps: group, team subgroup template, branch, MR auto-merge.
+    GITLAB_TIMEOUT: "30s"
+    # GitOps: группа, шаблон подгруппы команды, ветка, автомерж MR портала.
     GITLAB_GITOPS_GROUP: managed-services
     GITLAB_TEAM_SUBGROUP_TEMPLATE: "team-{{.Team}}"
     GITLAB_DEFAULT_BRANCH: main
     GITLAB_AUTO_MERGE: "false"
-    # Harbor: projects to scan for the catalog.
-    HARBOR_PROJECTS: "platform,managed-services"
-    # ArgoCD: project, cluster, Application name template.
+    # Адрес, на который GitLab доставляет уведомления, каким его видит сам GitLab.
+    # Если задан, портал сам регистрирует вебхук - на старте, на создаваемых
+    # репозиториях и на усыновлённых из Git. Пусто - вебхук заводят руками.
+    GITLAB_WEBHOOK_URL: ""
+    # Где регистрируется этот вебхук: group (нужен GitLab Premium), system (нужен
+    # админский токен), project (на каждом репозитории) или auto - самая широкая
+    # форма, которую разрешает инстанс.
+    GITLAB_WEBHOOK_SCOPE: auto
+    # ArgoCD. ARGOCD_URL обязателен.
+    ARGOCD_URL: ""
     ARGOCD_PROJECT: portal-managed
     ARGOCD_DEFAULT_CLUSTER: in-cluster
     ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.ServiceName}}"
-    # Statuses: update mode and polling interval.
-    STATUS_UPDATE_MODE: polling
+    # Реестр, на который манифест заказа ссылается как на источник своего чарта:
+    # OCI-эндпоинт Harbor. repoURL в application.yaml собирается как
+    # "{CHART_REGISTRY}/{проект чарта}", поэтому хост должен резолвиться и из
+    # портала, и из подов ArgoCD.
+    CHART_REGISTRY: "harbor.example.com"
+    # Как портал узнаёт об изменениях: hybrid (периодический reconcile плюс
+    # вебхуки) или webhook (только вебхуки, без опроса). Других значений нет.
+    STATUS_UPDATE_MODE: hybrid
     STATUS_POLL_INTERVAL: "15s"
-    # Feature flags for the catalog and drift.
+    # Флаги каталога и дрейфа.
     DRIFT_DETECTION_ENABLED: "true"
     IMPORT_DISCOVERY_ENABLED: "false"
     CATALOG_AUTODISCOVER: "false"
+    # База данных: сколько соединений держать открытыми одновременно.
+    DATABASE_MAX_CONNS: "20"
+    # Наблюдаемость. Prometheus-метрики - на отдельном порту (должен совпадать с
+    # portal.metrics.port выше). GRAFANA_URL: если задан, страница статуса ставит
+    # ссылку на Grafana; пусто - ссылки нет.
+    METRICS_PORT: "2112"
+    GRAFANA_URL: ""
+    LOG_LEVEL: info
+    LOG_FORMAT: json
+    # Сессии и cookie.
+    SESSION_TTL: "24h"
+    SESSION_COOKIE_NAME: idp_session
+    COOKIE_SECURE: "true"
 
-  # Secret variables. Rendered into a Secret (empty values are skipped).
-  # To use a pre-created Secret - set existingSecret, then these values are ignored.
+  # Секретные переменные. Рендерятся в Secret (пустые значения пропускаются).
+  # Чтобы использовать заранее созданный Secret - задайте existingSecret, тогда
+  # эти значения игнорируются.
+  #
+  # GITLAB_TOKEN и ARGOCD_TOKEN обязательны: без них портал не стартует.
   existingSecret: ""
   secrets:
     DATABASE_URL: ""
     REDIS_URL: ""
     SESSION_SECRET: ""
     OIDC_CLIENT_SECRET: ""
+    # Робот, под которым портал читает чарты. Пусто - чтение анонимное, что
+    # работает только для публичных проектов Harbor.
     HARBOR_ROBOT_USER: ""
     HARBOR_ROBOT_TOKEN: ""
+    # Общий секрет, которым подписаны уведомления от Harbor: то же значение, что
+    # в auth-заголовке вебхука там. Пусто - новые чарты находятся опросом.
+    HARBOR_WEBHOOK_SECRET: ""
     GITLAB_TOKEN: ""
+    # Секрет, которым проверяются уведомления от GitLab: то же значение, что в
+    # secret token вебхука там. Пусто - мержи находятся опросом.
+    GITLAB_WEBHOOK_TOKEN: ""
     ARGOCD_TOKEN: ""
 
-# Collector: background collection of the cluster workload catalog into Valkey/Redis.
-# Every POLL_INTERVAL it walks namespaces by label, collects controllers
-# (Deployment/StatefulSet/DaemonSet) and writes a snapshot to Redis; the portal reads
-# the snapshot from the same Redis and does not call the Kubernetes API. The collector
-# has no HTTP and no metrics - so neither a Service nor probes. enabled=false fully
-# disables the component.
+# Collector: фоновый сбор каталога workload'ов кластера в Valkey/Redis.
+# Раз в POLL_INTERVAL обходит namespace по метке, собирает контроллеры
+# (Deployment/StatefulSet/DaemonSet) и пишет снимок в Redis; портал читает снимок
+# из того же Redis и в Kubernetes API сам не ходит. У коллектора нет HTTP и нет
+# метрик - поэтому ни Service, ни проб. enabled=false полностью выключает компонент.
 collector:
   enabled: true
   replicaCount: 1
   image:
-    # Collector image: {imageRegistry}/console/collector.
+    # Образ коллектора: {imageRegistry}/console/collector.
     repository: console/collector
-    # default tag = .Chart.AppVersion
+    # тег по умолчанию = .Chart.AppVersion
     tag: ""
     pullPolicy: IfNotPresent
-  # Separate ServiceAccount: the collector needs read-only RBAC on the cluster.
+  # Отдельный ServiceAccount: коллектору нужен read-only RBAC на кластер.
   serviceAccount:
     create: true
     name: ""
     annotations: {}
-  # ClusterRole + ClusterRoleBinding (read-only: namespaces + apps controllers).
-  # Disable create if the permissions are granted externally.
+  # ClusterRole + ClusterRoleBinding (read-only: namespaces + apps-контроллеры).
+  # Выключите create, если права выданы снаружи.
   rbac:
     create: true
   resources: {}
@@ -140,30 +183,29 @@ collector:
   affinity: {}
   podSecurityContext: {}
   securityContext: {}
-  # Non-secret env (collector/config.go). Empty values are not rendered.
+  # Несекретные env (collector/config.go). Пустые значения не рендерятся.
   config:
-    # Namespace selector for scanning (empty = all namespaces).
+    # Селектор namespace для обхода (пусто = все namespace).
     NS_LABEL_SELECTOR: "idp.scan=true"
-    # Walk period.
+    # Период обхода.
     POLL_INTERVAL: "30s"
-    # Cluster name - included in the prefix of the snapshot key in Redis.
+    # Имя кластера - входит в префикс ключа снимка в Redis.
     CLUSTER_NAME: default
-    # Prefix for snapshot keys in Redis.
+    # Префикс ключей снимка в Redis.
     KEY_PREFIX: "k8s:catalog"
-  # Secrets. existingSecret (with a REDIS_URL key) disables rendering secrets.
+  # Секреты. existingSecret (с ключом REDIS_URL) отключает рендер secrets.
   existingSecret: ""
   secrets:
-    # Connection to Valkey/Redis (required). The same Redis as the portal.
+    # Подключение к Valkey/Redis (обязательно). Тот же Redis, что у портала.
     REDIS_URL: ""
 
-# Ingress. By default the chart does not create it: traffic is published externally
-# (a separate ingress-gateway instance) to the portal Service (:8080).
+# Ingress. По умолчанию чарт его не создаёт: вход публикуется снаружи (отдельный
+# инстанс ingress-gateway) на Service портала (:8080).
 #
-# Optionally you can bring up ingress directly from this chart - via the
-# ingress-gateway subchart (Istio Gateway API). Enabling it requires Istio + Gateway
-# API CRDs in the cluster and brings up a Gateway + HTTPRoute on the portal Service.
-# The values mirror the ingress-gateway chart (see charts/ingress-gateway/values.yaml);
-# below is a working example.
+# Опционально вход можно поднять прямо из этого чарта - сабчартом ingress-gateway
+# (Istio Gateway API). Включение требует Istio + CRD Gateway API в кластере и
+# поднимает Gateway + HTTPRoute на Service портала. Значения повторяют чарт
+# ingress-gateway (см. charts/ingress-gateway/values.yaml); ниже рабочий пример.
 ingressGateway:
   enabled: false
   identity:
@@ -193,6 +235,6 @@ ingressGateway:
                 type: PathPrefix
                 value: /
           backendRefs:
-            # Portal Service name: {release}-portal (default console-portal).
+            # Имя Service портала: {release}-portal (по умолчанию console-portal).
             - name: console-portal
               port: 8080
