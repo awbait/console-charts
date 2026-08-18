@@ -35,8 +35,7 @@
   регистрирует свой вебхук в GitLab), `GRAFANA_URL`, `OIDC_POST_LOGOUT_REDIRECT`,
   `RBAC_TEAM_GROUP_REGEX`, `HARBOR_INSECURE_TLS`, `HARBOR_TIMEOUT`, `GITLAB_TIMEOUT`,
   `DATABASE_MAX_CONNS`.
-- В `portal.secrets` добавлены `GITLAB_WEBHOOK_TOKEN` и `HARBOR_WEBHOOK_SECRET`:
-  без них режим `hybrid` вырождается в опрос, а `webhook` не работает вовсе.
+- В `portal.secrets` добавлены `GITLAB_WEBHOOK_TOKEN` и `HARBOR_WEBHOOK_SECRET`.
 
 ### Changed
 - `appVersion` поднят до `0.4.0`: тег образа портала по умолчанию брался из него и

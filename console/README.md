@@ -39,8 +39,6 @@ portal:
     HARBOR_URL: https://harbor.example.com
     GITLAB_URL: https://gitlab.example.com
     ARGOCD_URL: https://argocd.example.com
-    # OCI-эндпоинт Harbor: на него манифест заказа ссылается как на источник
-    # чарта, и резолвиться он должен и из портала, и из подов ArgoCD.
     CHART_REGISTRY: harbor.example.com
   secrets:
     DATABASE_URL: postgres://portal:pass@postgres:5432/portal?sslmode=disable
@@ -70,33 +68,6 @@ portal:
 Переменные окружения портала соответствуют env-тегам `config.go`; полный список
 с дефолтами - в `.env.example` репозитория console. Пустые значения в `config`/
 `secrets` не рендерятся, поэтому применяются дефолты из `config.go`.
-
-Пять переменных портал требует на старте и без них не поднимается, называя
-недостающие: `HARBOR_URL`, `GITLAB_URL`, `ARGOCD_URL` в `portal.config` и
-`GITLAB_TOKEN`, `ARGOCD_TOKEN` в `portal.secrets`. В `values.yaml` они оставлены
-пустыми намеренно.
-
-### Обновление состояния заказов
-
-`STATUS_UPDATE_MODE` задаёт, как портал узнаёт об изменениях, и принимает два
-значения:
-
-- `hybrid` (по умолчанию) - периодический reconcile с частотой
-  `STATUS_POLL_INTERVAL` плюс входящие вебхуки GitLab и Harbor поверх. Без
-  секретов вебхуков вырождается в чистый опрос, что и нужно на стенде.
-- `webhook` - только вебхуки, без периодического опроса. Требует
-  `GITLAB_WEBHOOK_TOKEN`: без него жизненный цикл заказа не двинется.
-
-Отдельного режима «только опрос» нет.
-
-Вебхуки настраиваются парой значений на каждый апстрим: секрет в
-`portal.secrets` (`GITLAB_WEBHOOK_TOKEN`, `HARBOR_WEBHOOK_SECRET`) и тот же
-секрет на стороне GitLab / Harbor. Если задать ещё и `GITLAB_WEBHOOK_URL` (адрес
-портала, каким его видит GitLab), портал зарегистрирует вебхук сам - на старте, на
-создаваемых репозиториях и на усыновлённых из Git. `GITLAB_WEBHOOK_SCOPE`
-выбирает форму регистрации: `group` (нужен GitLab Premium), `system` (нужен
-админский токен), `project` (на каждом репозитории) или `auto` - самая широкая,
-которую разрешает инстанс.
 
 ### Зависимости
 

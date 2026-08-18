@@ -89,26 +89,19 @@ portal:
     GITLAB_TEAM_SUBGROUP_TEMPLATE: "team-{{.Team}}"
     GITLAB_DEFAULT_BRANCH: main
     GITLAB_AUTO_MERGE: "false"
-    # Адрес, на который GitLab доставляет уведомления, каким его видит сам GitLab.
-    # Если задан, портал сам регистрирует вебхук - на старте, на создаваемых
-    # репозиториях и на усыновлённых из Git. Пусто - вебхук заводят руками.
+    # Адрес портала, каким его видит GitLab. Пусто - вебхук заводят руками.
     GITLAB_WEBHOOK_URL: ""
-    # Где регистрируется этот вебхук: group (нужен GitLab Premium), system (нужен
-    # админский токен), project (на каждом репозитории) или auto - самая широкая
-    # форма, которую разрешает инстанс.
+    # Где регистрируется вебхук: auto|group|system|project.
     GITLAB_WEBHOOK_SCOPE: auto
     # ArgoCD. ARGOCD_URL обязателен.
     ARGOCD_URL: ""
     ARGOCD_PROJECT: portal-managed
     ARGOCD_DEFAULT_CLUSTER: in-cluster
     ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.ServiceName}}"
-    # Реестр, на который манифест заказа ссылается как на источник своего чарта:
-    # OCI-эндпоинт Harbor. repoURL в application.yaml собирается как
-    # "{CHART_REGISTRY}/{проект чарта}", поэтому хост должен резолвиться и из
-    # портала, и из подов ArgoCD.
+    # OCI-эндпоинт Harbor. Хост должен резолвиться и из подов портала, и из
+    # подов ArgoCD.
     CHART_REGISTRY: "harbor.example.com"
-    # Как портал узнаёт об изменениях: hybrid (периодический reconcile плюс
-    # вебхуки) или webhook (только вебхуки, без опроса). Других значений нет.
+    # Режим обновления состояния: hybrid|webhook. Других значений нет.
     STATUS_UPDATE_MODE: hybrid
     STATUS_POLL_INTERVAL: "15s"
     # Флаги каталога и дрейфа.
@@ -117,9 +110,8 @@ portal:
     CATALOG_AUTODISCOVER: "false"
     # База данных: сколько соединений держать открытыми одновременно.
     DATABASE_MAX_CONNS: "20"
-    # Наблюдаемость. Prometheus-метрики - на отдельном порту (должен совпадать с
-    # portal.metrics.port выше). GRAFANA_URL: если задан, страница статуса ставит
-    # ссылку на Grafana; пусто - ссылки нет.
+    # Наблюдаемость. Порт метрик должен совпадать с portal.metrics.port выше.
+    # GRAFANA_URL - базовый адрес Grafana, пусто - ссылки на неё нет.
     METRICS_PORT: "2112"
     GRAFANA_URL: ""
     LOG_LEVEL: info
@@ -144,12 +136,10 @@ portal:
     # работает только для публичных проектов Harbor.
     HARBOR_ROBOT_USER: ""
     HARBOR_ROBOT_TOKEN: ""
-    # Общий секрет, которым подписаны уведомления от Harbor: то же значение, что
-    # в auth-заголовке вебхука там. Пусто - новые чарты находятся опросом.
+    # То же значение, что в auth-заголовке вебхука на стороне Harbor.
     HARBOR_WEBHOOK_SECRET: ""
     GITLAB_TOKEN: ""
-    # Секрет, которым проверяются уведомления от GitLab: то же значение, что в
-    # secret token вебхука там. Пусто - мержи находятся опросом.
+    # То же значение, что в secret token вебхука на стороне GitLab.
     GITLAB_WEBHOOK_TOKEN: ""
     ARGOCD_TOKEN: ""
 
