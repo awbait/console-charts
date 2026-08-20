@@ -86,7 +86,17 @@ portal:
     enabled: true
     port: 2112
     scrapeAnnotations: true
-  resources: {}
+  # Запас на обычную работу: портал держит пул соединений к Postgres
+  # (DATABASE_MAX_CONNS), отдаёт SPA из памяти образа и кэширует прочитанные
+  # чарты Harbor. По этим лимитам чарт заодно считает GOMAXPROCS и GOMEMLIMIT
+  # (см. goRuntime выше). Под большой каталог поднимайте память первой.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []
@@ -239,7 +249,16 @@ collector:
   # Выключите create, если права выданы снаружи.
   rbac:
     create: true
-  resources: {}
+  # Коллектор работает раз в POLL_INTERVAL: обходит namespace и пишет снимок в
+  # Redis, между обходами почти простаивает. Память растёт с числом контроллеров
+  # в кластере.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []
