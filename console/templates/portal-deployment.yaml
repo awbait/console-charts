@@ -16,6 +16,9 @@ spec:
         # Roll the pods when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/portal-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/portal-secret.yaml") . | sha256sum }}
+        {{- if .Values.trustedCA.certs }}
+        checksum/trusted-ca: {{ include (print $.Template.BasePath "/trusted-ca-configmap.yaml") . | sha256sum }}
+        {{- end }}
         {{- if and .Values.portal.metrics.enabled .Values.portal.metrics.scrapeAnnotations }}
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ .Values.portal.metrics.port | quote }}
@@ -54,6 +57,15 @@ spec:
               containerPort: {{ .Values.portal.metrics.port }}
               protocol: TCP
             {{- end }}
+          {{- if or (include "console.trustedCA.enabled" .) .Values.portal.extraEnv }}
+          env:
+            {{- if include "console.trustedCA.enabled" . }}
+            {{- include "console.trustedCA.env" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.portal.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "console.portal.fullname" . }}-config
@@ -75,6 +87,24 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if or (include "console.trustedCA.enabled" .) .Values.portal.extraVolumeMounts }}
+          volumeMounts:
+            {{- if include "console.trustedCA.enabled" . }}
+            {{- include "console.trustedCA.volumeMount" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.portal.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      {{- if or (include "console.trustedCA.enabled" .) .Values.portal.extraVolumes }}
+      volumes:
+        {{- if include "console.trustedCA.enabled" . }}
+        {{- include "console.trustedCA.volume" . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.portal.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
       {{- with .Values.portal.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
