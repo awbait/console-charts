@@ -10,6 +10,33 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# Доверие к собственному удостоверяющему центру. Нужно, когда Keycloak, Argo CD,
+# GitLab или Harbor стоят за самоподписанным сертификатом: без корневого
+# сертификата портал не пройдёт проверку и упадёт на старте с ошибкой x509.
+# Сертификаты монтируются обоим компонентам в /etc/ssl/certs/extra и добавляются
+# к публичным корням из образа, а не заменяют их.
+#
+# Пусто в обоих полях - доверяем только публичным корням. Задавать их можно и
+# вместе: сертификаты из них складываются в один каталог.
+# Имена файлов при этом должны различаться, иначе под не запустится.
+trustedCA:
+  # Готовые ConfigMap с сертификатами в том же namespace, сколько нужно. Ключи
+  # каждого - имена файлов (ca.crt, root.pem), значения - PEM. Читаются все ключи.
+  existingConfigMaps: []
+  #  - internal-ca
+  #  - keycloak-ca
+  # Сертификаты прямо здесь: чарт создаст ConfigMap сам. Ключ - имя файла,
+  # значение - PEM; сертификатов может быть сколько угодно.
+  certs: {}
+  #  internal-root.crt: |
+  #    -----BEGIN CERTIFICATE-----
+  #    ...
+  #    -----END CERTIFICATE-----
+  #  keycloak-ca.crt: |
+  #    -----BEGIN CERTIFICATE-----
+  #    ...
+  #    -----END CERTIFICATE-----
+
 serviceAccount:
   create: true
   name: ""
@@ -42,6 +69,28 @@ portal:
   affinity: {}
   podSecurityContext: {}
   securityContext: {}
+
+  # Дополнительные тома и их точки монтирования. Пишутся так же, как в манифесте
+  # пода. Для корневого сертификата внутреннего УЦ это не нужно - есть trustedCA
+  # выше.
+  extraVolumes: []
+  # - name: custom-config
+  #   configMap:
+  #     name: custom-config
+  extraVolumeMounts: []
+  # - name: custom-config
+  #   mountPath: /etc/console
+  #   readOnly: true
+
+  # Дополнительные переменные окружения - для тех случаев, когда значение берётся
+  # не из config/secrets, а из чужого Secret или из полей пода. Список name/value
+  # или name/valueFrom, как в манифесте пода.
+  extraEnv: []
+  # - name: DATABASE_URL
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: postgres-app
+  #       key: uri
 
   # Несекретные переменные окружения портала. Ключи совпадают с env-тегами в
   # internal/config/config.go репозитория console. Пустые значения не рендерятся
@@ -173,6 +222,10 @@ collector:
   affinity: {}
   podSecurityContext: {}
   securityContext: {}
+  # Дополнительные тома, их монтирование и env - как у портала выше.
+  extraVolumes: []
+  extraVolumeMounts: []
+  extraEnv: []
   # Несекретные env (collector/config.go). Пустые значения не рендерятся.
   config:
     # Селектор namespace для обхода (пусто = все namespace).

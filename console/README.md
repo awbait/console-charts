@@ -61,6 +61,8 @@ portal:
 | `portal.secrets`  | Секретные env (рендерятся в `Secret`)                            |
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
 | `portal.metrics`  | Экспозиция Prometheus-метрик (порт + scrape-аннотации)           |
+| `trustedCA`       | Корневые сертификаты внутреннего УЦ для апстримов по HTTPS        |
+| `*.extraVolumes`, `*.extraVolumeMounts`, `*.extraEnv` | Произвольные тома и env компонента |
 | `collector`       | Компонент-коллектор: in-cluster сбор каталога в Redis            |
 | `serviceAccount`  | Создание/имя ServiceAccount портала                            |
 | `ingressGateway`  | Опциональный вход сабчартом `ingress-gateway` (выкл. по умолчанию)|
@@ -74,6 +76,84 @@ portal:
 Чарт деплоит только саму консоль. Postgres, Redis, Keycloak и апстримы
 (Harbor / GitLab / ArgoCD) считаются внешними - их адреса и токены задаются через
 `portal.config` и `portal.secrets`.
+
+### Самоподписанные сертификаты
+
+Портал ходит в Keycloak, Argo CD, GitLab и Harbor по HTTPS и проверяет их
+сертификаты по списку публичных корней в образе. Если апстримы выпущены
+внутренним удостоверяющим центром, портал упадёт на старте с ошибкой вида
+`x509: certificate signed by unknown authority`. Отдайте ему корневой сертификат
+этого центра.
+
+Готовыми ConfigMap, сколько бы их ни было:
+
+```yaml
+trustedCA:
+  existingConfigMaps:
+    - internal-ca
+    - keycloak-ca
+```
+
+Или прямо значениями, тогда ConfigMap создаст чарт. Ключ - имя файла, значение -
+PEM, сертификатов может быть сколько угодно:
+
+```yaml
+trustedCA:
+  certs:
+    internal-root.crt: |
+      -----BEGIN CERTIFICATE-----
+      ...
+      -----END CERTIFICATE-----
+    keycloak-ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      ...
+      -----END CERTIFICATE-----
+```
+
+Поля можно задавать вместе: том собирается как `projected`, и всё из
+`existingConfigMaps` и `certs` попадает в один каталог `/etc/ssl/certs/extra`.
+Имена файлов при этом должны различаться: два источника с одинаковым ключом
+kubelet смонтировать не даст, и под не запустится. Сертификаты добавляются к
+публичным корням через `SSL_CERT_DIR`, поэтому доверие к публичным центрам
+сохраняется. Те же сертификаты получает и `collector`.
+
+Список корней читается один раз при первом обращении, так что подмена
+сертификата в ConfigMap подхватится только после перезапуска подов. При
+`trustedCA.certs` чарт перезапускает их сам, при `existingConfigMaps` перезапуск
+за вами.
+
+Ошибки `certificate is valid for ...` или `certificate relies on legacy Common
+Name field` этим не лечатся: у сертификата апстрима нет SAN на то имя, которым
+вы его зовёте, и его нужно перевыпустить.
+
+Отдельно стоит Harbor: у него есть `portal.config.HARBOR_INSECURE_TLS`, который
+проверку просто отключает. Это ручка для стендов - на проде задавайте
+`trustedCA`.
+
+### Свои тома и переменные
+
+Когда компоненту нужно что-то, чего чарт не описывает, у портала и коллектора
+есть `extraVolumes`, `extraVolumeMounts` и `extraEnv`. Пишутся как в манифесте
+пода и добавляются к тому, что чарт создаёт сам:
+
+```yaml
+portal:
+  extraVolumes:
+    - name: custom-config
+      configMap:
+        name: custom-config
+  extraVolumeMounts:
+    - name: custom-config
+      mountPath: /etc/console
+      readOnly: true
+  # env берёт верх над одноимённым ключом из config/secrets
+  extraEnv:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-app
+          key: uri
+```
 
 ### Аутентификация
 

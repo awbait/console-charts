@@ -85,6 +85,67 @@ Collector ServiceAccount name (separate SA: it needs read-only RBAC on the clust
 {{- end -}}
 
 {{/*
+Trusted CA: extra root certificates for upstreams behind a private CA (Keycloak,
+Argo CD, GitLab, Harbor). Empty output means "not configured" - the templates
+test it with `if`, so keep it emitting nothing rather than "false".
+*/}}
+{{- define "console.trustedCA.enabled" -}}
+{{- if or .Values.trustedCA.existingConfigMaps .Values.trustedCA.certs -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name of the ConfigMap rendered from trustedCA.certs. Existing ConfigMaps keep
+their own names and are mounted alongside it.
+*/}}
+{{- define "console.trustedCA.configMapName" -}}
+{{- printf "%s-trusted-ca" (include "console.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Own directory, never a subPath into /etc/ssl/certs: mounting over that directory
+would hide the public bundle shipped in the image.
+*/}}
+{{- define "console.trustedCA.mountPath" -}}
+/etc/ssl/certs/extra
+{{- end -}}
+
+{{/*
+A projected volume, so certificates coming from several ConfigMaps end up in one
+directory. Keys must not collide: kubelet refuses to mount two sources under the
+same file name.
+*/}}
+{{- define "console.trustedCA.volume" -}}
+- name: trusted-ca
+  projected:
+    sources:
+      {{- if .Values.trustedCA.certs }}
+      - configMap:
+          name: {{ include "console.trustedCA.configMapName" . }}
+      {{- end }}
+      {{- range .Values.trustedCA.existingConfigMaps }}
+      - configMap:
+          name: {{ . }}
+      {{- end }}
+{{- end -}}
+
+{{- define "console.trustedCA.volumeMount" -}}
+- name: trusted-ca
+  mountPath: {{ include "console.trustedCA.mountPath" . }}
+  readOnly: true
+{{- end -}}
+
+{{/*
+Go reads SSL_CERT_DIR as a colon-separated list and scans every entry, so the
+system directory stays in the list and the extra roots are added to it.
+*/}}
+{{- define "console.trustedCA.env" -}}
+- name: SSL_CERT_DIR
+  value: "/etc/ssl/certs:{{ include "console.trustedCA.mountPath" . }}"
+{{- end -}}
+
+{{/*
 Common labels.
 */}}
 {{- define "console.labels" -}}

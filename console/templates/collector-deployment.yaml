@@ -17,6 +17,9 @@ spec:
         # Roll the pod when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/collector-secret.yaml") . | sha256sum }}
+        {{- if .Values.trustedCA.certs }}
+        checksum/trusted-ca: {{ include (print $.Template.BasePath "/trusted-ca-configmap.yaml") . | sha256sum }}
+        {{- end }}
         {{- with .Values.collector.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -41,6 +44,15 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if or (include "console.trustedCA.enabled" .) .Values.collector.extraEnv }}
+          env:
+            {{- if include "console.trustedCA.enabled" . }}
+            {{- include "console.trustedCA.env" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.collector.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "console.collector.fullname" . }}-config
@@ -50,6 +62,24 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if or (include "console.trustedCA.enabled" .) .Values.collector.extraVolumeMounts }}
+          volumeMounts:
+            {{- if include "console.trustedCA.enabled" . }}
+            {{- include "console.trustedCA.volumeMount" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.collector.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      {{- if or (include "console.trustedCA.enabled" .) .Values.collector.extraVolumes }}
+      volumes:
+        {{- if include "console.trustedCA.enabled" . }}
+        {{- include "console.trustedCA.volume" . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.collector.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
       {{- with .Values.collector.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
