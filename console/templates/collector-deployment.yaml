@@ -44,14 +44,9 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if or (include "console.trustedCA.enabled" .) .Values.collector.extraEnv }}
+          {{- with include "console.componentEnv" (dict "root" . "component" .Values.collector) | trim }}
           env:
-            {{- if include "console.trustedCA.enabled" . }}
-            {{- include "console.trustedCA.env" . | nindent 12 }}
-            {{- end }}
-            {{- with .Values.collector.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- . | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:

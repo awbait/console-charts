@@ -57,14 +57,9 @@ spec:
               containerPort: {{ .Values.portal.metrics.port }}
               protocol: TCP
             {{- end }}
-          {{- if or (include "console.trustedCA.enabled" .) .Values.portal.extraEnv }}
+          {{- with include "console.componentEnv" (dict "root" . "component" .Values.portal) | trim }}
           env:
-            {{- if include "console.trustedCA.enabled" . }}
-            {{- include "console.trustedCA.env" . | nindent 12 }}
-            {{- end }}
-            {{- with .Values.portal.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- . | nindent 12 }}
           {{- end }}
           envFrom:
             - configMapRef:
