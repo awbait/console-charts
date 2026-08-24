@@ -1,16 +1,94 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/project/values.schema.json",
-  "title": "Project Helm chart values",
-  "description": "Значения чарта project: Alauda multi-cluster Project (auth.alauda.io/v1) с квотами ресурсов по кластерам.",
+  "title": "project Helm chart values",
+  "description": "Editor-oriented schema for the project chart (Alauda multi-cluster Project, auth.alauda.io/v1, with per-cluster resource quotas).",
   "type": "object",
   "additionalProperties": false,
-  "propertyOrder": ["identity", "project", "clusters", "generic", "global"],
-  "required": ["global", "identity", "project", "clusters"],
+  "propertyOrder": [
+    "identity",
+    "project",
+    "clusters",
+    "generic",
+    "global"
+  ],
+  "required": [
+    "identity",
+    "project",
+    "clusters"
+  ],
   "properties": {
     "identity": {
+      "title": "Окружение и проект",
+      "description": "Куда встанет заказ и к какому проекту он относится. Кластеры самого проекта задаются ниже отдельно.",
+      "$ref": "#/definitions/identity"
+    },
+    "project": {
+      "title": "Проект",
+      "description": "Как проект будет называться и чем он опишет себя в общем списке.",
+      "$ref": "#/definitions/project"
+    },
+    "clusters": {
+      "title": "Кластеры проекта",
+      "description": "Где команда сможет разворачивать сервисы. Нужен хотя бы один кластер.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/cluster"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Кластер",
+          "body": [
+            {
+              "name": "global",
+              "quota": {
+                "limits.cpu": "1",
+                "limits.memory": "2Gi",
+                "requests.storage": "10Gi"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "generic": {
+      "title": "Generic settings",
+      "description": "Common labels/annotations applied to all chart resources.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/generic"
+    },
+    "global": {
+      "title": "global",
+      "description": "Chart-wide switch. Set global.enable to false to render no resources at all.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/global"
+    }
+  },
+  "definitions": {
+    "projectToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9
+    },
+    "dnsName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "quantity": {
+      "type": "string"
+    },
+    "tplStringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "identity": {
+      "type": "object",
       "additionalProperties": false,
-      "description": "Environment and project tags. They do not take part in the Project name, but are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource. The cluster tag is the environment the release goes to, not the clusters listed below.",
       "propertyOrder": [
         "instance",
         "cluster",
@@ -18,8 +96,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "instance",
-          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
           "type": "string",
           "enum": [
             "in",
@@ -29,8 +107,8 @@
           ]
         },
         "cluster": {
-          "title": "cluster",
-          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "title": "Кластер",
+          "description": "Кластер, куда встанет сам заказ: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
           "type": "string",
           "enum": [
             "inf",
@@ -46,138 +124,137 @@
           ]
         },
         "project": {
-          "title": "project",
-          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
-          "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-          "minLength": 2,
-          "maxLength": 9
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
+          "$ref": "#/definitions/projectToken"
         }
       },
       "required": [
         "instance",
         "cluster",
         "project"
-      ],
-      "title": "Identity",
-      "type": "object"
-    },
-    "global": {
-      "additionalProperties": false,
-      "description": "Global chart settings",
-      "properties": {
-        "enable": {
-          "description": "Enable creation of chart resources",
-          "default": true,
-          "title": "Enable",
-          "type": "boolean",
-          "ui:widget": "hidden"
-        }
-      },
-      "title": "global",
-      "type": "object",
-      "ui:widget": "hidden"
-    },
-    "generic": {
-      "additionalProperties": false,
-      "description": "Common labels/annotations applied to all chart resources (Project).",
-      "properties": {
-        "labels": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Common labels for all chart resources. Result: metadata.labels.",
-          "title": "Common labels",
-          "type": "object"
-        },
-        "annotations": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
-          "title": "Common annotations",
-          "type": "object"
-        }
-      },
-      "title": "Generic settings",
-      "type": "object",
-      "ui:widget": "hidden"
+      ]
     },
     "project": {
+      "type": "object",
       "additionalProperties": false,
-      "description": "Значения создаваемого Project",
+      "propertyOrder": [
+        "name",
+        "displayName",
+        "description",
+        "creator"
+      ],
       "properties": {
         "name": {
-          "description": "Имя проекта. Только строчные буквенно-цифровые символы и дефис (RFC 1123), максимум 63 символа",
-          "default": "project-name",
-          "title": "Имя проекта",
-          "type": "string",
-          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
-          "maxLength": 63
+          "title": "Полное имя проекта",
+          "description": "Имя, под которым проект появится в кластере. Потом его не переименовать.",
+          "$ref": "#/definitions/dnsName"
         },
         "displayName": {
-          "description": "Отображаемое имя проекта (annotation cpaas.io/display-name)",
-          "default": "Project display name",
           "title": "Отображаемое имя",
+          "description": "То же имя обычными словами, с заглавными буквами и пробелами.",
           "type": "string"
         },
         "description": {
-          "description": "Описание проекта (annotation cpaas.io/description)",
-          "default": "Project description",
           "title": "Описание",
+          "description": "Зачем нужен проект. Видно в списке проектов.",
           "type": "string"
         },
         "creator": {
-          "description": "Создатель проекта (annotation cpaas.io/creator). При заказе из консоли подставляется console",
-          "default": "lk",
-          "title": "Создатель",
+          "title": "creator",
+          "description": "Project creator (annotation cpaas.io/creator). The portal stamps \"console\" on an order.",
           "type": "string",
+          "default": "lk",
           "ui:widget": "hidden"
         }
       },
-      "required": ["name"],
-      "title": "Project",
-      "type": "object"
+      "required": [
+        "name"
+      ]
     },
-    "clusters": {
-      "description": "Список кластеров, к которым привязан проект, и их квоты. Минимум один кластер",
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "additionalProperties": false,
-        "type": "object",
-        "required": ["name"],
-        "properties": {
-          "name": {
-            "description": "Имя кластера Alauda",
-            "default": "global",
-            "title": "Имя кластера",
-            "type": "string"
-          },
-          "quota": {
-            "description": "Квоты ресурсов кластера в формате { <ключ ResourceQuota>: <Quantity> }, например limits.cpu, limits.memory, requests.storage",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Квоты ресурсов",
-            "type": "object"
-          }
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "quota"
+      ],
+      "properties": {
+        "name": {
+          "title": "Кластер",
+          "description": "Имя кластера, каким его знает платформа.",
+          "type": "string"
+        },
+        "quota": {
+          "title": "Квоты в этом кластере",
+          "description": "Сколько ресурсов проект сможет занять. Пустое поле - без ограничения.",
+          "$ref": "#/definitions/quota"
         }
       },
-      "title": "Кластеры",
-      "defaultSnippets": [
-        {
-          "label": "cluster",
-          "body": {
-            "name": "$1",
-            "quota": {
-              "limits.cpu": "$2",
-              "limits.memory": "$3",
-              "requests.storage": "$4"
-            }
-          }
-        }
+      "required": [
+        "name"
       ]
+    },
+    "quota": {
+      "type": "object",
+      "propertyOrder": [
+        "limits.cpu",
+        "limits.memory",
+        "requests.storage"
+      ],
+      "properties": {
+        "limits.cpu": {
+          "title": "Лимит CPU",
+          "description": "Сколько ядер суммарно. Например 4 или 500m.",
+          "$ref": "#/definitions/quantity"
+        },
+        "limits.memory": {
+          "title": "Лимит памяти",
+          "description": "Например 8Gi или 512Mi.",
+          "$ref": "#/definitions/quantity"
+        },
+        "requests.storage": {
+          "title": "Лимит хранилища",
+          "description": "Например 10Gi.",
+          "$ref": "#/definitions/quantity"
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "labels",
+        "annotations"
+      ],
+      "properties": {
+        "labels": {
+          "title": "Common labels",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "$ref": "#/definitions/tplStringMap"
+        },
+        "annotations": {
+          "title": "Common annotations",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "$ref": "#/definitions/tplStringMap"
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "title": "enable",
+          "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+          "type": "boolean",
+          "default": true,
+          "ui:widget": "hidden"
+        }
+      }
     }
   }
 }
