@@ -160,6 +160,7 @@
         "certificates",
         "platform",
         "store",
+        "storeKind",
         "refreshInterval",
         "crtProperty",
         "keyProperty",
@@ -198,8 +199,18 @@
         "store": {
           "ui:widget": "hidden",
           "title": "store",
-          "description": "Default External Secrets store the certificates are read from. One per cluster, set by the platform. Hidden.",
-          "$ref": "#/definitions/secretStoreRef"
+          "description": "Name of the SecretStore the certificates are read from when an entry does not name its own. Lives in the namespace of the release. Hidden.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "storeKind": {
+          "ui:widget": "hidden",
+          "title": "storeKind",
+          "description": "Kind of the store resource. SecretStore, unless a cluster ever gets a ClusterSecretStore. Hidden.",
+          "type": "string",
+          "enum": [
+            "SecretStore",
+            "ClusterSecretStore"
+          ]
         },
         "refreshInterval": {
           "ui:widget": "hidden",
@@ -262,8 +273,8 @@
         },
         "store": {
           "title": "Хранилище",
-          "description": "Где лежит этот сертификат. Оставьте пустым, если это хранилище вашего namespace.",
-          "$ref": "#/definitions/secretStoreRef"
+          "description": "Имя SecretStore, из которого читать этот сертификат. Оставьте пустым, если это хранилище вашего namespace по умолчанию.",
+          "$ref": "#/definitions/k8sName"
         },
         "crtProperty": {
           "ui:widget": "hidden",
@@ -284,34 +295,6 @@
         "name",
         "domain",
         "path"
-      ]
-    },
-    "secretStoreRef": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "kind",
-        "name"
-      ],
-      "properties": {
-        "kind": {
-          "title": "Тип хранилища",
-          "description": "SecretStore живёт в вашем namespace, ClusterSecretStore - один на кластер.",
-          "type": "string",
-          "default": "SecretStore",
-          "enum": [
-            "SecretStore",
-            "ClusterSecretStore"
-          ]
-        },
-        "name": {
-          "title": "Имя хранилища",
-          "description": "Имя, под которым хранилище заведено в кластере.",
-          "$ref": "#/definitions/k8sName"
-        }
-      },
-      "required": [
-        "name"
       ]
     },
     "k8sName": {

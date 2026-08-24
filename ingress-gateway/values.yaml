@@ -22,12 +22,13 @@ oidcAuth:
 # типа kubernetes.io/tls. В значениях едет только путь, ключ в репозиторий
 # не попадает.
 tls:
-  # Хранилище по умолчанию для сертификатов заказа: SecretStore команды, он
-  # живёт в том же namespace, что и релиз. Запись сертификата может назвать
-  # другое хранилище.
-  store:
-    kind: SecretStore
-    name: vault
+  # Хранилище по умолчанию: SecretStore в namespace релиза. Запись сертификата
+  # может назвать другое хранилище того же namespace.
+  store: vault
+
+  # Тип ресурса хранилища. В кластерах есть только SecretStore, поле оставлено
+  # на случай, если когда-нибудь появится ClusterSecretStore.
+  storeKind: SecretStore
 
   # Как часто перечитывать сертификат из хранилища.
   refreshInterval: 1h
@@ -39,21 +40,17 @@ tls:
   # Сертификаты, которые платформа приготовила заранее. Домен со звёздочкой
   # покрывает один уровень, как и сам сертификат: *.idp.ecpk.test подходит для
   # app.idp.ecpk.test, но не для a.str.idp.ecpk.test.
-  # Хранилище у них задано явно: платформенный ClusterSecretStore, он один на
-  # кластер и не зависит от того, что заказ выбрал для своих сертификатов.
+  # Хранилище у них названо явно, чтобы выбор хранилища в заказе не уводил
+  # платформенные сертификаты в чужой SecretStore.
   platform:
     - name: idptls
       domain: "*.idp.ecpk.test"
       path: platform/certs/idp-ecpk-test
-      store:
-        kind: ClusterSecretStore
-        name: vault-platform
+      store: vault
     - name: edptls
       domain: "*.edp.ecpk.test"
       path: platform/certs/edp-ecpk-test
-      store:
-        kind: ClusterSecretStore
-        name: vault-platform
+      store: vault
 
   # Свои сертификаты заказа: любой домен, любого уровня. Их приносит заказ,
   # здесь список пуст.

@@ -95,25 +95,23 @@ and then in tls.platform (the ones the platform prepared), first match wins.
 Returns a JSON object, empty when no certificate covers the hostname:
   name        - short name of the entry, the {name} part of the Secret name
   path        - where the certificate lies in the store
-  storeKind   - SecretStore or ClusterSecretStore
-  storeName   - name of the store
+  storeKind   - kind of the store resource, SecretStore unless tls.storeKind says otherwise
+  storeName   - name of the store, always in the namespace of the release
   crtProperty - key of the certificate inside the stored entry
   keyProperty - key of its private key
 */}}
 {{- define "ingress-gateway.helpers.app.certificate" -}}
 {{- $tls := .context.Values.tls | default dict -}}
-{{- $store := $tls.store | default dict -}}
 {{- $hostname := .hostname | default "" | toString | lower -}}
 {{- $found := dict -}}
 {{- range $entry := concat ($tls.certificates | default list) ($tls.platform | default list) -}}
 {{- if and (not $found) (eq (include "ingress-gateway.helpers.app.hostCovered" (dict "domain" $entry.domain "hostname" $hostname)) "true") -}}
 {{- $name := required "tls certificate: name is required" $entry.name | toString -}}
-{{- $entryStore := $entry.store | default dict -}}
 {{- $found = dict
       "name" $name
       "path" (required (printf "tls certificate %q: path is required" $name) $entry.path | toString)
-      "storeKind" ($entryStore.kind | default $store.kind | default "ClusterSecretStore" | toString)
-      "storeName" (required (printf "tls certificate %q: store name is required (tls.store.name)" $name) ($entryStore.name | default $store.name) | toString)
+      "storeKind" ($tls.storeKind | default "SecretStore" | toString)
+      "storeName" (required (printf "tls certificate %q: store is required (set it on the entry or in tls.store)" $name) ($entry.store | default $tls.store) | toString)
       "crtProperty" ($entry.crtProperty | default $tls.crtProperty | default "tls.crt" | toString)
       "keyProperty" ($entry.keyProperty | default $tls.keyProperty | default "tls.key" | toString)
 -}}

@@ -569,12 +569,13 @@ oidcAuth:
 #   секрет         {instance}-{cluster}-secret-{project}-{name}
 #   ExternalSecret {instance}-{cluster}-es-{project}-{name}
 tls:
-  # Хранилище по умолчанию для сертификатов заказа: SecretStore команды в том
-  # же namespace, что и релиз. Берётся, когда у записи не задано своё. В форме
-  # скрыто, хранилище выбирается у самой записи.
-  store:
-    kind: SecretStore
-    name: vault
+  # Хранилище по умолчанию: имя SecretStore в namespace релиза. Берётся, когда
+  # у записи не задано своё. В форме скрыто, хранилище выбирается у записи.
+  store: vault
+
+  # Тип ресурса хранилища. В кластерах есть только SecretStore, поле оставлено
+  # на случай, если когда-нибудь появится ClusterSecretStore.
+  storeKind: SecretStore
 
   # Как часто перечитывать сертификат из хранилища.
   refreshInterval: 1h
@@ -588,22 +589,17 @@ tls:
   apiVersion: external-secrets.io/v1
 
   # Платформенные сертификаты. Приезжают вместе с чартом, заказ про них
-  # ничего не пишет, в форме секция скрыта. Хранилище у них задано явно:
-  # платформенный ClusterSecretStore один на кластер и не зависит от того,
-  # что заказ выбрал для своих сертификатов.
+  # ничего не пишет, в форме секция скрыта. Хранилище названо явно, чтобы
+  # выбор хранилища в заказе не уводил их в чужой SecretStore.
   platform:
     - name: idptls
       domain: "*.idp.ecpk.test"
       path: platform/certs/idp-ecpk-test
-      store:
-        kind: ClusterSecretStore
-        name: vault-platform
+      store: vault
     - name: edptls
       domain: "*.edp.ecpk.test"
       path: platform/certs/edp-ecpk-test
-      store:
-        kind: ClusterSecretStore
-        name: vault-platform
+      store: vault
 
   # Свои сертификаты: любой домен, любого уровня, в том числе вне ecpk.test.
   certificates:
@@ -613,15 +609,13 @@ tls:
       domain: "*.example.ru"
       path: teams/nbox/certs/example-ru
 
-    # Своё хранилище у записи: например, сертификат лежит в общем
-    # ClusterSecretStore, а не в SecretStore команды. crtProperty и
-    # keyProperty задаются, если внутри записи ключи названы иначе.
+    # Другое хранилище того же namespace, если сертификаты команды лежат
+    # не там же, где остальные. crtProperty и keyProperty задаются, если
+    # внутри записи Vault ключи названы иначе.
     - name: str
       domain: "*.str.idp.ecpk.test"
       path: teams/nbox/certs/str
-      store:
-        kind: ClusterSecretStore
-        name: vault-platform
+      store: vault-nbox
       crtProperty: certificate
       keyProperty: private_key
 
