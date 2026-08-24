@@ -689,6 +689,28 @@
           "if": {
             "properties": {
               "protocol": {
+                "enum": [
+                  "TCP",
+                  "UDP"
+                ]
+              }
+            },
+            "required": [
+              "protocol"
+            ]
+          },
+          "then": {
+            "properties": {
+              "hostname": {
+                "ui:widget": "hidden"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "protocol": {
                 "const": "HTTPS"
               }
             },
