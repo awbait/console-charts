@@ -15,8 +15,8 @@
   ],
   "properties": {
     "identity": {
-      "title": "Identity",
-      "description": "Environment and project tags for generating resource names by the convention {instance}-{cluster}-{kindShort}-{project}-{name} (kindShort: wp). The same tags are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource.",
+      "title": "Окружение и проект",
+      "description": "Куда встанет сервис и какому проекту он принадлежит. Задаётся один раз на весь заказ.",
       "$ref": "#/definitions/identity"
     },
     "generic": {
@@ -26,19 +26,18 @@
       "$ref": "#/definitions/generic"
     },
     "waypoints": {
-      "title": "Waypoints",
-      "description": "List of waypoint proxies. Each item creates a Gateway of class istio-waypoint (HBONE/15008).",
+      "title": "Вейпоинты",
+      "description": "Прокси, через которые пойдёт трафик ваших сервисов. Обычно хватает одного.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/waypoint"
       },
       "defaultSnippets": [
         {
-          "label": "Waypoint",
+          "label": "Вейпоинт",
           "body": [
             {
               "name": "mesh",
-              "enabled": true,
               "for": "service"
             }
           ]
@@ -47,24 +46,17 @@
     }
   },
   "definitions": {
-    "k8sName": {
-      "type": "string",
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      "description": "Kubernetes DNS label: lower-case letters, digits and hyphens; no leading/trailing hyphen."
-    },
     "shortToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
-      "maxLength": 6,
-      "description": "DNS token 2..6 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+      "maxLength": 6
     },
     "projectToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
-      "maxLength": 9,
-      "description": "DNS token 2..9 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+      "maxLength": 9
     },
     "tplStringMap": {
       "type": "object",
@@ -82,8 +74,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "instance",
-          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
           "type": "string",
           "enum": [
             "in",
@@ -93,8 +85,8 @@
           ]
         },
         "cluster": {
-          "title": "cluster",
-          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "title": "Кластер",
+          "description": "Кластер, в котором будет работать сервис: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
           "type": "string",
           "enum": [
             "inf",
@@ -110,8 +102,8 @@
           ]
         },
         "project": {
-          "title": "project",
-          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
           "$ref": "#/definitions/projectToken"
         }
       },
@@ -151,19 +143,20 @@
       ],
       "properties": {
         "name": {
-          "title": "name",
-          "description": "Waypoint name, 2..6 characters. {name} in the Gateway name (kindShort wp).",
+          "title": "Имя вейпоинта",
+          "description": "Короткое имя, по которому вы отличите этот вейпоинт от других.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = create the Gateway; false = skip.",
+          "description": "Set to false to keep the entry in values without creating the Gateway.",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "ui:widget": "hidden"
         },
         "for": {
-          "title": "for",
-          "description": "istio.io/waypoint-for: the waypoint interception scope.",
+          "title": "Область перехвата",
+          "description": "service - трафик к сервисам, workload - трафик к подам, all - и тот, и другой.",
           "type": "string",
           "enum": [
             "service",
