@@ -91,6 +91,10 @@ serviceMesh:
 # resourceQuotas - квоты ресурсов namespace
 # ----------------------------------------------------------------------------
 resourceQuotas:
+  # Имя ресурса ResourceQuota. Пусто - "default".
+  # Служебное поле, в форме портала скрыто.
+  name: default
+
   # Жёсткие лимиты namespace.
   limits:
     cpu: "4"

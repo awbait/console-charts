@@ -1,26 +1,88 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/namespace/values.schema.json",
+  "title": "namespace Helm chart values",
+  "description": "Editor-oriented schema for the namespace chart (cpaas Namespace, ResourceQuota, kube-ovn Subnet).",
+  "type": "object",
   "additionalProperties": false,
+  "propertyOrder": [
+    "identity",
+    "namespace",
+    "resourceQuotas",
+    "subnet",
+    "generic",
+    "serviceMesh",
+    "global"
+  ],
+  "required": [
+    "identity",
+    "namespace",
+    "resourceQuotas"
+  ],
   "properties": {
+    "identity": {
+      "title": "Окружение и проект",
+      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
+      "$ref": "#/definitions/identity"
+    },
+    "namespace": {
+      "title": "Неймспейс",
+      "description": "Как неймспейс будет называться и где он появится.",
+      "$ref": "#/definitions/namespaceSpec"
+    },
+    "resourceQuotas": {
+      "title": "Квоты ресурсов",
+      "description": "Сколько ресурсов смогут занять сервисы этого неймспейса вместе.",
+      "$ref": "#/definitions/resourceQuotas"
+    },
+    "subnet": {
+      "title": "Подсети неймспейса",
+      "description": "Выделенная подсеть для подов. Нужна, только если диапазон адресов уже забронирован.",
+      "$ref": "#/definitions/subnet"
+    },
+    "generic": {
+      "title": "Generic settings",
+      "description": "Common labels/annotations applied to all chart resources (Namespace, ResourceQuota, Subnet).",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/generic"
+    },
+    "serviceMesh": {
+      "title": "Service Mesh",
+      "description": "Istio ambient integration, switched on at the environment level. When enabled the Namespace gets the istio-discovery and istio.io/dataplane-mode labels and the networking.k8s.io/enable-netpol annotation.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/serviceMesh"
+    },
     "global": {
-      "additionalProperties": false,
-      "description": "Global chart settings",
-      "properties": {
-        "enable": {
-          "description": "Enable creation of chart resources",
-          "default": true,
-          "title": "Enable",
-          "type": "boolean",
-          "ui:widget": "hidden"
-        }
-      },
       "title": "global",
+      "description": "Chart-wide switch. Set global.enable to false to render no resources at all.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/global"
+    }
+  },
+  "definitions": {
+    "projectToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9
+    },
+    "dnsName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "quantity": {
+      "type": "string"
+    },
+    "stringMap": {
       "type": "object",
-      "ui:widget": "hidden"
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "identity": {
+      "type": "object",
       "additionalProperties": false,
-      "description": "Environment and project tags. They do not take part in resource names, but are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource.",
       "propertyOrder": [
         "instance",
         "cluster",
@@ -28,8 +90,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "instance",
-          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
           "type": "string",
           "enum": [
             "in",
@@ -39,8 +101,8 @@
           ]
         },
         "cluster": {
-          "title": "cluster",
-          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "title": "Кластер",
+          "description": "Кластер, куда встанет сам заказ: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
           "type": "string",
           "enum": [
             "inf",
@@ -56,280 +118,289 @@
           ]
         },
         "project": {
-          "title": "project",
-          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
-          "type": "string",
-          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-          "minLength": 2,
-          "maxLength": 9
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в метки, по которым ресурсы находят в кластере.",
+          "$ref": "#/definitions/projectToken"
         }
       },
       "required": [
         "instance",
         "cluster",
         "project"
-      ],
-      "title": "Identity",
-      "type": "object"
+      ]
     },
-    "generic": {
-      "additionalProperties": false,
-      "description": "Common labels/annotations applied to all chart resources (Namespace, ResourceQuota, Subnet).",
-      "properties": {
-        "labels": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Common labels for all chart resources. Result: metadata.labels.",
-          "title": "Common labels",
-          "type": "object"
-        },
-        "annotations": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
-          "title": "Common annotations",
-          "type": "object"
-        }
-      },
-      "title": "Generic settings",
+    "namespaceSpec": {
       "type": "object",
-      "ui:widget": "hidden"
-    },
-    "namespace": {
       "additionalProperties": false,
-      "description": "Values for the Namespace being created",
+      "propertyOrder": [
+        "namespaceName",
+        "projectName",
+        "clusterName",
+        "displayName",
+        "role",
+        "labels",
+        "annotations",
+        "creator"
+      ],
       "properties": {
         "namespaceName": {
-          "description": "Name of the Namespace being created. Must match the format: <product>-<env>-ns-<purpose>",
-          "default": "project-dev-ns-default",
-          "title": "Namespace name",
-          "type": "string"
+          "title": "Имя неймспейса",
+          "description": "Имя, под которым неймспейс появится в кластере. Принято складывать его из продукта, среды и назначения: nbox-dev-ns-app.",
+          "$ref": "#/definitions/dnsName"
         },
         "projectName": {
-          "description": "Name of the project the Namespace is created in",
-          "default": "project",
-          "title": "Project name",
+          "title": "Проект-владелец",
+          "description": "Проект платформы, внутри которого создаётся неймспейс.",
           "type": "string"
         },
         "clusterName": {
-          "description": "Name of the Alauda cluster the Namespace is created in",
-          "default": "common",
-          "title": "Alauda cluster name",
+          "title": "Кластер размещения",
+          "description": "Кластер платформы, в котором появится неймспейс.",
           "type": "string"
         },
         "displayName": {
-          "description": "Display name of the Namespace resource",
-          "default": "Managed namespace",
-          "title": "Namespace display name",
+          "title": "Отображаемое имя",
+          "description": "То же имя обычными словами. Видно в консоли платформы.",
           "type": "string"
         },
-        "creator": {
-          "description": "Namespace creator (annotation cpaas.io/creator). On order from the console console is substituted",
-          "default": "lk",
-          "title": "Creator",
-          "type": "string",
-          "ui:widget": "hidden"
-        },
         "role": {
-          "description": "Namespace role. When selected the namespace-role label is set",
-          "title": "Namespace role",
+          "title": "Роль неймспейса",
+          "description": "ingress - здесь живут точки входа трафика, egress - точки выхода, other - обычные сервисы.",
           "type": "string",
-          "enum": ["ingress", "egress", "other"]
-        },
-        "annotations": {
-          "description": "Dictionary of annotations for the Namespace resource",
-          "default": {},
-          "title": "Annotations",
-          "type": "object"
+          "enum": [
+            "ingress",
+            "egress",
+            "other"
+          ]
         },
         "labels": {
-          "description": "Dictionary of labels for the Namespace resource",
-          "default": {},
-          "title": "Labels",
-          "type": "object"
+          "title": "Дополнительные labels",
+          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "annotations": {
+          "title": "Дополнительные annotations",
+          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "creator": {
+          "title": "creator",
+          "description": "Namespace creator (annotation cpaas.io/creator). The portal stamps \"console\" on an order.",
+          "type": "string",
+          "default": "lk",
+          "ui:widget": "hidden"
         }
       },
       "required": [
         "namespaceName",
         "projectName"
-      ],
-      "title": "Namespace",
-      "type": "object"
-    },
-    "serviceMesh": {
-      "additionalProperties": false,
-      "description": "Integration with Service Mesh (Istio ambient). Enabled at the environment level. When enabled=true the Namespace gets Istio labels (istio-discovery, istio.io/dataplane-mode=ambient) and the networking.k8s.io/enable-netpol annotation",
-      "properties": {
-        "enabled": {
-          "description": "Enable Service Mesh for the Namespace",
-          "default": false,
-          "title": "Service Mesh",
-          "type": "boolean",
-          "ui:widget": "hidden"
-        }
-      },
-      "title": "Service Mesh",
-      "type": "object",
-      "ui:widget": "hidden"
+      ]
     },
     "resourceQuotas": {
-      "description": "Values for resource quotas of the Namespace being created",
+      "type": "object",
       "additionalProperties": false,
+      "propertyOrder": [
+        "limits",
+        "requests",
+        "storage",
+        "podsAmount",
+        "name"
+      ],
       "properties": {
         "limits": {
-          "description": "Resource limits for the Namespace being created",
+          "title": "Лимиты",
+          "description": "Верхняя граница на все сервисы неймспейса вместе.",
+          "type": "object",
           "additionalProperties": false,
+          "propertyOrder": [
+            "cpu",
+            "memory"
+          ],
           "properties": {
             "cpu": {
-              "description": "CPU limit for the Namespace being created",
-              "default": "",
-              "title": "CPU limit",
-              "type": "string"
+              "title": "Лимит CPU",
+              "description": "Сколько ядер суммарно. Например 4 или 500m.",
+              "$ref": "#/definitions/quantity"
             },
             "memory": {
-              "description": "Memory limit for the Namespace being created",
-              "default": "",
-              "title": "Memory limit",
-              "type": "string"
+              "title": "Лимит памяти",
+              "description": "Например 8Gi или 512Mi.",
+              "$ref": "#/definitions/quantity"
             }
           },
           "required": [
             "cpu",
             "memory"
-          ],
-          "title": "Resource limits",
-          "type": "object"
-        },
-        "podsAmount": {
-          "description": "Maximum number of pods in the Namespace. Limited by the subnet mask",
-          "default": 1000,
-          "title": "Pod count",
-          "type": "integer",
-          "ui:widget": "hidden"
+          ]
         },
         "requests": {
-          "description": "Resource requests for the Namespace being created",
+          "title": "Запросы",
+          "description": "Сколько выделяется сервисам гарантированно.",
+          "type": "object",
           "additionalProperties": false,
-          "properties": {
-            "cpu": {
-              "description": "CPU request for the Namespace being created",
-              "default": "",
-              "title": "CPU request",
-              "type": "string"
-            },
-            "memory": {
-              "description": "Memory request for the Namespace being created",
-              "default": "",
-              "title": "Memory request",
-              "type": "string"
-            }
-          },
-          "required": [
+          "propertyOrder": [
             "cpu",
             "memory"
           ],
-          "title": "Resource requests",
-          "type": "object"
+          "properties": {
+            "cpu": {
+              "title": "Запрос CPU",
+              "description": "Пустое поле - берётся лимит CPU.",
+              "$ref": "#/definitions/quantity"
+            },
+            "memory": {
+              "title": "Запрос памяти",
+              "description": "Пустое поле - берётся лимит памяти.",
+              "$ref": "#/definitions/quantity"
+            }
+          }
         },
         "storage": {
-          "description": "Block storage quotas for the Namespace being created",
+          "title": "Квоты на хранилище",
+          "type": "object",
           "additionalProperties": false,
           "properties": {
             "storages": {
-              "description": "Dictionary of block storage quotas. Must match the format: $StorageClass: $Quota",
-              "default": {},
-              "title": "Block storage quotas",
-              "type": "object"
+              "title": "Объём по классам хранилища",
+              "description": "Ключ - класс хранилища, значение - объём. Например nfs: 100Gi.",
+              "$ref": "#/definitions/stringMap"
             }
-          },
-          "required": [
-            "storages"
-          ],
-          "title": "Block storage quotas",
-          "type": "object"
+          }
+        },
+        "podsAmount": {
+          "title": "podsAmount",
+          "description": "Maximum number of pods in the Namespace. Bounded by the subnet mask.",
+          "type": "integer",
+          "default": 1000,
+          "ui:widget": "hidden"
+        },
+        "name": {
+          "title": "name",
+          "description": "Name of the ResourceQuota resource. Defaults to \"default\".",
+          "type": "string",
+          "default": "default",
+          "ui:widget": "hidden"
         }
       },
       "required": [
-        "limits",
-        "requests",
-        "storage"
-      ],
-      "title": "Resource quotas",
-      "type": "object"
+        "limits"
+      ]
     },
     "subnet": {
-      "description": "Values for subnets of the Namespace being created. At least one subnet must be created. Multiple subnets are allowed",
+      "type": "object",
       "additionalProperties": false,
+      "propertyOrder": [
+        "subnets",
+        "enable"
+      ],
       "properties": {
         "enable": {
-          "description": "Service field, controls creation of the Subnet resource. Enable only when the CIDR block is guaranteed to be reserved in Netbox",
-          "default": false,
-          "title": "Enable",
+          "title": "enable",
+          "description": "Service switch for the Subnet resource. Turn it on only when the CIDR block is already reserved in Netbox.",
           "type": "boolean",
+          "default": false,
           "ui:widget": "hidden"
         },
         "subnets": {
-          "description": "List of subnets for the Namespace being created",
-          "additionalProperties": false,
+          "title": "Подсети",
+          "description": "Обычно нужна одна подсеть, но их может быть несколько.",
+          "type": "array",
+          "minItems": 1,
           "items": {
-              "properties": {
-                "name": {
-                  "description": "Subnet name. Must match the format: <product>-<env>-ns-<purpose>",
-                  "default": "project-dev-subnet-default",
-                  "title": "Subnet name",
-                  "type": "string"
-                },
-                "cidrBlock": {
-                  "default": "",
-                  "description": "CIDR block reserved in Netbox (IP/mask)",
-                  "title": "CIDR block",
-                  "type": "string"
-                },
-                "allowSubnets": {
-                  "description": "List of allowed subnets that require network connectivity with this subnet",
-                  "items": {
-                    "type": "string",
-                    "title": "Subnet CIDR block"
-                  },
-                  "title": "Allowed subnets",
-                  "type": "array"
-                },
-                "excludeIps": {
-                  "description": "List of reserved IP addresses that must not be handed out to pods in the Namespace being created. The gateway IP is added automatically",
-                  "items": {
-                    "type": "string",
-                    "title": "IP address"
-                  },
-                  "title": "Reserved IP addresses",
-                  "type": "array"
-                }
-              },
-              "required": [
-                "name",
-                "cidrBlock"
-              ],
-              "type": "object"
-          },
-          "title": "Subnets",
-          "type": "array"
+            "$ref": "#/definitions/subnetEntry"
+          }
+        }
+      }
+    },
+    "subnetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "cidrBlock",
+        "allowSubnets",
+        "excludeIps"
+      ],
+      "properties": {
+        "name": {
+          "title": "Имя подсети",
+          "description": "Имя, под которым подсеть появится в кластере.",
+          "$ref": "#/definitions/dnsName"
+        },
+        "cidrBlock": {
+          "title": "Диапазон адресов",
+          "description": "Забронированный диапазон вместе с маской. Например 10.24.8.0/22.",
+          "type": "string"
+        },
+        "allowSubnets": {
+          "title": "Разрешённые подсети",
+          "description": "Диапазоны, с которыми этой подсети нужна сетевая связность.",
+          "type": "array",
+          "items": {
+            "title": "Диапазон адресов",
+            "type": "string"
+          }
+        },
+        "excludeIps": {
+          "title": "Зарезервированные адреса",
+          "description": "Адреса, которые не будут выданы подам. Адрес шлюза исключается сам.",
+          "type": "array",
+          "items": {
+            "title": "IP-адрес",
+            "type": "string"
+          }
         }
       },
       "required": [
-        "enable",
-        "subnets"
+        "name",
+        "cidrBlock"
+      ]
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "labels",
+        "annotations"
       ],
-      "title": "Namespace subnets",
-      "type": "object"
+      "properties": {
+        "labels": {
+          "title": "Common labels",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "annotations": {
+          "title": "Common annotations",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "$ref": "#/definitions/stringMap"
+        }
+      }
+    },
+    "serviceMesh": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "title": "enabled",
+          "description": "Enable Service Mesh for the Namespace.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "title": "enable",
+          "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+          "type": "boolean",
+          "default": true,
+          "ui:widget": "hidden"
+        }
+      }
     }
-  },
-  "required": [
-    "global",
-    "identity",
-    "namespace",
-    "resourceQuotas",
-    "subnet"
-  ],
-  "type": "object"
+  }
 }
