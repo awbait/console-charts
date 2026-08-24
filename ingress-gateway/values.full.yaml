@@ -94,6 +94,16 @@ networkPolicy:
         - port: 1053
           protocol: UDP
 
+    # Правило по диапазону адресов, с исключениями.
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+            except:
+              - 10.40.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+
 
 # ============================================================================
 # gateways - список Gateway (на элемент создаётся Gateway и ConfigMap)
@@ -180,6 +190,22 @@ gateways:
         protocol: HTTPS
         hostname: "*.idp.ecpk.test"
         tlsMode: Terminate
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+      # certificateRefs - явные ссылки на секреты с сертификатом. Альтернатива
+      # tlsSecretName и авто-созданному секрету, если сертификат уже лежит
+      # в кластере под своим именем.
+      - name: ext
+        port: 8445
+        protocol: HTTPS
+        hostname: ext.example.ru
+        tlsMode: Terminate
+        certificateRefs:
+          - name: ext-example-ru-tls
         allowedRoutes:
           namespaces:
             from: Same
@@ -336,6 +362,123 @@ xroutes:
             port: 1053
             weight: 100
 
+  - # Маршрут-витрина: остальные формы условий и фильтров. На один фильтр
+    # приходится один параметр, поэтому фильтры перечисляются списком.
+    name: filt
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      - gateway: main
+        sectionName: https
+    hostnames:
+      - filters.example.ru
+    rules:
+      # Условия по заголовкам и по параметрам адреса.
+      - matches:
+          - headers:
+              - type: Exact
+                name: x-tenant
+                value: gold
+          - queryParams:
+              - type: RegularExpression
+                name: debug
+                value: "^(1|true)$"
+        filters:
+          - type: RequestHeaderModifier
+            requestHeaderModifier:
+              set:
+                - name: x-tenant
+                  value: gold
+          - type: RequestHeaderModifier
+            requestHeaderModifier:
+              remove:
+                - x-internal-debug
+        backendRefs:
+          - name: app
+            port: 80
+            weight: 100
+
+      # Перенаправление: на фильтр меняется одна часть адреса.
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /old
+        filters:
+          - type: RequestRedirect
+            requestRedirect:
+              scheme: https
+          - type: RequestRedirect
+            requestRedirect:
+              hostname: new.example.ru
+          - type: RequestRedirect
+            requestRedirect:
+              port: 8443
+          - type: RequestRedirect
+            requestRedirect:
+              statusCode: 301
+          - type: RequestRedirect
+            requestRedirect:
+              path:
+                type: ReplaceFullPath
+                replaceFullPath: /new
+        backendRefs:
+          - name: app
+            port: 80
+            weight: 100
+
+      # Подмена адреса перед отправкой в сервис.
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /shop
+        filters:
+          - type: URLRewrite
+            urlRewrite:
+              hostname: internal.example.ru
+          - type: URLRewrite
+            urlRewrite:
+              path:
+                type: ReplaceFullPath
+                replaceFullPath: /
+        backendRefs:
+          - name: shop
+            port: 8080
+            weight: 100
+
+      # CORS: доступ к сервису из браузера с другого домена.
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /public-api
+        filters:
+          - type: CORS
+            cors:
+              allowOrigins:
+                - https://example.ru
+          - type: CORS
+            cors:
+              allowCredentials: true
+          - type: CORS
+            cors:
+              allowMethods:
+                - GET
+                - POST
+          - type: CORS
+            cors:
+              allowHeaders:
+                - authorization
+          - type: CORS
+            cors:
+              exposeHeaders:
+                - x-request-id
+          - type: CORS
+            cors:
+              maxAge: 600
+        backendRefs:
+          - name: public-api
+            port: 8080
+            weight: 100
+
   - name: intapp
     enabled: true
     kind: HTTPRoute
@@ -376,7 +519,12 @@ oidcAuth:
     sectionName: https
 
   oauth2Route:
+    name: oauth2-proxy-route
     pathPrefix: /oauth2
+
+  oauth2Proxy:
+    service:
+      weight: 100
 
   referenceGrant:
     name: allow-netbox-to-oauth2proxy
@@ -401,3 +549,26 @@ oidcAuth:
   keycloak:
     issuer: https://kc.idp.ecpk.test/realms/ecpk-dev
     jwksUri: https://kc.idp.ecpk.test/realms/ecpk-dev/protocol/openid-connect/certs
+
+
+# ============================================================================
+# Служебные секции: в форме портала скрыты
+# ============================================================================
+# tlsWildcards - платформенные wildcard-сертификаты. Ими наполняется секрет,
+# который чарт создаёт для listener'а с tlsMode: Terminate, когда hostname
+# попадает в домен idp.ecpk.test или edp.ecpk.test. Значения - base64
+# tls.crt/tls.key; пусто означает заглушку, которую заполняет платформа.
+tlsWildcards:
+  idp:
+    crt: ""
+    key: ""
+  edp:
+    crt: ""
+    key: ""
+
+# global - глобальные значения Helm. Инжектятся автоматически, когда чарт
+# подключён сабчартом. Шаблоны чарта их не используют.
+global: {}
+
+# enabled - флаг condition родительского чарта. Шаблоны его не используют.
+enabled: true
