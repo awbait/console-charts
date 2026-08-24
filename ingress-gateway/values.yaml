@@ -17,14 +17,38 @@ networkPolicy:
 oidcAuth:
   enabled: false
 
-# Платформенные wildcard-сертификаты. Ими наполняется автоматически создаваемый
-# секрет listener'а с tlsMode: Terminate, если hostname попадает в домен
-# (*.idp.ecpk.test -> *-idptls, *.edp.ecpk.test -> *-edptls). Значения - base64
-# tls.crt/tls.key; пусто здесь означает заглушку, которую заполняет платформа.
-# Для остальных hostname создаётся пустой секрет "*-tls".
-tlsWildcards:
-  idp: { crt: "", key: "" }
-  edp: { crt: "", key: "" }
+# Сертификаты для listener'ов с tlsMode: Terminate. Сам сертификат и ключ
+# лежат в Vault, чарт создаёт ExternalSecret, а тот держит в namespace секрет
+# типа kubernetes.io/tls. В значениях едет только путь, ключ в репозиторий
+# не попадает.
+tls:
+  # Хранилище External Secrets, из которого читаются сертификаты. Одно на
+  # кластер, поэтому задано здесь, а не в заказе.
+  store:
+    kind: ClusterSecretStore
+    name: vault
+
+  # Как часто перечитывать сертификат из хранилища.
+  refreshInterval: 1h
+
+  # Ключи внутри записи хранилища.
+  crtProperty: tls.crt
+  keyProperty: tls.key
+
+  # Сертификаты, которые платформа приготовила заранее. Домен со звёздочкой
+  # покрывает один уровень, как и сам сертификат: *.idp.ecpk.test подходит для
+  # app.idp.ecpk.test, но не для a.str.idp.ecpk.test.
+  platform:
+    - name: idptls
+      domain: "*.idp.ecpk.test"
+      path: platform/certs/idp-ecpk-test
+    - name: edptls
+      domain: "*.edp.ecpk.test"
+      path: platform/certs/edp-ecpk-test
+
+  # Свои сертификаты заказа: любой домен, любого уровня. Их приносит заказ,
+  # здесь список пуст.
+  certificates: []
 
 # gateways / xroutes намеренно не заданы: их приносит заказ.
 # Пример со всеми параметрами - в values.full.yaml.

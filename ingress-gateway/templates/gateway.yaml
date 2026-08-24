@@ -2,8 +2,10 @@
 Ingress Gateway (Gateway API, istio class): one per element of the
 gateways list. infrastructure.parametersRef references a ConfigMap (see
 configmap.yaml), which has the same name as the Gateway (kindShort cm).
-For HTTPS/TLS listeners the tls block is added automatically: Terminate
-requires tlsSecretName or certificateRefs, otherwise Passthrough.
+For HTTPS/TLS listeners the tls block is added automatically. Terminate
+points at the Secret of the certificate that covers the listener hostname
+(see tls in values and externalSecret.yaml), or at certificateRefs when the
+certificate already lies in the cluster under its own name.
 The element is skipped when enabled: false.
 */}}
 {{- $root := . -}}
@@ -38,16 +40,19 @@ spec:
       {{- end }}
       {{- if or (eq $protocol "HTTPS") (eq $protocol "TLS") }}
       tls:
-        {{- /* Passthrough by default; secret name is always auto-derived (no user tlsSecretName). */}}
+        {{- /* Passthrough by default; the Secret name comes from the matching tls entry. */}}
         {{- $tlsMode := $listener.tlsMode | default "Passthrough" }}
         mode: {{ $tlsMode | quote }}
         {{- if eq $tlsMode "Terminate" }}
-        {{- $autoSecret := include "ingress-gateway.helpers.app.tlsSecretName" (dict "hostname" $listener.hostname "context" $root) }}
         certificateRefs:
           {{- if $listener.certificateRefs }}
           {{- toYaml $listener.certificateRefs | nindent 10 }}
           {{- else }}
-          - name: {{ $autoSecret | quote }}
+          {{- $cert := fromJson (include "ingress-gateway.helpers.app.certificate" (dict "hostname" $listener.hostname "context" $root)) }}
+          {{- if not $cert }}
+          {{- fail (printf "gateways[%d].listeners[%d]: no certificate covers hostname %q - add an entry to tls.certificates with a domain that covers it" $index $listenerIndex ($listener.hostname | default "" | toString)) }}
+          {{- end }}
+          - name: {{ include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "context" $root) | quote }}
             kind: Secret
             group: ""
           {{- end }}

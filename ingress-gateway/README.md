@@ -13,6 +13,7 @@
 |-----------------------|----------------------------------------------------------------------------|---------------------------------------------------|
 | `gateways[]`          | `Gateway` и инфраструктурный `ConfigMap` на каждый элемент                  | Нужна точка входа в кластер                       |
 | `xroutes[]`           | `HTTPRoute`, `GRPCRoute`, `TLSRoute`, `TCPRoute` или `UDPRoute`             | Нужно довести трафик от точки входа до сервиса    |
+| `tls`                 | `ExternalSecret` на каждый использованный сертификат                        | Точка входа расшифровывает TLS сама                |
 | `networkPolicy`       | `NetworkPolicy` для workload'а каждого Gateway                              | Нужно ограничить, куда ходит сам шлюз             |
 | `authorizationPolicy` | `AuthorizationPolicy` (Istio) для workload'а каждого Gateway                | Нужны правила Istio на трафик к шлюзу             |
 | `oidcAuth`            | `HTTPRoute`, `ReferenceGrant`, две `AuthorizationPolicy` и `RequestAuthentication` | Вход в приложение должен идти через Keycloak |
@@ -79,6 +80,7 @@
 | `NetworkPolicy`       | `np`        | `TLSRoute`  | `tr`        |
 | `AuthorizationPolicy` | `ap`        | `TCPRoute`  | `tcr`       |
 | `Secret` (TLS)        | `secret`    | `UDPRoute`  | `ur`        |
+| `ExternalSecret`      | `es`        |             |             |
 
 ConfigMap носит то же имя, что и его Gateway, только с `cm` вместо `igw`.
 Итоговое имя обрезается до 63 символов. Примеры: `ed-dev-igw-nbox-main`,
@@ -131,22 +133,63 @@ Listener описывается полями:
 - `hostname` - обязателен для `HTTPS` и `TLS`. У `TCP` и `UDP` домена нет: в
   форме заказа поле для них скрыто, а из values значение в Gateway не попадает.
 - `tlsMode` - `Terminate` (по умолчанию для `HTTPS`) или `Passthrough` (для `TLS`).
-- `tlsSecretName` или `certificateRefs` - для `Terminate`, если секрет не создаётся сам.
+- `certificateRefs` - для `Terminate`, если сертификат уже лежит в кластере под
+  своим именем. Иначе он берётся из секции `tls`, см. ниже.
 - `allowedRoutes` - какие маршруты listener принимает.
 
-### TLS-секреты
+## Секция `tls` - сертификаты
 
-Для listener'а с `tlsMode: Terminate` секрет с сертификатом создаётся
-автоматически, если hostname попадает в платформенный домен:
+Listener с `tlsMode: Terminate` расшифровывает трафик сам, поэтому ему нужен
+сертификат на свой домен. Сертификат и ключ лежат в Vault. Чарт создаёт
+`ExternalSecret`, External Secrets Operator читает по нему запись из Vault и
+держит в namespace секрет `kubernetes.io/tls`. В значениях заказа едет только
+путь: ни ключ, ни сам сертификат в репозиторий не попадают.
 
-| hostname          | Имя секрета                                    |
-|-------------------|------------------------------------------------|
-| `*.idp.ecpk.test` | `{instance}-{cluster}-secret-{project}-idptls`  |
-| `*edp.ecpk.test`  | `{instance}-{cluster}-secret-{project}-edptls`  |
-| остальные         | Секрет не создаётся, нужен `tlsSecretName` или `certificateRefs` |
+Сертификаты описываются списком:
 
-Секрет создаётся как `kubernetes.io/tls`, сертификат и ключ приносите вы.
-Несколько listener'ов с одним и тем же паттерном имени дают один секрет.
+| Поле          | Нужно указать | Что это                                                       |
+|---------------|---------------|----------------------------------------------------------------|
+| `name`        | да            | Имя от 2 до 6 символов, попадает в имя секрета                 |
+| `domain`      | да            | Домен, который покрывает сертификат                            |
+| `path`        | да            | Запись в Vault, в которой лежат сертификат и ключ              |
+| `store`       | нет           | `kind` и `name` хранилища, если это не `tls.store` по умолчанию |
+| `crtProperty` | нет           | Ключ сертификата внутри записи, по умолчанию `tls.crt`         |
+| `keyProperty` | нет           | Ключ приватного ключа внутри записи, по умолчанию `tls.key`    |
+
+Списка два, читаются по очереди:
+
+- `tls.certificates` - сертификаты заказа. Сюда добавляют свои домены: любого
+  уровня и не только в `ecpk.test`.
+- `tls.platform` - то, что платформа приготовила заранее. Приезжает вместе с
+  чартом, в заказе про это писать не нужно.
+
+Сертификат для listener'а выбирается по его `hostname`: сначала среди
+`tls.certificates`, потом среди `tls.platform`. Домен со звёздочкой покрывает
+один уровень, ровно как и сам сертификат:
+
+| Домен записи      | Покрывает                              | Не покрывает                          |
+|-------------------|----------------------------------------|---------------------------------------|
+| `*.idp.ecpk.test` | `app.idp.ecpk.test`, `*.idp.ecpk.test` | `idp.ecpk.test`, `a.str.idp.ecpk.test` |
+| `*.str.idp.ecpk.test` | `a.str.idp.ecpk.test`              | `b.a.str.idp.ecpk.test`               |
+| `shop.example.ru` | `shop.example.ru`                      | `www.shop.example.ru`                 |
+
+Поэтому поддомен четвёртого и пятого уровня описывается своей записью, даже
+если он лежит внутри платформенного домена.
+
+Имена ресурсов собираются из `name` записи:
+
+| Ресурс           | Имя                                             |
+|------------------|-------------------------------------------------|
+| `Secret`         | `{instance}-{cluster}-secret-{project}-{name}`   |
+| `ExternalSecret` | `{instance}-{cluster}-es-{project}-{name}`       |
+
+Один сертификат - один `ExternalSecret`, сколько бы listener'ов на него ни
+ссылалось. Записи, которые не понадобились ни одному listener'у, не создают
+ничего.
+
+Если сертификат уже лежит в кластере под своим именем и приносит его не эта
+секция, у listener'а задаются `certificateRefs`. Тогда чарт для него
+`ExternalSecret` не создаёт.
 
 ## Секция `xroutes[]`
 
@@ -196,8 +239,11 @@ Listener описывается полями:
 - `identity.project` длиннее 9 символов или содержит недопустимые символы;
 - имя Gateway или маршрута короче 2 или длиннее 6 символов;
 - у listener'а не задан порт или протокол;
-- у listener'а с протоколом `HTTPS` или `TLS` не задан hostname, а при
-  `tlsMode: Terminate` не задан секрет с сертификатом;
+- у listener'а с протоколом `HTTPS` или `TLS` не задан hostname;
+- у listener'а с `tlsMode: Terminate` домен не покрыт ни одним сертификатом из
+  `tls.certificates` и `tls.platform`, и не заданы `certificateRefs`;
+- у записи в `tls.certificates` не задан `name`, `domain` или `path`, либо
+  негде взять хранилище: не задан ни `store` записи, ни `tls.store.name`;
 - у маршрута не заданы `parentRefs` или `rules`;
 - `kind` маршрута не из поддерживаемого списка;
 - для маршрута `TLS`, `TCP` или `UDP` заданы `matches` или `filters`;

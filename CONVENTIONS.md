@@ -118,6 +118,7 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | `tcr`     | `TCPRoute`               | ingress-gateway            |
 | `ur`      | `UDPRoute`               | ingress-gateway            |
 | `secret`  | `Secret` (TLS)           | ingress-gateway            |
+| `es`      | `ExternalSecret`         | ingress-gateway            |
 
 Правила реестра:
 

@@ -119,15 +119,13 @@ networkPolicy:
 #     port/protocol - обязательны (HTTP/HTTPS/TCP/UDP/TLS)
 #     hostname      - обязателен для HTTPS и TLS, у TCP и UDP не используется
 #     tlsMode       - Terminate (по умолчанию для HTTPS) | Passthrough (для TLS)
-#     tlsSecretName - секрет с сертификатом для tlsMode: Terminate. Не нужен,
-#                     если hostname попадает под авто-создание секрета (ниже)
+#     certificateRefs - готовый секрет с сертификатом, если он уже лежит
+#                     в кластере под своим именем (см. секцию tls ниже)
 #     allowedRoutes - какие маршруты listener принимает
 #
-# Авто-создание TLS-секрета (tlsMode: Terminate): по hostname listener'а
-# создаётся секрет типа kubernetes.io/tls, сертификат и ключ приносите вы:
-#   *.idp.ecpk.test -> {instance}-{cluster}-secret-{project}-idptls
-#   *edp.ecpk.test  -> {instance}-{cluster}-secret-{project}-edptls
-#   остальные hostname -> секрет не создаётся, нужен tlsSecretName или certificateRefs.
+# Сертификат для tlsMode: Terminate ищется по hostname в секции tls: сначала
+# в tls.certificates заказа, потом в платформенных tls.platform. Если ни один
+# домен не покрывает hostname, рендер падает и называет этот hostname.
 gateways:
   - name: main
     enabled: true
@@ -158,12 +156,13 @@ gateways:
           kinds:
             - kind: HTTPRoute
 
+      # Сертификат берётся из записи tls.certificates с доменом *.example.ru
+      # (см. секцию tls ниже): секрет id-dev-secret-nbox-web.
       - name: https
         port: 443
         protocol: HTTPS
         hostname: app.example.ru
         tlsMode: Terminate
-        tlsSecretName: app-example-ru-tls
         allowedRoutes:
           namespaces:
             from: Same
@@ -171,20 +170,21 @@ gateways:
             - kind: HTTPRoute
             - kind: GRPCRoute
 
+      # Тот же домен *.example.ru, значит и тот же секрет: ExternalSecret
+      # создаётся один на сертификат, а не на listener.
       - name: grpc
         port: 8443
         protocol: HTTPS
         hostname: grpc.example.ru
         tlsMode: Terminate
-        tlsSecretName: grpc-example-ru-tls
         allowedRoutes:
           namespaces:
             from: Same
           kinds:
             - kind: GRPCRoute
 
-      # tlsSecretName не задан: hostname *.idp.ecpk.test -> секрет создаётся сам,
-      # имя {instance}-{cluster}-secret-{project}-idptls.
+      # Платформенный домен: сертификат приготовлен заранее, в заказе про него
+      # писать не нужно (tls.platform).
       - name: idp
         port: 8444
         protocol: HTTPS
@@ -196,9 +196,9 @@ gateways:
           kinds:
             - kind: HTTPRoute
 
-      # certificateRefs - явные ссылки на секреты с сертификатом. Альтернатива
-      # tlsSecretName и авто-созданному секрету, если сертификат уже лежит
-      # в кластере под своим именем.
+      # certificateRefs - явные ссылки на секреты с сертификатом, если он уже
+      # лежит в кластере под своим именем. Тогда чарт для этого listener'а
+      # ExternalSecret не создаёт.
       - name: ext
         port: 8445
         protocol: HTTPS
@@ -552,19 +552,70 @@ oidcAuth:
 
 
 # ============================================================================
+# tls - откуда берутся сертификаты для listener'ов с tlsMode: Terminate
+# ============================================================================
+# Сертификат и ключ лежат в Vault. На каждый использованный сертификат чарт
+# создаёт ExternalSecret, а External Secrets Operator держит в namespace секрет
+# kubernetes.io/tls с этим сертификатом. В values едет только путь: ни ключ, ни
+# сам сертификат в репозиторий заказа не попадают.
+#
+# Как выбирается сертификат для listener'а: по его hostname, сначала среди
+# tls.certificates заказа, потом среди платформенных tls.platform. Домен со
+# звёздочкой покрывает один уровень, ровно как сам сертификат: *.example.ru
+# подходит для app.example.ru и для *.example.ru, но не для a.b.example.ru.
+# Если ни один домен не покрывает hostname, рендер падает и называет hostname.
+#
+# Имена ресурсов собираются из name записи:
+#   секрет         {instance}-{cluster}-secret-{project}-{name}
+#   ExternalSecret {instance}-{cluster}-es-{project}-{name}
+tls:
+  # Хранилище по умолчанию. Задаётся платформой на кластер, в форме скрыто.
+  store:
+    kind: ClusterSecretStore
+    name: vault
+
+  # Как часто перечитывать сертификат из хранилища.
+  refreshInterval: 1h
+
+  # Ключи внутри записи хранилища.
+  crtProperty: tls.crt
+  keyProperty: tls.key
+
+  # apiVersion ресурса ExternalSecret. Задаётся, если в кластере стоит
+  # External Secrets Operator старой версии (external-secrets.io/v1beta1).
+  apiVersion: external-secrets.io/v1
+
+  # Платформенные сертификаты. Приезжают вместе с чартом, заказ про них
+  # ничего не пишет, в форме секция скрыта.
+  platform:
+    - name: idptls
+      domain: "*.idp.ecpk.test"
+      path: platform/certs/idp-ecpk-test
+    - name: edptls
+      domain: "*.edp.ecpk.test"
+      path: platform/certs/edp-ecpk-test
+
+  # Свои сертификаты: любой домен, любого уровня, в том числе вне ecpk.test.
+  certificates:
+    - name: web
+      domain: "*.example.ru"
+      path: teams/nbox/certs/example-ru
+
+    # store, crtProperty и keyProperty переопределяются на запись, если этот
+    # сертификат лежит в другом хранилище или под другими ключами.
+    - name: str
+      domain: "*.str.idp.ecpk.test"
+      path: teams/nbox/certs/str
+      store:
+        kind: SecretStore
+        name: vault-nbox
+      crtProperty: certificate
+      keyProperty: private_key
+
+
+# ============================================================================
 # Служебные секции: в форме портала скрыты
 # ============================================================================
-# tlsWildcards - платформенные wildcard-сертификаты. Ими наполняется секрет,
-# который чарт создаёт для listener'а с tlsMode: Terminate, когда hostname
-# попадает в домен idp.ecpk.test или edp.ecpk.test. Значения - base64
-# tls.crt/tls.key; пусто означает заглушку, которую заполняет платформа.
-tlsWildcards:
-  idp:
-    crt: ""
-    key: ""
-  edp:
-    crt: ""
-    key: ""
 
 # global - глобальные значения Helm. Инжектятся автоматически, когда чарт
 # подключён сабчартом. Шаблоны чарта их не используют.
