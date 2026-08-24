@@ -128,7 +128,8 @@ Listener описывается полями:
 
 - `name` - имя, на него ссылается маршрут через `sectionName`. Длина не ограничена.
 - `port` и `protocol` - обязательны. Протокол: `HTTP`, `HTTPS`, `TCP`, `UDP` или `TLS`.
-- `hostname` - обязателен для `HTTPS` и `TLS`.
+- `hostname` - обязателен для `HTTPS` и `TLS`. У `TCP` и `UDP` домена нет, там
+  значение не попадает в Gateway.
 - `tlsMode` - `Terminate` (по умолчанию для `HTTPS`) или `Passthrough` (для `TLS`).
 - `tlsSecretName` или `certificateRefs` - для `Terminate`, если секрет не создаётся сам.
 - `allowedRoutes` - какие маршруты listener принимает.
