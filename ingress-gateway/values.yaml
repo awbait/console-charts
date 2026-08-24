@@ -26,10 +26,6 @@ tls:
   # может назвать другое хранилище того же namespace.
   store: vault
 
-  # Тип ресурса хранилища. В кластерах есть только SecretStore, поле оставлено
-  # на случай, если когда-нибудь появится ClusterSecretStore.
-  storeKind: SecretStore
-
   # Как часто перечитывать сертификат из хранилища.
   refreshInterval: 1h
 

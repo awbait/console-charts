@@ -160,7 +160,6 @@
         "certificates",
         "platform",
         "store",
-        "storeKind",
         "refreshInterval",
         "crtProperty",
         "keyProperty",
@@ -201,16 +200,6 @@
           "title": "store",
           "description": "Name of the SecretStore the certificates are read from when an entry does not name its own. Lives in the namespace of the release. Hidden.",
           "$ref": "#/definitions/k8sName"
-        },
-        "storeKind": {
-          "ui:widget": "hidden",
-          "title": "storeKind",
-          "description": "Kind of the store resource. SecretStore, unless a cluster ever gets a ClusterSecretStore. Hidden.",
-          "type": "string",
-          "enum": [
-            "SecretStore",
-            "ClusterSecretStore"
-          ]
         },
         "refreshInterval": {
           "ui:widget": "hidden",

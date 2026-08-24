@@ -95,8 +95,7 @@ and then in tls.platform (the ones the platform prepared), first match wins.
 Returns a JSON object, empty when no certificate covers the hostname:
   name        - short name of the entry, the {name} part of the Secret name
   path        - where the certificate lies in the store
-  storeKind   - kind of the store resource, SecretStore unless tls.storeKind says otherwise
-  storeName   - name of the store, always in the namespace of the release
+  storeName   - name of the SecretStore, always in the namespace of the release
   crtProperty - key of the certificate inside the stored entry
   keyProperty - key of its private key
 */}}
@@ -110,7 +109,6 @@ Returns a JSON object, empty when no certificate covers the hostname:
 {{- $found = dict
       "name" $name
       "path" (required (printf "tls certificate %q: path is required" $name) $entry.path | toString)
-      "storeKind" ($tls.storeKind | default "SecretStore" | toString)
       "storeName" (required (printf "tls certificate %q: store is required (set it on the entry or in tls.store)" $name) ($entry.store | default $tls.store) | toString)
       "crtProperty" ($entry.crtProperty | default $tls.crtProperty | default "tls.crt" | toString)
       "keyProperty" ($entry.keyProperty | default $tls.keyProperty | default "tls.key" | toString)

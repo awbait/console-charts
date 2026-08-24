@@ -57,8 +57,8 @@
 - Заказ со своим доменом дополняется записью в `tls.certificates`: `name`,
   `domain` и `path` в Vault.
 - `tlsSecretName` из значений убрать, он больше не принимается схемой.
-- В кластере должны стоять External Secrets Operator и хранилище
-  `tls.store` (по умолчанию `ClusterSecretStore` с именем `vault`).
+- В кластере должен стоять External Secrets Operator, а в namespace релиза -
+  `SecretStore` из `tls.store` (по умолчанию с именем `vault`).
 
 ---
 
