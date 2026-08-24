@@ -261,9 +261,8 @@
           "minLength": 1
         },
         "store": {
-          "ui:widget": "hidden",
-          "title": "store",
-          "description": "Store to read this certificate from, when it is not the default tls.store. Hidden.",
+          "title": "Хранилище",
+          "description": "Где лежит этот сертификат. Оставьте пустым, если это хранилище вашего namespace.",
           "$ref": "#/definitions/secretStoreRef"
         },
         "crtProperty": {
@@ -296,17 +295,18 @@
       ],
       "properties": {
         "kind": {
-          "title": "kind",
-          "description": "SecretStore (namespace-scoped) or ClusterSecretStore.",
+          "title": "Тип хранилища",
+          "description": "SecretStore живёт в вашем namespace, ClusterSecretStore - один на кластер.",
           "type": "string",
+          "default": "SecretStore",
           "enum": [
-            "ClusterSecretStore",
-            "SecretStore"
+            "SecretStore",
+            "ClusterSecretStore"
           ]
         },
         "name": {
-          "title": "name",
-          "description": "Name of the store.",
+          "title": "Имя хранилища",
+          "description": "Имя, под которым хранилище заведено в кластере.",
           "$ref": "#/definitions/k8sName"
         }
       },

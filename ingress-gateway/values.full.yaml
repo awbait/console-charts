@@ -569,9 +569,11 @@ oidcAuth:
 #   секрет         {instance}-{cluster}-secret-{project}-{name}
 #   ExternalSecret {instance}-{cluster}-es-{project}-{name}
 tls:
-  # Хранилище по умолчанию. Задаётся платформой на кластер, в форме скрыто.
+  # Хранилище по умолчанию для сертификатов заказа: SecretStore команды в том
+  # же namespace, что и релиз. Берётся, когда у записи не задано своё. В форме
+  # скрыто, хранилище выбирается у самой записи.
   store:
-    kind: ClusterSecretStore
+    kind: SecretStore
     name: vault
 
   # Как часто перечитывать сертификат из хранилища.
@@ -586,29 +588,40 @@ tls:
   apiVersion: external-secrets.io/v1
 
   # Платформенные сертификаты. Приезжают вместе с чартом, заказ про них
-  # ничего не пишет, в форме секция скрыта.
+  # ничего не пишет, в форме секция скрыта. Хранилище у них задано явно:
+  # платформенный ClusterSecretStore один на кластер и не зависит от того,
+  # что заказ выбрал для своих сертификатов.
   platform:
     - name: idptls
       domain: "*.idp.ecpk.test"
       path: platform/certs/idp-ecpk-test
+      store:
+        kind: ClusterSecretStore
+        name: vault-platform
     - name: edptls
       domain: "*.edp.ecpk.test"
       path: platform/certs/edp-ecpk-test
+      store:
+        kind: ClusterSecretStore
+        name: vault-platform
 
   # Свои сертификаты: любой домен, любого уровня, в том числе вне ecpk.test.
   certificates:
+    # Хранилище не задано - берётся tls.store, то есть SecretStore vault
+    # в namespace релиза.
     - name: web
       domain: "*.example.ru"
       path: teams/nbox/certs/example-ru
 
-    # store, crtProperty и keyProperty переопределяются на запись, если этот
-    # сертификат лежит в другом хранилище или под другими ключами.
+    # Своё хранилище у записи: например, сертификат лежит в общем
+    # ClusterSecretStore, а не в SecretStore команды. crtProperty и
+    # keyProperty задаются, если внутри записи ключи названы иначе.
     - name: str
       domain: "*.str.idp.ecpk.test"
       path: teams/nbox/certs/str
       store:
-        kind: SecretStore
-        name: vault-nbox
+        kind: ClusterSecretStore
+        name: vault-platform
       crtProperty: certificate
       keyProperty: private_key
 
