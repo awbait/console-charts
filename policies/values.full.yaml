@@ -151,6 +151,52 @@ policies:
           - port: 6379
             protocol: TCP
 
+  - # Вторая запись показывает остальные формы peer. Зеркал у них нет: зеркало
+    # создаётся только там, где вторая сторона задана namespace.
+    name: raw
+    serviceAccount: netbox
+    selector:
+      app.kubernetes.io/name: netbox
+      app.kubernetes.io/component: worker
+    ingress:
+      - from:
+          # Диапазон адресов с исключениями.
+          - ipBlock:
+              cidr: 10.0.0.0/8
+              except:
+                - 10.40.0.0/16
+          # Сырые селекторы Kubernetes, для случаев, которые не описать
+          # парой namespace + selector.
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: netbox-ingress
+              matchExpressions:
+                - key: ecpk/instance
+                  operator: In
+                  values:
+                    - ed
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: ingress-istio
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: Exists
+                - key: app.kubernetes.io/part-of
+                  operator: In
+                  values:
+                    - netbox
+        ports:
+          - port: 1053
+            protocol: UDP
+    egress:
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except:
+                - 169.254.169.254/32
+        ports:
+          - port: 443
+
 
 # ============================================================================
 # netpol - только NetworkPolicy (без AuthorizationPolicy и без зеркал)
@@ -167,16 +213,41 @@ netpol:
       app.kubernetes.io/name: ingress-istio
 
     # Ingress-правила: список {from: [...], ports: [...]}.
+    # Peer задаётся одной из форм: namespace + selector, ipBlock либо сырые
+    # namespaceSelector / podSelector.
     ingress:
       - from:
           - ipBlock:
               cidr: 0.0.0.0/0
-              # except: [10.0.0.0/8]
+              except:
+                - 169.254.169.254/32
+          - namespace: netbox-core
+            selector:
+              app.kubernetes.io/name: netbox
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: netbox-valkey
+              matchExpressions:
+                - key: ecpk/instance
+                  operator: In
+                  values:
+                    - ed
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: valkey
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: Exists
+                - key: app.kubernetes.io/part-of
+                  operator: In
+                  values:
+                    - netbox
         ports:
           - port: 443
           - port: 15020
           - port: 15021
           - port: 15090
+            protocol: TCP
 
     # Egress-правила: список {to: [...], ports: [...]}.
     egress:
@@ -184,8 +255,31 @@ netpol:
           - namespace: netbox-core
             selector:
               app.kubernetes.io/name: netbox
+          - ipBlock:
+              cidr: 10.0.0.0/8
+              except:
+                - 10.40.0.0/16
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: netbox-postgresql
+              matchExpressions:
+                - key: ecpk/instance
+                  operator: In
+                  values:
+                    - ed
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: postgresql
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: Exists
+                - key: app.kubernetes.io/part-of
+                  operator: In
+                  values:
+                    - netbox
         ports:
           - port: 8080
+            protocol: TCP
 
 
 # ============================================================================
@@ -218,6 +312,16 @@ authzpol:
             - 0.0.0.0/0
         ports:
           - port: 443
+
+      - # Формы можно комбинировать в одном правиле.
+        from:
+          principals:
+            - cluster.local/ns/netbox-core/sa/netbox
+          namespaces:
+            - netbox-ingress
+        ports:
+          - port: 8443
+            protocol: TCP
 
   - name: vkpr
 
