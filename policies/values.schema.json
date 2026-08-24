@@ -18,8 +18,8 @@
   ],
   "properties": {
     "identity": {
-      "title": "Identity",
-      "description": "Environment and project tags for generating resource names by the convention {instance}-{cluster}-{kindShort}-{project}-{name} (kindShort: np | ap). The same tags are set as the ecpk/instance, ecpk/cluster and ecpk/project labels on every resource.",
+      "title": "Окружение и проект",
+      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
       "$ref": "#/definitions/identity"
     },
     "generic": {
@@ -29,24 +29,23 @@
       "ui:widget": "hidden"
     },
     "defaults": {
-      "title": "Defaults",
-      "description": "Default values for trust domain, namespace label key and port protocol.",
+      "title": "Значения по умолчанию",
+      "description": "Подставляются в правила, где поле оставлено пустым.",
       "$ref": "#/definitions/defaults"
     },
     "policies": {
-      "title": "Policies (NP + AP)",
-      "description": "Universal policies. One block describes a source <-> target link; NetworkPolicy and AuthorizationPolicy are generated with auto-mirroring of egress into the target namespace.",
+      "title": "Правила доступа",
+      "description": "Опишите связь сервиса с соседями целиком. Соседу заказывать ничего не нужно.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/policy"
       },
       "defaultSnippets": [
         {
-          "label": "Policy (source <-> target)",
+          "label": "Правило доступа",
           "body": [
             {
               "name": "core",
-              "enabled": true,
               "serviceAccount": "netbox",
               "selector": {
                 "app.kubernetes.io/name": "netbox"
@@ -91,19 +90,18 @@
       ]
     },
     "netpol": {
-      "title": "NetworkPolicies",
-      "description": "NetworkPolicy only, without AuthorizationPolicy and without mirrors. For L3/L4-only scenarios or ipBlock rules.",
+      "title": "Правила сетевого уровня",
+      "description": "Берите, когда нужен только сетевой уровень или правило по диапазону адресов.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/netpol"
       },
       "defaultSnippets": [
         {
-          "label": "NetworkPolicy",
+          "label": "Правило сетевого уровня",
           "body": [
             {
               "name": "ing",
-              "enabled": true,
               "selector": {
                 "app.kubernetes.io/name": "ingress-istio"
               },
@@ -129,19 +127,18 @@
       ]
     },
     "authzpol": {
-      "title": "AuthorizationPolicies",
-      "description": "AuthorizationPolicy only (Istio). For L7 rules (when, ports, custom principals) or when NP are described by another tool.",
+      "title": "Правила сервисной сети",
+      "description": "Берите, когда сетевые правила заданы другим способом.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/authzpol"
       },
       "defaultSnippets": [
         {
-          "label": "AuthorizationPolicy",
+          "label": "Правило сервисной сети",
           "body": [
             {
               "name": "gate",
-              "enabled": true,
               "action": "ALLOW",
               "selector": {
                 "app.kubernetes.io/name": "ingress-istio"
@@ -169,22 +166,19 @@
   "definitions": {
     "k8sName": {
       "type": "string",
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      "description": "Kubernetes DNS label: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
     },
     "shortToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
-      "maxLength": 6,
-      "description": "DNS token 2..6 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+      "maxLength": 6
     },
     "projectToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
-      "maxLength": 9,
-      "description": "DNS token 2..9 characters: lower-case letters, digits and hyphens; no leading/trailing hyphen."
+      "maxLength": 9
     },
     "port": {
       "type": "integer",
@@ -201,8 +195,7 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
-      },
-      "description": "Map of string keys to string values (may use Helm tpl templating)."
+      }
     },
     "generic": {
       "type": "object",
@@ -234,8 +227,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "instance",
-          "description": "Instance tag of the target environment: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common and test-common, pr - global, observability, techsec, int-common, ML and ext-common.",
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
           "type": "string",
           "enum": [
             "in",
@@ -245,8 +238,8 @@
           ]
         },
         "cluster": {
-          "title": "cluster",
-          "description": "Cluster tag of the target environment: inf - Infra-dev-ecpk, dev - dev-ecpk and dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "title": "Кластер",
+          "description": "Кластер, в котором будет работать сервис: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
           "type": "string",
           "enum": [
             "inf",
@@ -262,8 +255,8 @@
           ]
         },
         "project": {
-          "title": "project",
-          "description": "Project tag. Up to 9 characters: lower-case letters, digits and hyphens.",
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
           "$ref": "#/definitions/projectToken"
         }
       },
@@ -286,17 +279,19 @@
           "title": "trustDomain",
           "description": "Istio trust domain for the principal: {trustDomain}/ns/{namespace}/sa/{serviceAccount}.",
           "type": "string",
-          "default": "cluster.local"
+          "default": "cluster.local",
+          "ui:widget": "hidden"
         },
         "namespaceLabelKey": {
           "title": "namespaceLabelKey",
           "description": "Namespace label key for the NetworkPolicy namespaceSelector.",
           "type": "string",
-          "default": "kubernetes.io/metadata.name"
+          "default": "kubernetes.io/metadata.name",
+          "ui:widget": "hidden"
         },
         "protocol": {
-          "title": "protocol",
-          "description": "Default protocol for NetworkPolicy ports.",
+          "title": "Протокол по умолчанию",
+          "description": "Берётся для портов, где протокол не выбран.",
           "type": "string",
           "enum": [
             "TCP",
@@ -316,13 +311,13 @@
       ],
       "properties": {
         "port": {
-          "title": "port",
-          "description": "Destination port.",
+          "title": "Порт",
+          "description": "Порт получателя.",
           "$ref": "#/definitions/port"
         },
         "protocol": {
-          "title": "protocol",
-          "description": "Protocol of the port. Omitted -> defaults.protocol.",
+          "title": "Протокол",
+          "description": "Пустое поле - берётся протокол из общих настроек.",
           "type": "string",
           "enum": [
             "TCP",
@@ -414,7 +409,7 @@
     "policyIngressPeer": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Ingress source: namespace+selector (+ optional serviceAccount for AP principals), ipBlock, or raw namespaceSelector/podSelector.",
+      "description": "Откуда приходит трафик.",
       "propertyOrder": [
         "namespace",
         "selector",
@@ -425,17 +420,18 @@
       ],
       "properties": {
         "namespace": {
-          "title": "namespace",
-          "$ref": "#/definitions/k8sName"
+          "title": "Неймспейс",
+          "$ref": "#/definitions/k8sName",
+          "description": "Неймспейс, из которого ходят к вам."
         },
         "selector": {
-          "title": "selector",
-          "description": "Pod labels of the source.",
+          "title": "Метки подов",
+          "description": "Чьи поды пускаем. Пустое поле - весь неймспейс.",
           "$ref": "#/definitions/stringMap"
         },
         "serviceAccount": {
-          "title": "serviceAccount",
-          "description": "Sender SA for the AP principal. Missing -> fallback to namespaces: [namespace].",
+          "title": "Сервисный аккаунт отправителя",
+          "description": "Укажите, чтобы разрешить доступ конкретному приложению. Пустое поле разрешает доступ всему неймспейсу.",
           "$ref": "#/definitions/k8sName"
         },
         "ipBlock": {
@@ -458,7 +454,7 @@
     "policyEgressPeer": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Egress target: namespace+selector or ipBlock. serviceAccount is FORBIDDEN (owner SA is taken from policy.serviceAccount).",
+      "description": "Куда ходит ваш сервис.",
       "propertyOrder": [
         "namespace",
         "selector",
@@ -466,12 +462,13 @@
       ],
       "properties": {
         "namespace": {
-          "title": "namespace",
-          "$ref": "#/definitions/k8sName"
+          "title": "Неймспейс",
+          "$ref": "#/definitions/k8sName",
+          "description": "Неймспейс, в который вы ходите."
         },
         "selector": {
-          "title": "selector",
-          "description": "Pod labels of the target.",
+          "title": "Метки подов",
+          "description": "К чьим подам ходим. Пустое поле - весь неймспейс.",
           "$ref": "#/definitions/stringMap"
         },
         "ipBlock": {
@@ -484,7 +481,7 @@
     "netpolPeer": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Peer for netpol: namespace+selector, ipBlock, or raw namespaceSelector/podSelector.",
+      "description": "Вторая сторона правила.",
       "propertyOrder": [
         "namespace",
         "selector",
@@ -494,12 +491,14 @@
       ],
       "properties": {
         "namespace": {
-          "title": "namespace",
-          "$ref": "#/definitions/k8sName"
+          "title": "Неймспейс",
+          "$ref": "#/definitions/k8sName",
+          "description": "Неймспейс второй стороны."
         },
         "selector": {
-          "title": "selector",
-          "$ref": "#/definitions/stringMap"
+          "title": "Метки подов",
+          "$ref": "#/definitions/stringMap",
+          "description": "Чьи поды. Пустое поле - весь неймспейс."
         },
         "ipBlock": {
           "title": "ipBlock",
@@ -527,19 +526,21 @@
       ],
       "properties": {
         "from": {
-          "title": "from",
+          "title": "Источники",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/policyIngressPeer"
-          }
+          },
+          "description": "Нужен хотя бы один."
         },
         "ports": {
-          "title": "ports",
+          "title": "Порты",
           "type": "array",
           "items": {
             "$ref": "#/definitions/portEntry"
-          }
+          },
+          "description": "Пустой список - любые порты."
         }
       },
       "required": [
@@ -555,19 +556,21 @@
       ],
       "properties": {
         "to": {
-          "title": "to",
+          "title": "Получатели",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/policyEgressPeer"
-          }
+          },
+          "description": "Нужен хотя бы один."
         },
         "ports": {
-          "title": "ports",
+          "title": "Порты",
           "type": "array",
           "items": {
             "$ref": "#/definitions/portEntry"
-          }
+          },
+          "description": "Пустой список - любые порты."
         }
       },
       "required": [
@@ -583,19 +586,21 @@
       ],
       "properties": {
         "from": {
-          "title": "from",
+          "title": "Источники",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/netpolPeer"
-          }
+          },
+          "description": "Нужен хотя бы один."
         },
         "ports": {
-          "title": "ports",
+          "title": "Порты",
           "type": "array",
           "items": {
             "$ref": "#/definitions/portEntry"
-          }
+          },
+          "description": "Пустой список - любые порты."
         }
       },
       "required": [
@@ -611,19 +616,21 @@
       ],
       "properties": {
         "to": {
-          "title": "to",
+          "title": "Получатели",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/netpolPeer"
-          }
+          },
+          "description": "Нужен хотя бы один."
         },
         "ports": {
-          "title": "ports",
+          "title": "Порты",
           "type": "array",
           "items": {
             "$ref": "#/definitions/portEntry"
-          }
+          },
+          "description": "Пустой список - любые порты."
         }
       },
       "required": [
@@ -643,37 +650,38 @@
       ],
       "properties": {
         "name": {
-          "title": "name",
-          "description": "Policy name, 2..6 characters. {name} in the NP/AP names.",
+          "title": "Имя правила",
+          "description": "Короткое имя, по которому вы отличите это правило от других.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
-          "description": "true = create; false = skip the whole entry.",
+          "description": "Set to false to keep the entry in values without creating anything from it.",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "ui:widget": "hidden"
         },
         "serviceAccount": {
-          "title": "serviceAccount",
-          "description": "SA of the owner workload. Goes into the principal of mirror APs. Required when egress is present.",
+          "title": "Сервисный аккаунт вашего сервиса",
+          "description": "Под каким аккаунтом работает сервис. Нужен, если есть исходящие правила.",
           "$ref": "#/definitions/k8sName"
         },
         "selector": {
-          "title": "selector",
-          "description": "Pod selector of the owner workload (podSelector in NP, selector in AP).",
+          "title": "Метки подов",
+          "description": "По каким меткам находится ваш сервис.",
           "$ref": "#/definitions/stringMap"
         },
         "ingress": {
-          "title": "ingress",
-          "description": "Inbound traffic rules to the owner.",
+          "title": "Входящие",
+          "description": "Кто может обращаться к вашему сервису.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/policyIngressRule"
           }
         },
         "egress": {
-          "title": "egress",
-          "description": "Outbound traffic rules of the owner (create NP+AP mirrors in the target ns).",
+          "title": "Исходящие",
+          "description": "Куда вашему сервису разрешено ходить.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/policyEgressRule"
@@ -697,33 +705,37 @@
       ],
       "properties": {
         "name": {
-          "title": "name",
-          "description": "Resource name, 2..6 characters. {name} in the NP name.",
+          "title": "Имя правила",
+          "description": "Короткое имя, по которому вы отличите это правило от других.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "Set to false to keep the entry in values without creating anything from it.",
+          "ui:widget": "hidden"
         },
         "selector": {
-          "title": "selector",
-          "description": "podSelector. Empty/absent -> all pods in the ns.",
+          "title": "Метки подов",
+          "description": "К чьим подам применяется правило. Пустое поле - ко всем в неймспейсе.",
           "$ref": "#/definitions/stringMap"
         },
         "ingress": {
-          "title": "ingress",
+          "title": "Входящие",
           "type": "array",
           "items": {
             "$ref": "#/definitions/netpolIngressRule"
-          }
+          },
+          "description": "Кто может обращаться к этим подам."
         },
         "egress": {
-          "title": "egress",
+          "title": "Исходящие",
           "type": "array",
           "items": {
             "$ref": "#/definitions/netpolEgressRule"
-          }
+          },
+          "description": "Куда этим подам разрешено ходить."
         }
       },
       "required": [
@@ -742,18 +754,20 @@
       ],
       "properties": {
         "name": {
-          "title": "name",
-          "description": "Resource name, 2..6 characters. {name} in the AP name.",
+          "title": "Имя правила",
+          "description": "Короткое имя, по которому вы отличите это правило от других.",
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
           "title": "enabled",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "Set to false to keep the entry in values without creating anything from it.",
+          "ui:widget": "hidden"
         },
         "action": {
-          "title": "action",
-          "description": "AuthorizationPolicy action.",
+          "title": "Что делать с запросом",
+          "description": "ALLOW - пропустить, DENY - отклонить, AUDIT - только записать в журнал, CUSTOM - отдать внешнему обработчику.",
           "type": "string",
           "enum": [
             "ALLOW",
@@ -764,17 +778,18 @@
           "default": "ALLOW"
         },
         "selector": {
-          "title": "selector",
-          "description": "Whom the policy applies to. Omitted -> all workloads in the ns.",
+          "title": "Метки подов",
+          "description": "К чьим подам применяется правило. Пустое поле - ко всем в неймспейсе.",
           "$ref": "#/definitions/stringMap"
         },
         "rules": {
-          "title": "rules",
+          "title": "Правила",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/authzRule"
-          }
+          },
+          "description": "Нужно хотя бы одно."
         }
       },
       "required": [
@@ -792,28 +807,29 @@
       ],
       "properties": {
         "from": {
-          "title": "from",
-          "description": "Source. Forms: serviceAccounts, principals, ipBlocks, namespaces.",
+          "title": "Кому разрешаем",
+          "description": "Заполните хотя бы одну строку ниже.",
           "$ref": "#/definitions/authzSource"
         },
         "ports": {
-          "title": "ports",
-          "description": "Operation ports. Converted to strings.",
+          "title": "Порты",
+          "description": "Пустой список - любые порты.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/portEntry"
           }
         },
         "when": {
-          "title": "when",
-          "$ref": "#/definitions/authzWhen"
+          "title": "Дополнительные условия",
+          "$ref": "#/definitions/authzWhen",
+          "description": "Сужают правило поверх источника."
         }
       }
     },
     "authzSource": {
       "type": "object",
       "additionalProperties": false,
-      "description": "At least one of: serviceAccounts, principals, ipBlocks, namespaces.",
+      "description": "Заполните хотя бы одно поле.",
       "propertyOrder": [
         "serviceAccounts",
         "principals",
@@ -822,18 +838,20 @@
       ],
       "properties": {
         "serviceAccounts": {
-          "title": "serviceAccounts",
-          "description": "-> principals: {trustDomain}/ns/{namespace}/sa/{name}.",
+          "title": "Сервисные аккаунты",
+          "description": "Разрешает доступ конкретным приложениям.",
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
               "namespace": {
-                "$ref": "#/definitions/k8sName"
+                "$ref": "#/definitions/k8sName",
+                "title": "Неймспейс"
               },
               "name": {
-                "$ref": "#/definitions/k8sName"
+                "$ref": "#/definitions/k8sName",
+                "title": "Имя аккаунта"
               }
             },
             "required": [
@@ -843,25 +861,31 @@
           }
         },
         "principals": {
-          "title": "principals",
+          "title": "Идентификаторы отправителей",
           "type": "array",
           "items": {
-            "type": "string"
-          }
+            "type": "string",
+            "title": "Идентификатор"
+          },
+          "description": "Идентификатор целиком, если сервисного аккаунта недостаточно."
         },
         "ipBlocks": {
-          "title": "ipBlocks",
+          "title": "Диапазоны адресов",
           "type": "array",
           "items": {
-            "type": "string"
-          }
+            "type": "string",
+            "title": "Диапазон адресов"
+          },
+          "description": "Например 10.24.0.0/16."
         },
         "namespaces": {
-          "title": "namespaces",
+          "title": "Неймспейсы",
           "type": "array",
           "items": {
-            "type": "string"
-          }
+            "type": "string",
+            "title": "Неймспейс"
+          },
+          "description": "Разрешает доступ всем сервисам этих неймспейсов."
         }
       }
     },
@@ -870,11 +894,12 @@
       "additionalProperties": false,
       "properties": {
         "sourceNamespaces": {
-          "title": "sourceNamespaces",
-          "description": "-> when key source.namespace.",
+          "title": "Неймспейсы отправителя",
+          "description": "Правило сработает, только если запрос пришёл из одного из них.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "title": "Неймспейс"
           }
         }
       }
