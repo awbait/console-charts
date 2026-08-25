@@ -22,6 +22,8 @@ Helm-чартами платформы. Он лежит внутри рабоч�
 - `policies/` - декларативные правила доступа между сервисами: `NetworkPolicy` +
   Istio `AuthorizationPolicy`.
 - `namespace/` - namespace + ResourceQuota + subnet.
+- `secret-store/` - доступ namespace к секретам StarVault: `ServiceAccount` +
+  `SecretStore` (External Secrets Operator).
 
 Чарты публикуются в Harbor и заказываются через портал; репозиторий `console`
 chart-agnostic, реальные чарты приходят отсюда (см. `docs/chart-convention.md` в

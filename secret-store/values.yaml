@@ -1,0 +1,50 @@
+# secret-store - значения по умолчанию (минимум, при котором проходит рендер).
+# Полный справочник параметров - values.full.yaml, рабочий пример -
+# values.minimal.yaml.
+
+# Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
+# ecpk/project на всех ресурсах чарта. Допустимые значения - в README.md.
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
+
+generic:
+  labels: {}
+  annotations: {}
+
+# ServiceAccount, от имени которого External Secrets Operator логинится
+# в StarVault. Имя одинаковое во всех namespace: на него настроена роль
+# в StarVault.
+serviceAccount:
+  create: true
+  name: external-secrets
+
+# SecretStore: куда ходить за секретами и как там авторизоваться.
+store:
+  # Имя ресурса в namespace. На него ссылаются другие заказы, например
+  # ingress-gateway в поле "Хранилище" у сертификата.
+  name: vault
+
+  # Адрес StarVault. Платформенное значение, зависит от кластера.
+  server: "https://starvault.ecpk.test"
+
+  # Движок KV: имя mount'а и версия.
+  path: kv
+  version: v2
+
+  # Как ESO авторизуется в StarVault.
+  auth:
+    # Имя mount'а метода аутентификации, без префикса auth/.
+    mountPath: kubernetes
+    # role здесь намеренно не задан: роль в StarVault своя у каждого
+    # пространства, её приносит заказ. Без неё рендер падает.
+
+  # Сертификат УЦ, которым подписан StarVault. Либо base64 PEM в caBundle,
+  # либо ссылка на ConfigMap или Secret в caProvider.
+  caBundle: ""
+  caProvider: {}
+
+  # apiVersion ресурса SecretStore. Меняется, если в кластере стоит
+  # External Secrets Operator старой версии (external-secrets.io/v1beta1).
+  apiVersion: external-secrets.io/v1
