@@ -46,11 +46,13 @@ Returns the value in lower-case.
 Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
 Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret). Unknown kind -> fail.
+tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret).
+Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
 {{- $kind := required "kind is required" . | toString | lower -}}
 {{- if eq $kind "gateway" -}}igw
+{{- else if eq $kind "externalsecret" -}}es
 {{- else if eq $kind "configmap" -}}cm
 {{- else if eq $kind "authorizationpolicy" -}}ap
 {{- else if eq $kind "networkpolicy" -}}np
@@ -65,19 +67,62 @@ tcr (TCPRoute), ur (UDPRoute), secret (Secret). Unknown kind -> fail.
 {{- end -}}
 
 {{/*
-TLS secret name for a listener by hostname (tlsMode: Terminate). Parameters: .hostname, .context.
-The name is ALWAYS generated automatically (the user does not set tlsSecretName):
-  contains "idp.ecpk.test" -> {instance}-{cluster}-secret-{project}-idptls (predefined wildcard cert)
-  contains "edp.ecpk.test" -> {instance}-{cluster}-secret-{project}-edptls (predefined wildcard cert)
-  otherwise              -> {instance}-{cluster}-secret-{project}-tls   (empty secret / change me)
+Does a certificate for .domain cover .hostname? Parameters: .domain, .hostname.
+A wildcard domain covers one label, exactly as the certificate itself does:
+  *.idp.ecpk.test covers app.idp.ecpk.test and *.idp.ecpk.test itself,
+  but neither idp.ecpk.test nor a.str.idp.ecpk.test.
+Returns "true", or nothing at all (an empty string is false at the call site).
+*/}}
+{{- define "ingress-gateway.helpers.app.hostCovered" -}}
+{{- $domain := .domain | default "" | toString | lower -}}
+{{- $hostname := .hostname | default "" | toString | lower -}}
+{{- if and $domain $hostname -}}
+{{- if eq $hostname $domain -}}true
+{{- else if hasPrefix "*." $domain -}}
+{{- $suffix := trimPrefix "*" $domain -}}
+{{- if and (hasSuffix $suffix $hostname) (not (hasPrefix "*" $hostname)) -}}
+{{- $label := trimSuffix $suffix $hostname -}}
+{{- if and $label (not (contains "." $label)) -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Certificate for a listener with tlsMode: Terminate. Parameters: .hostname, .context.
+The hostname is looked up in tls.certificates (the certificates of this order)
+and then in tls.platform (the ones the platform prepared), first match wins.
+Returns a JSON object, empty when no certificate covers the hostname:
+  name        - short name of the entry, the {name} part of the Secret name
+  path        - where the certificate lies in the store
+  storeName   - name of the SecretStore, always in the namespace of the release
+  crtProperty - key of the certificate inside the stored entry
+  keyProperty - key of its private key
+*/}}
+{{- define "ingress-gateway.helpers.app.certificate" -}}
+{{- $tls := .context.Values.tls | default dict -}}
+{{- $hostname := .hostname | default "" | toString | lower -}}
+{{- $found := dict -}}
+{{- range $entry := concat ($tls.certificates | default list) ($tls.platform | default list) -}}
+{{- if and (not $found) (eq (include "ingress-gateway.helpers.app.hostCovered" (dict "domain" $entry.domain "hostname" $hostname)) "true") -}}
+{{- $name := required "tls certificate: name is required" $entry.name | toString -}}
+{{- $found = dict
+      "name" $name
+      "path" (required (printf "tls certificate %q: path is required" $name) $entry.path | toString)
+      "storeName" (required (printf "tls certificate %q: store is required (set it on the entry or in tls.store)" $name) ($entry.store | default $tls.store) | toString)
+      "crtProperty" ($entry.crtProperty | default $tls.crtProperty | default "tls.crt" | toString)
+      "keyProperty" ($entry.keyProperty | default $tls.keyProperty | default "tls.key" | toString)
+-}}
+{{- end -}}
+{{- end -}}
+{{- $found | toJson -}}
+{{- end -}}
+
+{{/*
+Name of the Secret a listener certificate lands in. Parameters: .name, .context.
 */}}
 {{- define "ingress-gateway.helpers.app.tlsSecretName" -}}
-{{- $hostname := .hostname | default "" | toString | lower -}}
-{{- $token := "tls" -}}
-{{- if contains "idp.ecpk.test" $hostname -}}{{- $token = "idptls" -}}
-{{- else if contains "edp.ecpk.test" $hostname -}}{{- $token = "edptls" -}}
-{{- end -}}
-{{- include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" $token "context" .context) -}}
+{{- include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" .name "context" .context) -}}
 {{- end -}}
 
 {{/*
