@@ -117,7 +117,7 @@ networkPolicy:
 #   listeners[] - список listener'ов:
 #     name          - имя listener'а (sectionName в parentRefs), длина не ограничена
 #     port/protocol - обязательны (HTTP/HTTPS/TCP/UDP/TLS)
-#     hostname      - обязателен для HTTPS и TLS
+#     hostname      - обязателен для HTTPS и TLS, у TCP и UDP не используется
 #     tlsMode       - Terminate (по умолчанию для HTTPS) | Passthrough (для TLS)
 #     tlsSecretName - секрет с сертификатом для tlsMode: Terminate. Не нужен,
 #                     если hostname попадает под авто-создание секрета (ниже)
