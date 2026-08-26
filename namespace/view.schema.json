@@ -1,0 +1,63 @@
+{
+  "views": {
+    "order": {
+      "include": [
+        "namespace",
+        "resourceQuotas",
+        "serviceMesh"
+      ],
+      "identity": "/namespace/namespaceName",
+      "namespace": {
+        "source": "values",
+        "pointer": "/namespace/namespaceName",
+        "hideOrderField": true
+      },
+      "overrides": {
+        "serviceMesh": {
+          "ui:view": {
+            "overrides": {
+              "enabled": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "edit"
+        }
+      }
+    },
+    "resources": {
+      "include": [
+        "resourceQuotas"
+      ]
+    },
+    "serviceMesh": {
+      "include": [
+        "serviceMesh"
+      ],
+      "overrides": {
+        "serviceMesh": {
+          "ui:view": {
+            "overrides": {
+              "enabled": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "edit"
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "resources",
+      "label": "Редактировать ресурсы"
+    },
+    {
+      "in": "info",
+      "view": "serviceMesh",
+      "label": "Вкл/Выкл сервисную сетку"
+    }
+  ]
+}
