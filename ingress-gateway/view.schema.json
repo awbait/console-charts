@@ -1,0 +1,182 @@
+{
+  "tabs": [
+    {
+      "id": "listeners",
+      "form": "listeners",
+      "items": "/gateways/0/listeners",
+      "title": "Слушатели",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя"
+        },
+        {
+          "path": "protocol",
+          "label": "Протокол"
+        },
+        {
+          "path": "port",
+          "label": "Порт"
+        },
+        {
+          "path": "hostname",
+          "label": "Домен"
+        }
+      ]
+    },
+    {
+      "id": "routes",
+      "form": "routes",
+      "enums": [
+        {
+          "at": "/parentRefs/0/sectionName",
+          "from": "/gateways/0/listeners",
+          "value": "name"
+        }
+      ],
+      "items": "/xroutes",
+      "title": "Маршруты",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя"
+        },
+        {
+          "label": "Hostnames",
+          "lookup": {
+            "in": "/gateways/0/listeners",
+            "get": "hostname",
+            "keys": "/parentRefs/*/sectionName",
+            "match": "name"
+          }
+        }
+      ]
+    }
+  ],
+  "views": {
+    "hpa": {
+      "include": [
+        "gateways"
+      ],
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "include": [
+              "hpa"
+            ],
+            "overrides": {
+              "hpa": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
+    "order": {
+      "include": [
+        "identity",
+        "gateways"
+      ],
+      "$comment": "Первичный заказ: naming-теги + ровно один Gateway, без xroutes. Роуты добавляются позже в карточке заказа (вид routes) через PATCH того же values.",
+      "identity": "/gateways/0/name",
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "exclude": [
+              "hpa"
+            ],
+            "overrides": {
+              "ipAddress": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
+    "routes": {
+      "exclude": [
+        "enabled",
+        "hostnames"
+      ],
+      "$comment": "Редактор роутов в карточке уже созданного гейтвея. Показывает xroutes того же инстанса: enabled всегда true (скрыт), parentRefs[].gateway подставляется автоматически (скрыт), hostnames скрыт целиком. Hostname чарт выводит сам из listener'а, на который ссылается route через parentRefs[].sectionName: есть у listener'а hostname - подставит, нет - оставит пустым. Сам sectionName рендерится селектором, опции которого портал наполняет из listener'ов на лету.",
+      "overrides": {
+        "parentRefs": {
+          "ui:view": {
+            "exclude": [
+              "gateway"
+            ]
+          }
+        }
+      }
+    },
+    "ipAddress": {
+      "include": [
+        "gateways"
+      ],
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "include": [
+              "ipAddress"
+            ],
+            "overrides": {
+              "ipAddress": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
+    "listeners": {
+      "$comment": "Редактор listener'ов Gateway (gateways[0].listeners) в карточке. Последний удалить нельзя (minItems:1 в схеме)."
+    },
+    "resources": {
+      "include": [
+        "gateways"
+      ],
+      "$comment": "Правка ресурсов istio-proxy у Gateway (gateways[0].resources) из карточки заказа. Скрытое в форме заказа поле resources здесь раскрывается.",
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "include": [
+              "resources"
+            ],
+            "overrides": {
+              "resources": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "resources",
+      "label": "Редактировать ресурсы"
+    },
+    {
+      "in": "info",
+      "view": "hpa",
+      "label": "Редактировать HPA"
+    },
+    {
+      "in": "info",
+      "view": "ipAddress",
+      "label": "Редактировать IP"
+    }
+  ]
+}
