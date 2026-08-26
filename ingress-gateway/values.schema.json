@@ -318,18 +318,24 @@
       "properties": {
         "instance": {
           "title": "Инстанс",
-          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
+          "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
           "type": "string",
           "enum": [
             "in",
             "id",
             "ed",
             "pr"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (in)",
+            "dev-ecpk (id)",
+            "techsec-dev, dev-common, test-common (ed)",
+            "global, observability, techsec, int-common, ML, ext-common (pr)"
           ]
         },
         "cluster": {
           "title": "Кластер",
-          "description": "Кластер, в котором будет работать сервис: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "description": "Кластер, в котором будет работать сервис. Выбирайте вместе с инстансом.",
           "type": "string",
           "enum": [
             "inf",
@@ -342,6 +348,18 @@
             "cmi",
             "ml",
             "cme"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (inf)",
+            "dev-ecpk и dev-common (dev)",
+            "techsec-dev (tco)",
+            "test-common (tst)",
+            "global (gl)",
+            "observability (obs)",
+            "techsec (tcc)",
+            "int-common (cmi)",
+            "ML (ml)",
+            "ext-common (cme)"
           ]
         },
         "project": {
@@ -737,12 +755,16 @@
         },
         "tlsMode": {
           "title": "Что делать с TLS",
-          "description": "Passthrough - шифрование доходит до вашего сервиса, сертификат не нужен. Terminate - гейтвей расшифровывает сам, ему нужен сертификат на этот домен. Для доменов idp.ecpk.test и edp.ecpk.test его подставит платформа, для остальных добавьте свой в разделе «Сертификаты».",
+          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. Для доменов idp.ecpk.test и edp.ecpk.test его подставит платформа, для остальных добавьте свой в разделе «Сертификаты».",
           "type": "string",
           "default": "Passthrough",
           "enum": [
             "Terminate",
             "Passthrough"
+          ],
+          "enumNames": [
+            "Расшифровывать на гейтвее (Terminate)",
+            "Пропускать шифрование до сервиса (Passthrough)"
           ]
         },
         "certificateRefs": {
@@ -900,6 +922,13 @@
                   "TLSRoute",
                   "TCPRoute",
                   "UDPRoute"
+                ],
+                "enumNames": [
+                  "HTTP (HTTPRoute)",
+                  "gRPC (GRPCRoute)",
+                  "TLS насквозь (TLSRoute)",
+                  "TCP (TCPRoute)",
+                  "UDP (UDPRoute)"
                 ]
               }
             },
@@ -936,7 +965,7 @@
         },
         "kind": {
           "title": "Тип трафика",
-          "description": "HTTPRoute - HTTP, GRPCRoute - gRPC, TLSRoute - TLS насквозь, TCPRoute и UDPRoute - голые TCP и UDP.",
+          "description": "Трафик, который разбирает этот маршрут.",
           "type": "string",
           "enum": [
             "HTTPRoute",
@@ -944,6 +973,13 @@
             "TLSRoute",
             "TCPRoute",
             "UDPRoute"
+          ],
+          "enumNames": [
+            "HTTP (HTTPRoute)",
+            "gRPC (GRPCRoute)",
+            "TLS насквозь (TLSRoute)",
+            "TCP (TCPRoute)",
+            "UDP (UDPRoute)"
           ],
           "default": "HTTPRoute"
         },
@@ -1181,12 +1217,17 @@
       "properties": {
         "type": {
           "title": "Сравнение",
-          "description": "Exact - путь совпадает целиком, PathPrefix - начинается с этого, RegularExpression - подходит под выражение.",
+          "description": "Как путь запроса сверяется со значением.",
           "type": "string",
           "enum": [
             "Exact",
             "PathPrefix",
             "RegularExpression"
+          ],
+          "enumNames": [
+            "Совпадает целиком (Exact)",
+            "Начинается с этого (PathPrefix)",
+            "Подходит под выражение (RegularExpression)"
           ],
           "default": "PathPrefix"
         },
@@ -1208,11 +1249,15 @@
       "properties": {
         "type": {
           "title": "Сравнение",
-          "description": "Exact - совпадает целиком, RegularExpression - подходит под выражение.",
+          "description": "Как значение заголовка или параметра сверяется с образцом.",
           "type": "string",
           "enum": [
             "Exact",
             "RegularExpression"
+          ],
+          "enumNames": [
+            "Совпадает целиком (Exact)",
+            "Подходит под выражение (RegularExpression)"
           ],
           "default": "Exact"
         },
@@ -1395,7 +1440,7 @@
               "properties": {
                 "scheme": {
                   "title": "Схема",
-                  "description": "http или https.",
+                  "description": "Схема адреса, на который уходит запрос.",
                   "type": "string",
                   "enum": [
                     "http",
@@ -1486,8 +1531,12 @@
                     301,
                     302
                   ],
+                  "enumNames": [
+                    "Постоянное перенаправление (301)",
+                    "Временное перенаправление (302)"
+                  ],
                   "default": 301,
-                  "description": "301 - постоянное перенаправление, 302 - временное."
+                  "description": "Каким кодом гейтвей отвечает на запрос."
                 }
               },
               "required": [

@@ -63,18 +63,24 @@
       "properties": {
         "instance": {
           "title": "Инстанс",
-          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
+          "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
           "type": "string",
           "enum": [
             "in",
             "id",
             "ed",
             "pr"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (in)",
+            "dev-ecpk (id)",
+            "techsec-dev, dev-common, test-common (ed)",
+            "global, observability, techsec, int-common, ML, ext-common (pr)"
           ]
         },
         "cluster": {
           "title": "Кластер",
-          "description": "Кластер, в котором будет работать сервис: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "description": "Кластер, в котором будет работать сервис. Выбирайте вместе с инстансом.",
           "type": "string",
           "enum": [
             "inf",
@@ -87,6 +93,18 @@
             "cmi",
             "ml",
             "cme"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (inf)",
+            "dev-ecpk и dev-common (dev)",
+            "techsec-dev (tco)",
+            "test-common (tst)",
+            "global (gl)",
+            "observability (obs)",
+            "techsec (tcc)",
+            "int-common (cmi)",
+            "ML (ml)",
+            "ext-common (cme)"
           ]
         },
         "project": {
