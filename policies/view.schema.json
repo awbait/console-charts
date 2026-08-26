@@ -4,7 +4,7 @@
       "id": "ingress",
       "form": "ingress",
       "items": "/policies/0/ingress",
-      "title": "Входящие",
+      "title": "Ingress правила",
       "ui:table": [
         {
           "path": "from/*/namespace",
@@ -28,7 +28,7 @@
       "id": "egress",
       "form": "egress",
       "items": "/policies/0/egress",
-      "title": "Исходящие",
+      "title": "Egress правила",
       "ui:table": [
         {
           "path": "to/*/namespace",
@@ -36,7 +36,7 @@
         },
         {
           "path": "to/*/selector",
-          "label": "Метки подов"
+          "label": "Podselector labels"
         },
         {
           "path": "ports/*/port",
@@ -59,7 +59,7 @@
       ],
       "overrides": {
         "policies": {
-          "title": "Настройки сервиса",
+          "title": "Settings",
           "ui:view": {
             "exclude": [
               "enabled",
@@ -69,7 +69,7 @@
             ]
           },
           "ui:widget": "single",
-          "description": "Под каким аккаунтом работает ваш сервис и по каким меткам он находится."
+          "description": "Настройки имени serviceAccount и podSelector"
         }
       }
     },
@@ -81,7 +81,7 @@
       "identity": "/policies/0/name",
       "overrides": {
         "policies": {
-          "title": "Правило доступа",
+          "title": "Policies",
           "ui:view": {
             "exclude": [
               "enabled"
@@ -94,7 +94,7 @@
                 "ui:view": {
                   "overrides": {
                     "to": {
-                      "title": "Получатели",
+                      "title": "To",
                       "ui:widget": "single"
                     }
                   }
@@ -104,7 +104,7 @@
                 "ui:view": {
                   "overrides": {
                     "from": {
-                      "title": "Источники",
+                      "title": "From",
                       "ui:widget": "single"
                     }
                   }
@@ -119,7 +119,7 @@
     "egress": {
       "overrides": {
         "to": {
-          "title": "Получатели",
+          "title": "To",
           "ui:widget": "single"
         }
       }
@@ -127,7 +127,7 @@
     "ingress": {
       "overrides": {
         "from": {
-          "title": "Источники",
+          "title": "From",
           "ui:widget": "single"
         }
       }
