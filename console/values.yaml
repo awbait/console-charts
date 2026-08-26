@@ -170,6 +170,13 @@ portal:
     # GitOps: группа, шаблон подгруппы команды, ветка, автомерж MR портала.
     GITLAB_GITOPS_GROUP: managed-services
     GITLAB_TEAM_SUBGROUP_TEMPLATE: "team-{{.Team}}"
+    # Имя папки заказанного сервиса внутри репозитория, под папкой кластера.
+    # Пусто - имя сервиса. Доступны .Team, .Chart, .ServiceName, .Namespace,
+    # .Cluster. Заказ остаётся в своей папке: изменение действует на новые.
+    GITLAB_INSTANCE_DIR_TEMPLATE: ""
+    # Заводить подгруппу команды при первом заказе. Требует роли Owner на группе
+    # GITLAB_GITOPS_GROUP. Выключите, если подгруппы создаёт кто-то другой.
+    GITLAB_CREATE_TEAM_SUBGROUP: "true"
     GITLAB_DEFAULT_BRANCH: main
     GITLAB_AUTO_MERGE: "false"
     # Адрес портала, каким его видит GitLab. Пусто - вебхук заводят руками.
@@ -179,6 +186,9 @@ portal:
     # ArgoCD. ARGOCD_URL обязателен.
     ARGOCD_URL: ""
     ARGOCD_PROJECT: portal-managed
+    # Namespace, в котором работает Argo CD. Портал пишет его в metadata.namespace
+    # каждого application.yaml: Application из чужого namespace Argo CD не читает.
+    ARGOCD_NAMESPACE: argocd
     ARGOCD_DEFAULT_CLUSTER: in-cluster
     ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.ServiceName}}"
     # OCI-эндпоинт Harbor. Хост должен резолвиться и из подов портала, и из
