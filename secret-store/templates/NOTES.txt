@@ -1,0 +1,19 @@
+secret-store ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
+Identity labels on every resource: {{ include "secret-store.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
+
+{{- $store := .Values.store | default dict -}}
+{{- $auth := $store.auth | default dict -}}
+SecretStore: {{ $store.name | default "vault" }} -> {{ $store.server }} (KV {{ $store.path | default "kv" }}, {{ $store.version | default "v2" }})
+ServiceAccount: {{ include "secret-store.helpers.app.serviceAccountName" . }}{{ if not (.Values.serviceAccount | default dict).create }} (existing, not created by this release){{ end }}
+Role in StarVault: {{ $auth.role }}
+
+The store is ready once its status says Valid. While it is not, every secret
+that depends on it stays empty: the certificate of a gateway listener does not
+appear and the listener comes up without TLS.
+
+The usual reasons are the role missing in StarVault, the role not bound to this
+namespace and ServiceAccount, or a certificate authority StarVault presents that
+the cluster does not trust (store.caBundle).
+
+Other releases point at this store by its name, for example an ingress-gateway
+certificate takes it in the "Хранилище" field.

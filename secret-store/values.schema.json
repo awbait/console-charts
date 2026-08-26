@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/secret-store/values.schema.json",
+  "title": "secret-store Helm chart values",
+  "description": "Editor-oriented schema for the secret-store chart: the ServiceAccount and the SecretStore that give a namespace access to StarVault.",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyOrder": [
+    "identity",
+    "store",
+    "serviceAccount",
+    "generic"
+  ],
+  "required": [
+    "identity",
+    "store"
+  ],
+  "properties": {
+    "identity": {
+      "title": "Окружение и проект",
+      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
+      "$ref": "#/definitions/identity"
+    },
+    "store": {
+      "title": "Доступ к StarVault",
+      "description": "Откуда namespace берёт секреты и под какой ролью туда ходит.",
+      "$ref": "#/definitions/store"
+    },
+    "serviceAccount": {
+      "ui:widget": "hidden",
+      "title": "serviceAccount",
+      "description": "ServiceAccount the store authenticates as. Named by the platform, the StarVault role is bound to it. Hidden.",
+      "$ref": "#/definitions/serviceAccount"
+    },
+    "generic": {
+      "ui:widget": "hidden",
+      "title": "generic",
+      "description": "Common labels and annotations applied to all chart resources. Hidden.",
+      "$ref": "#/definitions/generic"
+    },
+    "global": {
+      "ui:widget": "hidden",
+      "title": "Global values",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "type": "object"
+    },
+    "enabled": {
+      "ui:widget": "hidden",
+      "title": "Enabled",
+      "description": "Parent chart condition flag when included as a subchart. Not used by the chart templates.",
+      "type": "boolean"
+    }
+  },
+  "definitions": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "properties": {
+        "instance": {
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером, значения идут парой: in - Infra-dev-ecpk, id - dev-ecpk, ed - techsec-dev, dev-common и test-common, pr - global, observability, techsec, int-common, ML и ext-common.",
+          "type": "string",
+          "enum": [
+            "in",
+            "id",
+            "ed",
+            "pr"
+          ]
+        },
+        "cluster": {
+          "title": "Кластер",
+          "description": "Кластер, в котором будет работать сервис: inf - Infra-dev-ecpk, dev - dev-ecpk и dev-common, tco - techsec-dev, tst - test-common, gl - global, obs - observability, tcc - techsec, cmi - int-common, ml - ML, cme - ext-common.",
+          "type": "string",
+          "enum": [
+            "inf",
+            "dev",
+            "tco",
+            "tst",
+            "gl",
+            "obs",
+            "tcc",
+            "cmi",
+            "ml",
+            "cme"
+          ]
+        },
+        "project": {
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в метки ресурсов.",
+          "$ref": "#/definitions/projectToken"
+        }
+      },
+      "required": [
+        "instance",
+        "cluster",
+        "project"
+      ]
+    },
+    "store": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "auth",
+        "name",
+        "server",
+        "path",
+        "version",
+        "caBundle",
+        "caProvider",
+        "apiVersion"
+      ],
+      "properties": {
+        "auth": {
+          "title": "Как заходить",
+          "description": "Под какой ролью ваше пространство читает секреты.",
+          "$ref": "#/definitions/storeAuth"
+        },
+        "name": {
+          "ui:widget": "hidden",
+          "title": "name",
+          "description": "Name of the SecretStore in the namespace. Other releases reference it by this name. Hidden.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "server": {
+          "ui:widget": "hidden",
+          "title": "server",
+          "description": "Address of StarVault. A platform value, differs per cluster. Hidden.",
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "ui:widget": "hidden",
+          "title": "path",
+          "description": "Name of the KV mount in StarVault. Hidden.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "ui:widget": "hidden",
+          "title": "version",
+          "description": "KV engine version. Hidden.",
+          "type": "string",
+          "enum": [
+            "v1",
+            "v2"
+          ]
+        },
+        "caBundle": {
+          "ui:widget": "hidden",
+          "title": "caBundle",
+          "description": "Base64 PEM of the certificate authority that signed StarVault, when the cluster does not trust it. Hidden.",
+          "type": "string"
+        },
+        "caProvider": {
+          "ui:widget": "hidden",
+          "title": "caProvider",
+          "description": "Reference to a ConfigMap or Secret holding that certificate authority, as an alternative to caBundle. Hidden.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "apiVersion": {
+          "ui:widget": "hidden",
+          "title": "apiVersion",
+          "description": "apiVersion of the SecretStore resource, for a cluster with an older External Secrets Operator. Hidden.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "auth"
+      ]
+    },
+    "storeAuth": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "role",
+        "mountPath"
+      ],
+      "properties": {
+        "role": {
+          "title": "Роль в StarVault",
+          "description": "Роль, которую вам выдали для этого пространства. Она решает, какие секреты вы сможете прочитать.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253
+        },
+        "mountPath": {
+          "ui:widget": "hidden",
+          "title": "mountPath",
+          "description": "Mount of the authentication method, without the auth/ prefix. Hidden.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "role"
+      ]
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "create",
+        "name"
+      ],
+      "properties": {
+        "create": {
+          "title": "create",
+          "description": "Create the ServiceAccount. False when it is already there.",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "name",
+          "description": "Name of the ServiceAccount. The StarVault role is bound to it, so it is the same in every namespace.",
+          "$ref": "#/definitions/k8sName"
+        }
+      }
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "$ref": "#/definitions/stringMap"
+        },
+        "annotations": {
+          "$ref": "#/definitions/stringMap"
+        }
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "k8sName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "projectToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9
+    }
+  }
+}

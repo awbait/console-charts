@@ -1,0 +1,8 @@
+apiVersion: v2
+name: secret-store
+description: "Открывает вашему пространству доступ к секретам StarVault: пароли и сертификаты приезжают в кластер сами, без ручного копирования."
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: platform-team
