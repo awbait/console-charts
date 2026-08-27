@@ -1,7 +1,7 @@
 # Минимальный пример: доступ namespace к секретам StarVault.
 #
 # Чарт создаёт два ресурса в namespace релиза:
-# - ServiceAccount external-secrets
+# - ServiceAccount external-secrets-vault
 # - SecretStore vault
 #
 # Всё, кроме роли, приезжает из значений по умолчанию чарта: адрес StarVault,

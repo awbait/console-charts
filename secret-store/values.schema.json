@@ -140,9 +140,8 @@
           "$ref": "#/definitions/storeAuth"
         },
         "name": {
-          "ui:widget": "hidden",
-          "title": "name",
-          "description": "Name of the SecretStore in the namespace. Other releases reference it by this name. Hidden.",
+          "title": "Имя хранилища",
+          "description": "Под этим именем хранилище видят другие заказы: у сертификата в ingress-gateway это поле «Хранилище». Второе хранилище в том же пространстве назовите иначе.",
           "$ref": "#/definitions/k8sName"
         },
         "server": {
@@ -235,7 +234,7 @@
         },
         "name": {
           "title": "name",
-          "description": "Name of the ServiceAccount. The StarVault role is bound to it, so it is the same in every namespace.",
+          "description": "Name of the ServiceAccount. Defaults to external-secrets-<store name>, so two stores in one namespace do not share it. Hidden.",
           "$ref": "#/definitions/k8sName"
         }
       }

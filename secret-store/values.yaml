@@ -18,7 +18,8 @@ generic:
 # в StarVault.
 serviceAccount:
   create: true
-  name: external-secrets
+  # name не задан: чарт зовёт аккаунт external-secrets-<имя хранилища>, чтобы
+  # два хранилища в одном пространстве не делили один аккаунт.
 
 # SecretStore: куда ходить за секретами и как там авторизоваться.
 store:

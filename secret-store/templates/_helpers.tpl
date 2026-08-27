@@ -157,7 +157,8 @@ Name of the ServiceAccount the store authenticates as.
 */}}
 {{- define "secret-store.helpers.app.serviceAccountName" -}}
 {{- $sa := .Values.serviceAccount | default dict -}}
-{{- include "secret-store.helpers.app.objectName" (dict "label" "serviceAccount.name" "value" ($sa.name | default "external-secrets")) -}}
+{{- $store := (.Values.store | default dict).name | default "vault" -}}
+{{- include "secret-store.helpers.app.objectName" (dict "label" "serviceAccount.name" "value" ($sa.name | default (printf "external-secrets-%s" $store))) -}}
 {{- end -}}
 
 {{/*
