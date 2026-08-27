@@ -9,6 +9,8 @@ certificate already lies in the cluster under its own name.
 The element is skipped when enabled: false.
 */}}
 {{- $root := . -}}
+{{- /* Always rendered, so this is where the whole release is checked for names that would collide in the cluster. */ -}}
+{{- include "ingress-gateway.helpers.app.uniqueNames" $root -}}
 {{- range $index, $gateway := $root.Values.gateways }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
 {{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}

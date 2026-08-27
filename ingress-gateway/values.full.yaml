@@ -26,7 +26,8 @@
 #   np  - NetworkPolicy        ur  - UDPRoute
 #   ap  - AuthorizationPolicy
 # name задаётся у каждого Gateway и маршрута (DNS-формат): у Gateway 2..9
-# символов, у маршрута и сертификата 2..6.
+# символов, у маршрута и сертификата 2..6. У маршрута перед проектом стоит имя
+# его гейтвея: {instance}-{cluster}-{kindShort}-{gateway}-{project}-{name}.
 #
 # Эти же теги проставляются на каждый ресурс чарта как labels:
 #   ecpk/instance: <instance>

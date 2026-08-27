@@ -127,12 +127,14 @@ Name of the Secret a listener certificate lands in. Parameters: .name, .context.
 
 {{/*
 Resource name by convention:
-  {instance}-{cluster}-{kindShort}-{project}-{name}
+  without parent: {instance}-{cluster}-{kindShort}-{project}-{name}
+  with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
 Parameters: .context, .kind (k8s kind), .name (2..6 characters, 2..9 for the
-kinds named after a gateway).
+kinds named after a gateway), .parent (optional gateway name, 2..9; routes use
+it, so two routes of one kind may carry one name under different gateways).
 kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
 The result is truncated to 63 characters.
-Examples: ed-dev-igw-nbox-main, ed-dev-hr-nbox-app.
+Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
 */}}
 {{- define "ingress-gateway.helpers.app.resourceName" -}}
 {{- $identity := .context.Values.identity | default dict -}}
@@ -144,7 +146,83 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-nbox-app.
 {{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
 {{- $nameMax := ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy")) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
+{{- if .parent -}}
+{{- $parent := include "ingress-gateway.helpers.shortToken" (dict "label" "parentGatewayName" "value" .parent "max" 9) -}}
+{{- printf "%s-%s-%s-%s-%s-%s" $instance $cluster $kindShort $parent $project $name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
 {{- printf "%s-%s-%s-%s-%s" $instance $cluster $kindShort $project $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name of the only enabled Gateway, or "" when there is none or more than one.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.soleGateway" -}}
+{{- $enabled := list -}}
+{{- range $g := .Values.gateways -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $g) "true" -}}{{- $enabled = append $enabled $g -}}{{- end -}}
+{{- end -}}
+{{- if eq (len $enabled) 1 -}}{{- (index $enabled 0).name -}}{{- end -}}
+{{- end -}}
+
+{{/*
+Gateway a route hangs on: the gateway of its first parentRef, or the only
+enabled Gateway when the route leaves it out. It goes into the route name, so
+the same route name under two gateways gives two different resources.
+Parameters: .route, .index (position in xroutes, for the message), .context.
+*/}}
+{{- define "ingress-gateway.helpers.app.routeParent" -}}
+{{- $parentRefs := .route.parentRefs | default list -}}
+{{- if not $parentRefs -}}
+{{- fail (printf "xroutes[%d].parentRefs is required for route %s" (.index | int) (.route.name | toString)) -}}
+{{- end -}}
+{{- $first := index $parentRefs 0 | default dict -}}
+{{- $parent := $first.gateway | default (include "ingress-gateway.helpers.app.soleGateway" .context) -}}
+{{- if not $parent -}}
+{{- fail (printf "xroutes[%d].parentRefs[].gateway is required (multiple Gateways - specify it explicitly)" (.index | int)) -}}
+{{- end -}}
+{{- $parent -}}
+{{- end -}}
+
+{{/*
+Names that would collide in the cluster. Two resources of one kind cannot share
+a name in a namespace, and nothing else stops values from asking for that: the
+second definition would simply overwrite the first. Checked here, once per
+render, so the order stops with a readable message instead.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.uniqueNames" -}}
+{{- $seen := dict -}}
+{{- range $index, $gateway := .Values.gateways -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" -}}
+{{- $name := $gateway.name | toString | lower -}}
+{{- if hasKey $seen $name -}}
+{{- fail (printf "gateways[%d].name %q is already taken by another Gateway; the two would share every resource name" $index $name) -}}
+{{- end -}}
+{{- $_ := set $seen $name true -}}
+{{- end -}}
+{{- end -}}
+{{- $routes := dict -}}
+{{- range $index, $route := .Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- $kind := $route.kind | default "HTTPRoute" | toString | lower -}}
+{{- $parent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $) -}}
+{{- $key := printf "%s/%s/%s" $kind $parent ($route.name | toString | lower) -}}
+{{- if hasKey $routes $key -}}
+{{- fail (printf "xroutes[%d].name %q is already taken by another %s on gateway %q" $index ($route.name | toString) ($route.kind | default "HTTPRoute") $parent) -}}
+{{- end -}}
+{{- $_ := set $routes $key true -}}
+{{- end -}}
+{{- end -}}
+{{- $certs := dict -}}
+{{- range $index, $cert := ((.Values.tls | default dict).certificates | default list) -}}
+{{- $name := $cert.name | toString | lower -}}
+{{- if hasKey $certs $name -}}
+{{- fail (printf "tls.certificates[%d].name %q is already taken by another certificate; a listener would get whichever of them was found first" $index $name) -}}
+{{- end -}}
+{{- $_ := set $certs $name true -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
