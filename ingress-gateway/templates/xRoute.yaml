@@ -35,6 +35,8 @@ The element is skipped when enabled: false.
 {{- if not $route.rules }}
 {{- fail (printf "xroutes[%d].rules is required for route %s" $index $routeName) }}
 {{- end }}
+{{- /* The gateway of the first parentRef goes into the route name, so one route name can serve two gateways. */ -}}
+{{- $routeParent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) }}
 {{- range $ruleIndex, $rule := $route.rules }}
 {{- if and (not $supportsMatches) $rule.matches }}
 {{- fail (printf "xroutes[%d].rules[%d].matches is not supported for %s; for TLSRoute use hostnames (SNI)" $index $ruleIndex $routeKind) }}
@@ -56,7 +58,7 @@ The element is skipped when enabled: false.
 apiVersion: {{ $apiVersion | quote }}
 kind: {{ $routeKind }}
 metadata:
-  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" $routeKind "name" $routeName "context" $root) }}
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" $routeKind "name" $routeName "parent" $routeParent "context" $root) }}
   namespace: {{ $root.Release.Namespace | quote }}
   {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
