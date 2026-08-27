@@ -25,7 +25,8 @@
 #   cm  - ConfigMap            gr  - GRPCRoute        tcr - TCPRoute
 #   np  - NetworkPolicy        ur  - UDPRoute
 #   ap  - AuthorizationPolicy
-# name задаётся у каждого Gateway и маршрута (2..6 символов, DNS-формат).
+# name задаётся у каждого Gateway и маршрута (DNS-формат): у Gateway 2..9
+# символов, у маршрута и сертификата 2..6.
 #
 # Эти же теги проставляются на каждый ресурс чарта как labels:
 #   ecpk/instance: <instance>
@@ -108,7 +109,7 @@ networkPolicy:
 # ============================================================================
 # gateways - список Gateway (на элемент создаётся Gateway и ConfigMap)
 # ============================================================================
-#   name        - обязательно, 2..6 символов; подставляется в {name} имени
+#   name        - обязательно, 2..9 символов; подставляется в {name} имени
 #                 Gateway и ConfigMap, на него ссылается xroutes[].parentRefs[].gateway
 #   enabled     - по умолчанию true; false -> Gateway и ConfigMap не создаются
 #   ipAddress   - постоянный адрес LoadBalancer (аннотация MetalLB в ConfigMap)

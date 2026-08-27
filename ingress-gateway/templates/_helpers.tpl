@@ -128,7 +128,8 @@ Name of the Secret a listener certificate lands in. Parameters: .name, .context.
 {{/*
 Resource name by convention:
   {instance}-{cluster}-{kindShort}-{project}-{name}
-Parameters: .context, .kind (k8s kind), .name (2..6 characters).
+Parameters: .context, .kind (k8s kind), .name (2..6 characters, 2..9 for the
+kinds named after a gateway).
 kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
 The result is truncated to 63 characters.
 Examples: ed-dev-igw-nbox-main, ed-dev-hr-nbox-app.
@@ -138,8 +139,11 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-nbox-app.
 {{- $instance := include "ingress-gateway.helpers.tag" (dict "label" "identity.instance" "value" $identity.instance) -}}
 {{- $cluster := include "ingress-gateway.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
 {{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
-{{- $kindShort := include "ingress-gateway.helpers.app.kindShort" (required "resourceName.kind is required" .kind) -}}
-{{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name) -}}
+{{- $kind := required "resourceName.kind is required" .kind | toString | lower -}}
+{{- $kindShort := include "ingress-gateway.helpers.app.kindShort" $kind -}}
+{{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
+{{- $nameMax := ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy")) -}}
+{{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
 {{- printf "%s-%s-%s-%s-%s" $instance $cluster $kindShort $project $name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
