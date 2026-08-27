@@ -103,9 +103,9 @@ Returns "true", or nothing at all (an empty string is false at the call site).
 
 {{/*
 Certificate for a listener with tlsMode: Terminate. Parameters: .hostname, .context.
-The hostname is looked up in tls.certificates (the certificates of this order)
-and then in tls.platform (the ones the platform prepared), first match wins.
-Returns a JSON object, empty when no certificate covers the hostname:
+The hostname is looked up in tls.certificates (the certificates of this order),
+first match wins. Returns a JSON object, empty when no certificate covers the
+hostname:
   name        - short name of the entry, the {name} part of the Secret name
   path        - where the certificate lies in the store
   storeName   - name of the SecretStore, always in the namespace of the release
@@ -116,7 +116,7 @@ Returns a JSON object, empty when no certificate covers the hostname:
 {{- $tls := .context.Values.tls | default dict -}}
 {{- $hostname := .hostname | default "" | toString | lower -}}
 {{- $found := dict -}}
-{{- range $entry := concat ($tls.certificates | default list) ($tls.platform | default list) -}}
+{{- range $entry := $tls.certificates | default list -}}
 {{- if and (not $found) (eq (include "ingress-gateway.helpers.app.hostCovered" (dict "domain" $entry.domain "hostname" $hostname)) "true") -}}
 {{- $name := required "tls certificate: name is required" $entry.name | toString -}}
 {{- $found = dict

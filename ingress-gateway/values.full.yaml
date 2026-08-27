@@ -126,9 +126,8 @@ networkPolicy:
 #                     в кластере под своим именем (см. секцию tls ниже)
 #     allowedRoutes - какие маршруты listener принимает
 #
-# Сертификат для tlsMode: Terminate ищется по hostname в секции tls: сначала
-# в tls.certificates заказа, потом в платформенных tls.platform. Если ни один
-# домен не покрывает hostname, рендер падает и называет этот hostname.
+# Сертификат для tlsMode: Terminate ищется по hostname в tls.certificates. Если
+# ни один домен не покрывает hostname, рендер падает и называет этот hostname.
 gateways:
   - name: main
     enabled: true
@@ -186,12 +185,12 @@ gateways:
           kinds:
             - kind: GRPCRoute
 
-      # Платформенный домен: сертификат приготовлен заранее, в заказе про него
-      # писать не нужно (tls.platform).
-      - name: idp
+      # Другой домен заказа: его сертификат лежит в отдельном хранилище,
+      # запись про него - в tls.certificates (см. секцию tls ниже).
+      - name: str
         port: 8444
         protocol: HTTPS
-        hostname: "*.idp.ecpk.test"
+        hostname: api.str.idp.ecpk.test
         tlsMode: Terminate
         allowedRoutes:
           namespaces:
@@ -562,9 +561,9 @@ oidcAuth:
 # kubernetes.io/tls с этим сертификатом. В values едет только путь: ни ключ, ни
 # сам сертификат в репозиторий заказа не попадают.
 #
-# Как выбирается сертификат для listener'а: по его hostname, сначала среди
-# tls.certificates заказа, потом среди платформенных tls.platform. Домен со
-# звёздочкой покрывает один уровень, ровно как сам сертификат: *.example.ru
+# Как выбирается сертификат для listener'а: по его hostname среди
+# tls.certificates заказа, первое совпадение выигрывает. Домен со звёздочкой
+# покрывает один уровень, ровно как сам сертификат: *.example.ru
 # подходит для app.example.ru и для *.example.ru, но не для a.b.example.ru.
 # Если ни один домен не покрывает hostname, рендер падает и называет hostname.
 #
@@ -587,20 +586,7 @@ tls:
   # External Secrets Operator старой версии (external-secrets.io/v1beta1).
   apiVersion: external-secrets.io/v1
 
-  # Платформенные сертификаты. Приезжают вместе с чартом, заказ про них
-  # ничего не пишет, в форме секция скрыта. Хранилище названо явно, чтобы
-  # выбор хранилища в заказе не уводил их в чужой SecretStore.
-  platform:
-    - name: idptls
-      domain: "*.idp.ecpk.test"
-      path: platform/certs/idp-ecpk-test
-      store: vault
-    - name: edptls
-      domain: "*.edp.ecpk.test"
-      path: platform/certs/edp-ecpk-test
-      store: vault
-
-  # Свои сертификаты: любой домен, любого уровня, в том числе вне ecpk.test.
+  # Сертификаты заказа: любой домен, любого уровня, в том числе вне ecpk.test.
   certificates:
     # Хранилище не задано - берётся tls.store, то есть SecretStore vault
     # в namespace релиза.

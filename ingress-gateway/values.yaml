@@ -33,23 +33,10 @@ tls:
   crtProperty: tls.crt
   keyProperty: tls.key
 
-  # Сертификаты, которые платформа приготовила заранее. Домен со звёздочкой
-  # покрывает один уровень, как и сам сертификат: *.idp.ecpk.test подходит для
-  # app.idp.ecpk.test, но не для a.str.idp.ecpk.test.
-  # Хранилище у них названо явно, чтобы выбор хранилища в заказе не уводил
-  # платформенные сертификаты в чужой SecretStore.
-  platform:
-    - name: idptls
-      domain: "*.idp.ecpk.test"
-      path: platform/certs/idp-ecpk-test
-      store: vault
-    - name: edptls
-      domain: "*.edp.ecpk.test"
-      path: platform/certs/edp-ecpk-test
-      store: vault
-
-  # Свои сертификаты заказа: любой домен, любого уровня. Их приносит заказ,
-  # здесь список пуст.
+  # Сертификаты заказа: любой домен, любого уровня. Их приносит заказ, здесь
+  # список пуст. Домен со звёздочкой покрывает один уровень, ровно как сам
+  # сертификат: *.idp.ecpk.test подходит для app.idp.ecpk.test, но не для
+  # a.str.idp.ecpk.test.
   certificates: []
 
 # gateways / xroutes намеренно не заданы: их приносит заказ.
