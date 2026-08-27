@@ -24,35 +24,6 @@
           }
         }
       }
-    },
-    "certificateAuthority": {
-      "include": [
-        "store"
-      ],
-      "$comment": "Сертификат УЦ StarVault. В форме заказа поля скрыты чартом: они нужны, только когда кластер не доверяет УЦ, и заполняются уже по факту.",
-      "overrides": {
-        "store": {
-          "title": "Сертификат УЦ",
-          "ui:view": {
-            "include": [
-              "caBundle",
-              "caProvider"
-            ],
-            "overrides": {
-              "caBundle": {
-                "title": "Сертификат УЦ",
-                "description": "PEM в base64. Заполняется, когда кластер не доверяет удостоверяющему центру StarVault.",
-                "ui:widget": "edit"
-              },
-              "caProvider": {
-                "title": "Сертификат из ресурса кластера",
-                "description": "Ссылка на ConfigMap или Secret с тем же сертификатом, если он уже лежит в кластере.",
-                "ui:widget": "edit"
-              }
-            }
-          }
-        }
-      }
     }
   },
   "actions": [
@@ -60,11 +31,6 @@
       "in": "info",
       "view": "access",
       "label": "Изменить доступ"
-    },
-    {
-      "in": "info",
-      "view": "certificateAuthority",
-      "label": "Указать сертификат УЦ"
     }
   ]
 }
