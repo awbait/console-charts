@@ -5,6 +5,7 @@ is selected by the label gateway.networking.k8s.io/gateway-name = full Gateway n
 By default ALLOW for all sources (0.0.0.0/0); fine-grained rule tuning is
 under development.
 */}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict -}}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $authorizationPolicy) "true" }}
@@ -29,6 +30,7 @@ spec:
         - source:
             ipBlocks:
               - 0.0.0.0/0
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

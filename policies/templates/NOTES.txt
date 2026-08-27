@@ -1,3 +1,4 @@
+{{- if eq (include "policies.helpers.chartEnabled" .) "true" }}
 policies ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
 Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
 Identity labels on every resource: {{ include "security-policies.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
@@ -50,4 +51,7 @@ AuthorizationPolicy only (section authzpol[]):
 {{- if not (or $policies $netpol $authzpol) }}
 
 No policies are described: all three sections are empty, nothing was created.
+{{- end }}
+{{- else }}
+Resources not created: enabled=false.
 {{- end }}

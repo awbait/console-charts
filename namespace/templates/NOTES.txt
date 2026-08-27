@@ -1,7 +1,7 @@
 {{ .Chart.Name }} ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
 Identity labels on every resource: {{ include "namespace.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
-{{- if eq (include "namespace.helpers.enabled" .) "true" }}
+{{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 Created:
   Namespace:     {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
                  (project {{ .Values.namespace.projectName }}, cluster {{ .Values.namespace.clusterName }})

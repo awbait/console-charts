@@ -88,3 +88,7 @@ clusters:
       limits.cpu: "4"
       limits.memory: 8Gi
       requests.storage: 10Gi
+
+# global - глобальные значения Helm. Инжектятся автоматически, когда чарт
+# подключён сабчартом. Шаблоны чарта их не используют.
+global: {}

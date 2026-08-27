@@ -1,3 +1,4 @@
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 ingress-gateway ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
 Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
 Identity labels on every resource: {{ include "ingress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
@@ -35,3 +36,6 @@ OIDC: enabled (oauth2-proxy + Keycloak). Check the issuer and oauth2-proxy avail
 
 All resources of this release carry the labels app={{ .Chart.Name }} and
 app.kubernetes.io/instance={{ .Release.Name }}.
+{{- else }}
+Resources not created: enabled=false.
+{{- end }}

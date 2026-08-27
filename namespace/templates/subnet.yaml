@@ -1,4 +1,4 @@
-{{- if eq (include "namespace.helpers.enabled" .) "true" }}
+{{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 {{ if .Values.subnet.enable }}
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}

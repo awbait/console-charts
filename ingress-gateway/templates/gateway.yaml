@@ -8,6 +8,7 @@ points at the Secret of the certificate that covers the listener hostname
 certificate already lies in the cluster under its own name.
 The element is skipped when enabled: false.
 */}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- /* Always rendered, so this is where the whole release is checked for names that would collide in the cluster. */ -}}
 {{- include "ingress-gateway.helpers.app.uniqueNames" $root -}}
@@ -70,5 +71,6 @@ spec:
           {{- toYaml . | nindent 10 }}
         {{- end }}
     {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

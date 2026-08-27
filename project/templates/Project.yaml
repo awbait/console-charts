@@ -1,4 +1,4 @@
-{{- if eq (include "project.helpers.enabled" .) "true" }}
+{{- if eq (include "project.helpers.chartEnabled" .) "true" }}
 {{- $name := include "project.helpers.name" . }}
 {{- /* Structural cpaas annotations are merged with generic.annotations via the metadata helper. */}}
 {{- $ann := dict "cpaas.io/creator" (.Values.project.creator | default "lk") }}

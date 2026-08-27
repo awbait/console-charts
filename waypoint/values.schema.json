@@ -52,11 +52,11 @@
     },
     "enabled": {
       "title": "Enabled",
-      "description": "Parent chart condition flag when included as a subchart. Not used by the chart templates.",
+      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
       "type": "boolean",
+      "default": true,
       "ui:widget": "hidden"
     }
-
   },
   "definitions": {
     "shortToken": {

@@ -8,6 +8,7 @@ NodePort, single-stack IPv4, removing port 15021; when ipAddress is set - a Meta
 data.horizontalPodAutoscaler - added when hpa.enabled.
 The element is skipped when enabled: false.
 */}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- range $index, $gateway := $root.Values.gateways }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
@@ -71,5 +72,6 @@ data:
       ports:
         - $patch: delete
           port: 15021
+{{- end }}
 {{- end }}
 {{- end }}

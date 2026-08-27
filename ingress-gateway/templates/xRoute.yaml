@@ -10,6 +10,7 @@ Simplifications with a SINGLE enabled Gateway:
     route references via parentRefs[].sectionName (for HTTP/GRPC/TLS).
 The element is skipped when enabled: false.
 */}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- $enabledGateways := list -}}
 {{- range $g := $root.Values.gateways }}
@@ -107,5 +108,6 @@ spec:
           {{- end }}
         {{- end }}
     {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -1,3 +1,4 @@
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 egress-gateway ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
 Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
 Identity labels on every resource: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
@@ -33,3 +34,6 @@ VpcEgressGateway (kube-ovn) - selectors point at the egress gateway above:
 
 All resources of this release carry the labels app={{ .Chart.Name }} and
 app.kubernetes.io/instance={{ .Release.Name }}.
+{{- else }}
+Resources not created: enabled=false.
+{{- end }}

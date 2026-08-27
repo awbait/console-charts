@@ -5,6 +5,7 @@ gateway.yaml).
 data.service - patch for the waypoint Service: disable NodePort and drop port 15021.
 Skipped when the gateway is disabled.
 */}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
@@ -22,4 +23,5 @@ data:
       ports:
       - "$patch": delete
         port: 15021
+{{- end }}
 {{- end }}
