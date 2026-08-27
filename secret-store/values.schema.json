@@ -125,9 +125,9 @@
       "additionalProperties": false,
       "propertyOrder": [
         "auth",
+        "path",
         "name",
         "server",
-        "path",
         "version",
         "caBundle",
         "caProvider",
@@ -153,9 +153,8 @@
           "minLength": 1
         },
         "path": {
-          "ui:widget": "hidden",
-          "title": "path",
-          "description": "Name of the KV mount in StarVault. Hidden.",
+          "title": "Движок секретов",
+          "description": "Имя KV-движка в StarVault, в котором лежат ваши секреты. Если не знаете, оставьте kv.",
           "type": "string",
           "minLength": 1
         },
@@ -204,7 +203,7 @@
       "properties": {
         "role": {
           "title": "Роль в StarVault",
-          "description": "Роль, которую вам выдали для этого пространства. Она решает, какие секреты вы сможете прочитать.",
+          "description": "Роль, которую вам выдали в StarVault. Обычно совпадает с именем команды. Она решает, какие секреты вы сможете прочитать.",
           "type": "string",
           "minLength": 1,
           "maxLength": 253

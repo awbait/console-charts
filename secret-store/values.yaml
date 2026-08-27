@@ -27,7 +27,7 @@ store:
   name: vault
 
   # Адрес StarVault. Платформенное значение, зависит от кластера.
-  server: "https://starvault.ecpk.test"
+  server: "https://vault.idp.ecpk.test"
 
   # Движок KV: имя mount'а и версия.
   path: kv
@@ -36,7 +36,7 @@ store:
   # Как ESO авторизуется в StarVault.
   auth:
     # Имя mount'а метода аутентификации, без префикса auth/.
-    mountPath: kubernetes
+    mountPath: kubernetes_global
     # role здесь намеренно не задан: роль в StarVault своя у каждого
     # пространства, её приносит заказ. Без неё рендер падает.
 
