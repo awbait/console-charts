@@ -9,6 +9,7 @@ The external service is described directly in the listener:
 Resource name by convention (kindShort egw, name = listener.name).
 The whole section is skipped when the gateway is disabled.
 */}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if ($gw.enabled | default true) }}
 {{- range $index, $listener := $gw.listeners }}
@@ -51,5 +52,6 @@ spec:
         {{ $seName }}: {{ $port }}
     {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

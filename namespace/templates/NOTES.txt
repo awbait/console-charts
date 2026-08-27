@@ -1,7 +1,7 @@
 {{ .Chart.Name }} ({{ .Chart.Version }}): release {{ .Release.Name | quote }}.
 Identity labels on every resource: {{ include "namespace.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
-{{- if .Values.global.enable }}
+{{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 Created:
   Namespace:     {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
                  (project {{ .Values.namespace.projectName }}, cluster {{ .Values.namespace.clusterName }})
@@ -15,5 +15,5 @@ Created:
   Subnet:        not created (subnet.enable=false)
 {{- end }}
 {{- else }}
-Resources not created: global.enable=false.
+Resources not created: enabled=false.
 {{- end }}

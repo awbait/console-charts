@@ -1,4 +1,17 @@
 {{/*
+Chart-wide switch: root "enabled", true unless values say otherwise. Returns
+"true" or "" (for if-tests). Every template of the chart hangs on it, so
+enabled: false renders nothing at all.
+*/}}
+{{- define "ingress-gateway.helpers.chartEnabled" -}}
+{{- if hasKey .Values "enabled" -}}
+{{- ternary "true" "" (eq (toString .Values.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Chart name for helm.sh/chart.
 */}}
 {{- define "ingress-gateway.helpers.app.chart" -}}

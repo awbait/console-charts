@@ -1,9 +1,8 @@
 # project - значения по умолчанию (минимум, при котором проходит рендер).
-# При global.enable=false чарт не создаёт ни одного ресурса.
+# При enabled=false чарт не создаёт ни одного ресурса.
 # Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
-global:
-  enable: true
+enabled: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
 # ecpk/project на всех ресурсах. Допустимые значения - в README.md.

@@ -1,4 +1,26 @@
 {{/*
+Chart-wide switch: root "enabled", true unless values say otherwise. Returns
+"true" or "" (for if-tests). Every template of the chart hangs on it, so
+enabled: false renders nothing at all.
+
+The switch used to be global.enable. Helm reserves "global" for the values a
+parent chart injects, so the chart could not accept a real global at all. A
+leftover global.enable: false stops the render outright: it must be moved to
+enabled: false, and silently rendering everything instead is worse than saying so.
+*/}}
+{{- define "project.helpers.chartEnabled" -}}
+{{- $global := .Values.global | default dict -}}
+{{- if and (hasKey $global "enable") (not $global.enable) -}}
+{{- fail "global.enable is no longer read: move the switch to the root, enabled: false" -}}
+{{- end -}}
+{{- if hasKey .Values "enabled" -}}
+{{- ternary "true" "" (eq (toString .Values.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Chart name and version for the helm.sh/chart label.
 */}}
 {{- define "project.helpers.chart" -}}

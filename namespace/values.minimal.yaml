@@ -1,8 +1,7 @@
 # namespace - минимальный рабочий пример.
 # Создаёт Namespace и ResourceQuota, без выделенной подсети.
 
-global:
-  enable: true
+enabled: true
 
 identity:
   instance: ed         # тег инстанса окружения

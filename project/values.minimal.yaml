@@ -1,8 +1,7 @@
 # project - минимальный рабочий пример.
 # Создаёт один Project с квотой ресурсов на одном кластере.
 
-global:
-  enable: true
+enabled: true
 
 identity:
   instance: ed         # тег инстанса окружения

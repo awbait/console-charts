@@ -1,3 +1,4 @@
+{{- if eq (include "secret-store.helpers.chartEnabled" .) "true" }}
 secret-store ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
 Identity labels on every resource: {{ include "secret-store.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
@@ -17,3 +18,6 @@ the cluster does not trust (store.caBundle).
 
 Other releases point at this store by its name, for example an ingress-gateway
 certificate takes it in the "Хранилище" field.
+{{- else }}
+Resources not created: enabled=false.
+{{- end }}

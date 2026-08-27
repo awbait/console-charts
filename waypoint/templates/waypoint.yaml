@@ -5,6 +5,7 @@ istio.io/waypoint-for sets the interception scope (service|workload|all).
 Pods/services are bound to a waypoint via the label
 istio.io/use-waypoint: <name of this Gateway>. An item is skipped when enabled: false.
 */}}
+{{- if eq (include "waypoint.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- range $index, $waypoint := $root.Values.waypoints }}
 {{- if eq (include "waypoint.helpers.app.enabled" $waypoint) "true" }}
@@ -23,5 +24,6 @@ spec:
     - name: mesh
       port: 15008
       protocol: HBONE
+{{- end }}
 {{- end }}
 {{- end }}

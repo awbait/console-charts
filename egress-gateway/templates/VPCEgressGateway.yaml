@@ -15,6 +15,7 @@ Derived (not configurable):
 A VpcEgressGateway only makes sense together with the egress Gateway it points
 at, so egressGateway must be enabled and named when this section is used.
 */}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- if .Values.vpcEgressGateway }}
 {{- $root := . }}
 {{- $gw := .Values.egressGateway | default dict }}
@@ -61,6 +62,7 @@ spec:
       ipblocks:
         - 172.30.10.0/28
   trafficPolicy: Cluster
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

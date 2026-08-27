@@ -5,6 +5,7 @@ AuthorizationPolicy (CUSTOM ext_authz and group check) and RequestAuthentication
 Resources live in the namespace of the application / Gateway / oauth2-proxy and use
 user-provided names (outside the 5-part convention; to be refined during development).
 */}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- if .Values.oidcAuth }}
 {{- if (.Values.oidcAuth.enabled | default false) }}
 {{- $root := . -}}
@@ -149,5 +150,6 @@ spec:
     - issuer: {{ required "oidcAuth.keycloak.issuer is required" $auth.keycloak.issuer | quote }}
       jwksUri: {{ required "oidcAuth.keycloak.jwksUri is required" $auth.keycloak.jwksUri | quote }}
       forwardOriginalToken: {{ $requestAuthentication.forwardOriginalToken | default true }}
+{{- end }}
 {{- end }}
 {{- end }}

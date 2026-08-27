@@ -1,3 +1,4 @@
+{{- if eq (include "waypoint.helpers.chartEnabled" .) "true" }}
 waypoint ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
 Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
 Identity labels on every resource: {{ include "waypoint.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
@@ -20,3 +21,6 @@ No waypoints are described: the waypoints list is empty, nothing was created.
 
 All resources of this release carry the labels app={{ .Chart.Name }} and
 app.kubernetes.io/instance={{ .Release.Name }}.
+{{- else }}
+Resources not created: enabled=false.
+{{- end }}

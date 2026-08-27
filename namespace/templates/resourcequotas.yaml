@@ -1,4 +1,4 @@
-{{- if .Values.global.enable }}
+{{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 apiVersion: v1
 kind: ResourceQuota
 metadata:

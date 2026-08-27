@@ -10,6 +10,7 @@ Per listener:
   - allowedRoutes are restricted to the current namespace.
 The whole gateway is skipped when enabled: false.
 */}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- /* Always rendered, so this is where the whole release is checked for names that would collide in the cluster. */ -}}
 {{- include "egress-gateway.helpers.app.uniqueNames" . -}}
 {{- $gw := .Values.egressGateway | default dict }}
@@ -53,4 +54,5 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
     {{- end }}
+{{- end }}
 {{- end }}

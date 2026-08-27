@@ -52,6 +52,19 @@
           ]
         }
       ]
+    },
+    "global": {
+      "title": "Global values",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "type": "boolean",
+      "default": true,
+      "ui:widget": "hidden"
     }
   },
   "definitions": {

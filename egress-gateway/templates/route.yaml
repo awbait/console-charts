@@ -10,6 +10,7 @@ section). Everything is derived from the listener:
   - rules[0].backendRefs[0] = {name: hostname, port: listener.port, weight: 100}.
 The whole section is skipped when the gateway is disabled.
 */}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
@@ -43,5 +44,6 @@ spec:
         - name: {{ $hostname | quote }}
           port: {{ $port }}
           weight: 100
+{{- end }}
 {{- end }}
 {{- end }}

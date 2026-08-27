@@ -1,3 +1,4 @@
+{{- if eq (include "policies.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 
 {{/*
@@ -153,5 +154,6 @@ spec:
         {{- end }}
       {{- end }}
     {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
