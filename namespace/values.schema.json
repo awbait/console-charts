@@ -11,8 +11,7 @@
     "resourceQuotas",
     "subnet",
     "generic",
-    "serviceMesh",
-    "global"
+    "serviceMesh"
   ],
   "required": [
     "identity",
@@ -53,10 +52,17 @@
       "$ref": "#/definitions/serviceMesh"
     },
     "global": {
-      "title": "global",
-      "description": "Chart-wide switch. Set global.enable to false to render no resources at all.",
-      "ui:widget": "hidden",
-      "$ref": "#/definitions/global"
+      "title": "Global values",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "type": "boolean",
+      "default": true,
+      "ui:widget": "hidden"
     }
   },
   "definitions": {
@@ -408,19 +414,6 @@
           "description": "Enable Service Mesh for the Namespace.",
           "type": "boolean",
           "default": false,
-          "ui:widget": "hidden"
-        }
-      }
-    },
-    "global": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enable": {
-          "title": "enable",
-          "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
-          "type": "boolean",
-          "default": true,
           "ui:widget": "hidden"
         }
       }

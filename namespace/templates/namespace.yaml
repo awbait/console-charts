@@ -1,4 +1,4 @@
-{{- if .Values.global.enable }}
+{{- if eq (include "namespace.helpers.enabled" .) "true" }}
 apiVersion: v1
 kind: Namespace
 metadata:

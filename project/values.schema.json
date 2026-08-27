@@ -9,8 +9,7 @@
     "identity",
     "project",
     "clusters",
-    "generic",
-    "global"
+    "generic"
   ],
   "required": [
     "identity",
@@ -59,10 +58,17 @@
       "$ref": "#/definitions/generic"
     },
     "global": {
-      "title": "global",
-      "description": "Chart-wide switch. Set global.enable to false to render no resources at all.",
-      "ui:widget": "hidden",
-      "$ref": "#/definitions/global"
+      "title": "Global values",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "type": "boolean",
+      "default": true,
+      "ui:widget": "hidden"
     }
   },
   "definitions": {
@@ -258,19 +264,6 @@
           "title": "Common annotations",
           "description": "Common annotations for all chart resources. Result: metadata.annotations.",
           "$ref": "#/definitions/tplStringMap"
-        }
-      }
-    },
-    "global": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enable": {
-          "title": "enable",
-          "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
-          "type": "boolean",
-          "default": true,
-          "ui:widget": "hidden"
         }
       }
     }

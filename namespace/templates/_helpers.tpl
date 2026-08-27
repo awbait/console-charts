@@ -1,3 +1,24 @@
+{{/*
+Chart-wide switch: root "enabled", true unless values say otherwise. Returns
+"true" or "" (for if-tests).
+
+The switch used to be global.enable. Helm reserves "global" for the values a
+parent chart injects, so the chart could not accept a real global at all. A
+leftover global.enable: false stops the render outright: it must be moved to
+enabled: false, and silently rendering everything instead is worse than saying so.
+*/}}
+{{- define "namespace.helpers.enabled" -}}
+{{- $global := .Values.global | default dict -}}
+{{- if and (hasKey $global "enable") (not $global.enable) -}}
+{{- fail "global.enable is no longer read: move the switch to the root, enabled: false" -}}
+{{- end -}}
+{{- if hasKey .Values "enabled" -}}
+{{- ternary "true" "" (eq (toString .Values.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
 {{- define "namespace.helpers.parseStorageQuotas" -}}
 {{- if .Values.resourceQuotas.storage }}
 {{- fromJson .Values.resourceQuotas.storage | toYaml }}
