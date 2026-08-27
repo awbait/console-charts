@@ -24,6 +24,7 @@ at, so egressGateway must be enabled and named when this section is used.
 {{- $gwName := required "egressGateway.name is required when vpcEgressGateway is set" $gw.name }}
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $root) }}
 {{- range $index, $veg := .Values.vpcEgressGateway }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $veg) "true" }}
 {{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $veg.externalIPs }}
 ---
 apiVersion: kubeovn.io/v1
@@ -60,5 +61,6 @@ spec:
       ipblocks:
         - 172.30.10.0/28
   trafficPolicy: Cluster
+{{- end }}
 {{- end }}
 {{- end }}

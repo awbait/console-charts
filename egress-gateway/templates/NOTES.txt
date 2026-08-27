@@ -25,7 +25,9 @@ Egress Gateway: disabled (egressGateway.enabled=false).
 
 VpcEgressGateway (kube-ovn) - selectors point at the egress gateway above:
 {{- range . }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
   * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (externalIPs: {{ len .externalIPs }}, replicas: {{ len .externalIPs }})
+{{- end }}
 {{- end }}
 {{- end }}
 
