@@ -1,7 +1,7 @@
 # Минимальный пример: доступ namespace к секретам StarVault.
 #
 # Чарт создаёт два ресурса в namespace релиза:
-# - ServiceAccount external-secrets
+# - ServiceAccount external-secrets-vault
 # - SecretStore vault
 #
 # Всё, кроме роли, приезжает из значений по умолчанию чарта: адрес StarVault,
@@ -13,5 +13,6 @@ identity:
   project: nbox        # тег проекта, до 9 символов
 
 store:
+  path: kv             # движок KV, в котором лежат секреты
   auth:
-    role: nbox-dev     # роль, которую StarVault выдал вашему пространству
+    role: core         # роль в StarVault, обычно имя команды
