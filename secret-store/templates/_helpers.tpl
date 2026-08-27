@@ -56,18 +56,18 @@ Returns the value in lower-case.
 {{- end -}}
 
 {{/*
-Kubernetes object name validation. Parameters: .label, .value.
-Both resources of this chart are named by the platform rather than by the
-5-part convention: their names are referenced from other releases and from the
-role binding in StarVault, so they must stay short and identical everywhere.
+Kubernetes object name validation (DNS subdomain, dots allowed). Parameters:
+.label, .value. Both resources of this chart are named by hand rather than by
+the 5-part convention: the store name is referenced from other releases, so it
+is what the person ordering recognises, and the account follows it.
 */}}
 {{- define "secret-store.helpers.app.objectName" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
 {{- if gt (len $value) 63 -}}
 {{- fail (printf "%s must be at most 63 characters, got %q" .label $value) -}}
 {{- end -}}
-{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
-{{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$" $value) -}}
+{{- fail (printf "%s must be a DNS subdomain in lower case, got %q" .label $value) -}}
 {{- end -}}
 {{- $value -}}
 {{- end -}}
