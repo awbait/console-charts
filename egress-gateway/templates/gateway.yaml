@@ -10,6 +10,8 @@ Per listener:
   - allowedRoutes are restricted to the current namespace.
 The whole gateway is skipped when enabled: false.
 */}}
+{{- /* Always rendered, so this is where the whole release is checked for names that would collide in the cluster. */ -}}
+{{- include "egress-gateway.helpers.app.uniqueNames" . -}}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}

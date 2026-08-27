@@ -94,6 +94,35 @@ Allowed: TLS or HTTPS. Returns the canonical upper-case value.
 {{- end -}}
 
 {{/*
+Names that would collide in the cluster. Two point-of-exit entries with one name
+give two ServiceEntries and two routes called the same, and two outbound
+addresses with one name give two VpcEgressGateways: the second definition simply
+overwrites the first. Checked here, once per render, so the order stops with a
+readable message instead.
+Parameter: the root context.
+*/}}
+{{- define "egress-gateway.helpers.app.uniqueNames" -}}
+{{- $listeners := dict -}}
+{{- range $index, $listener := ((.Values.egressGateway | default dict).listeners | default list) -}}
+{{- $name := $listener.name | toString | lower -}}
+{{- if hasKey $listeners $name -}}
+{{- fail (printf "egressGateway.listeners[%d].name %q is already taken by another point of exit; the two would share the ServiceEntry and the route" $index $name) -}}
+{{- end -}}
+{{- $_ := set $listeners $name true -}}
+{{- end -}}
+{{- $vegs := dict -}}
+{{- range $index, $veg := (.Values.vpcEgressGateway | default list) -}}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $veg) "true" -}}
+{{- $name := $veg.name | toString | lower -}}
+{{- if hasKey $vegs $name -}}
+{{- fail (printf "vpcEgressGateway[%d].name %q is already taken by another outbound address" $index $name) -}}
+{{- end -}}
+{{- $_ := set $vegs $name true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Route Kind by listener protocol. Param: the canonical protocol string.
 TLS -> TLSRoute, HTTPS -> HTTPRoute.
 */}}
