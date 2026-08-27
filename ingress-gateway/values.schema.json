@@ -159,7 +159,6 @@
       "additionalProperties": false,
       "propertyOrder": [
         "certificates",
-        "platform",
         "store",
         "refreshInterval",
         "crtProperty",
@@ -168,8 +167,8 @@
       ],
       "properties": {
         "certificates": {
-          "title": "Свои сертификаты",
-          "description": "Сертификат для домена, которого нет у платформы. Сам сертификат лежит в Vault, здесь вы говорите, где именно.",
+          "title": "Сертификаты",
+          "description": "Сертификат для домена вашей точки входа. Сам сертификат лежит в Vault, здесь вы говорите, где именно.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/tlsCertificate"
@@ -186,15 +185,6 @@
               ]
             }
           ]
-        },
-        "platform": {
-          "ui:widget": "hidden",
-          "title": "platform",
-          "description": "Certificates the platform prepared, shipped with the chart. Looked up after tls.certificates. Hidden.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/tlsCertificate"
-          }
         },
         "store": {
           "ui:widget": "hidden",
@@ -762,7 +752,7 @@
         },
         "tlsMode": {
           "title": "Что делать с TLS",
-          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. Для доменов idp.ecpk.test и edp.ecpk.test его подставит платформа, для остальных добавьте свой в разделе «Сертификаты».",
+          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. Добавьте его в разделе «Сертификаты».",
           "type": "string",
           "default": "Passthrough",
           "enum": [
