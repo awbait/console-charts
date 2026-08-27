@@ -54,7 +54,7 @@ spec:
           {{- if not $cert }}
           {{- fail (printf "gateways[%d].listeners[%d]: no certificate covers hostname %q - add an entry to tls.certificates with a domain that covers it" $index $listenerIndex ($listener.hostname | default "" | toString)) }}
           {{- end }}
-          - name: {{ include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "context" $root) | quote }}
+          - name: {{ include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "parent" $gatewayName "context" $root) | quote }}
             kind: Secret
             group: ""
           {{- end }}

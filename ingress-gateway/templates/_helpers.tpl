@@ -119,10 +119,14 @@ Returns a JSON object, empty when no certificate covers the hostname:
 {{- end -}}
 
 {{/*
-Name of the Secret a listener certificate lands in. Parameters: .name, .context.
+Name of the Secret a listener certificate lands in. Parameters: .name (the entry
+in tls.certificates), .parent (the gateway whose listener uses it), .context.
+The gateway is part of the name because the certificates of two orders living in
+one namespace would otherwise be one Secret, and a listener would be served
+whichever certificate was written last.
 */}}
 {{- define "ingress-gateway.helpers.app.tlsSecretName" -}}
-{{- include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" .name "context" .context) -}}
+{{- include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" .name "parent" .parent "context" .context) -}}
 {{- end -}}
 
 {{/*
