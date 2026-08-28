@@ -68,7 +68,35 @@ serviceAccount:
 
 # Portal: API + встроенный SPA.
 portal:
+  # Сколько реплик держать, когда autoscaling выключен. Больше одной требует
+  # config.CACHE=redis (см. autoscaling ниже) - иначе рендер падает.
   replicaCount: 1
+  # Горизонтальное масштабирование портала.
+  #
+  # Реплики договариваются через Redis: события, которыми живут открытые
+  # страницы, ходят через него, и там же лежит аренда, по которой фоновые циклы
+  # (сверка заказов, обновление счётчиков) ведёт ровно одна реплика. Поэтому и
+  # HPA, и replicaCount больше единицы требуют config.CACHE=redis, а с
+  # config.CACHE=memory рендер падает с объяснением.
+  #
+  # Нужен портал 0.10.0 и новее: в более ранних сборках фоновые циклы работали
+  # бы в каждой реплике параллельно.
+  #
+  # HPA считает загрузку долей от resources.requests, поэтому метрика без
+  # соответствующего request тоже роняет рендер. Пустое значение метрики -
+  # она не добавляется, но хотя бы одна нужна.
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: ""
+    # Политики масштабирования (spec.behavior HPA), как в манифесте. Пусто -
+    # поведение по умолчанию.
+    behavior: {}
+    # behavior:
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
   image:
     # Образ портала: {imageRegistry}/console/portal. imageRegistry задаёт префикс
     # реестра (например ghcr.io/awbait).
@@ -214,12 +242,65 @@ portal:
     SESSION_COOKIE_NAME: idp_session
     COOKIE_SECURE: "true"
 
-  # Секретные переменные. Рендерятся в Secret (пустые значения пропускаются).
-  # Чтобы использовать заранее созданный Secret - задайте existingSecret, тогда
-  # эти значения игнорируются.
+  # Откуда портал берёт секреты. Три способа, взаимоисключающие:
+  #
+  # 1. secrets ниже - значения лежат в values, чарт создаёт из них Secret.
+  # 2. existingSecret - Secret создан заранее кем-то другим, чарт его только
+  #    монтирует, а secrets игнорируются.
+  # 3. externalSecret - Secret наполняет External Secrets Operator из Vault.
+  #    Чарт при этом не хранит ни одного секрета: только адрес хранилища и то,
+  #    какие пути из него читать.
+  #
+  # Задать одновременно existingSecret и externalSecret нельзя - рендер падает.
   #
   # GITLAB_TOKEN и ARGOCD_TOKEN обязательны: без них портал не стартует.
   existingSecret: ""
+
+  # Секреты из Vault через External Secrets Operator.
+  #
+  # Оператор создаёт и держит в актуальном состоянии тот же Secret, который
+  # монтирует Deployment портала. Нужен установленный в кластере External
+  # Secrets Operator и SecretStore, знающий дорогу в Vault: его создаёт чарт
+  # secret-store из этого же репозитория (по умолчанию с именем vault).
+  #
+  # Ключи Secret должны называться так же, как переменные в secrets ниже:
+  # DATABASE_URL, SESSION_SECRET, GITLAB_TOKEN и остальные.
+  #
+  # Чем заполнять, задаётся полями dataFrom и data - это поля самого
+  # ExternalSecret, без переименований. Нужно хотя бы одно из них, иначе
+  # оператор создаст пустой Secret, а портал не стартует - поэтому рендер
+  # падает раньше.
+  #
+  # Ротация значения в Vault сама по себе поды не перезапускает: Secret
+  # обновится, а процесс читает переменные окружения один раз, при старте.
+  externalSecret:
+    enabled: false
+    apiVersion: external-secrets.io/v1
+    # SecretStore, из которого читаем. kind: ClusterSecretStore, если хранилище
+    # общее на кластер, а не заведено в этом namespace.
+    secretStoreRef:
+      name: vault
+      kind: SecretStore
+    # Как часто оператор перечитывает значения.
+    refreshInterval: 1h
+    # Owner - Secret живёт вместе с ExternalSecret и удаляется вместе с ним.
+    creationPolicy: Owner
+    # Забрать все ключи пути целиком: имена ключей в Vault уже совпадают с
+    # именами переменных.
+    dataFrom: []
+    # - extract:
+    #     key: console/portal
+    # Забрать по одному, когда имена в Vault свои.
+    data: []
+    # - secretKey: GITLAB_TOKEN
+    #   remoteRef:
+    #     key: console/portal
+    #     property: gitlab_token
+    # Шаблон целевого Secret (spec.target.template), если нужны свои labels,
+    # annotations или собранное из нескольких значений поле.
+    template: {}
+
+  # Секретные переменные. Рендерятся в Secret (пустые значения пропускаются).
   secrets:
     DATABASE_URL: ""
     REDIS_URL: ""
@@ -243,6 +324,9 @@ portal:
 # метрик - поэтому ни Service, ни проб. enabled=false полностью выключает компонент.
 collector:
   enabled: true
+  # Держите единицу. Коллектор каждый цикл переписывает снимок целиком, поэтому
+  # вторая реплика ничего не ускоряет: она просто во второй раз обходит
+  # Kubernetes API и пишет поверх того же снимка.
   replicaCount: 1
   image:
     # Образ коллектора: {imageRegistry}/console/collector.
@@ -289,8 +373,25 @@ collector:
     CLUSTER_NAME: default
     # Префикс ключей снимка в Redis.
     KEY_PREFIX: "k8s:catalog"
-  # Секреты. existingSecret (с ключом REDIS_URL) отключает рендер secrets.
+  # Секреты - те же три способа, что у портала выше.
+  # existingSecret (с ключом REDIS_URL) отключает рендер secrets.
   existingSecret: ""
+  # Тот же Vault, что у портала. Ключ в Secret должен называться REDIS_URL.
+  externalSecret:
+    enabled: false
+    apiVersion: external-secrets.io/v1
+    secretStoreRef:
+      name: vault
+      kind: SecretStore
+    refreshInterval: 1h
+    creationPolicy: Owner
+    dataFrom: []
+    data: []
+    # - secretKey: REDIS_URL
+    #   remoteRef:
+    #     key: console/collector
+    #     property: redis_url
+    template: {}
   secrets:
     # Подключение к Valkey/Redis (обязательно). Тот же Redis, что у портала.
     REDIS_URL: ""

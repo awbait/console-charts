@@ -1,3 +1,4 @@
+{{- include "console.portal.validateScale" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,7 +7,12 @@ metadata:
     {{- include "console.labels" . | nindent 4 }}
     {{- include "console.portal.selectorLabels" . | nindent 4 }}
 spec:
+  {{- if not .Values.portal.autoscaling.enabled }}
+  {{- /* Under an autoscaler the field is left out on purpose: it belongs to the
+         HPA from then on, and setting it here would put the two in a loop,
+         Helm writing the value back on every upgrade. */}}
   replicas: {{ .Values.portal.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "console.portal.selectorLabels" . | nindent 6 }}
@@ -15,7 +21,12 @@ spec:
       annotations:
         # Roll the pods when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/portal-configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/portal-secret.yaml") . | sha256sum }}
+        # Both files: one of them is empty, depending on where the secrets come
+        # from. What External Secrets later writes into the Secret is not visible
+        # here, so a rotated value in Vault does not roll the pods by itself.
+        checksum/secret: {{ printf "%s%s"
+          (include (print $.Template.BasePath "/portal-secret.yaml") .)
+          (include (print $.Template.BasePath "/portal-externalsecret.yaml") .) | sha256sum }}
         {{- if .Values.trustedCA.certs }}
         checksum/trusted-ca: {{ include (print $.Template.BasePath "/trusted-ca-configmap.yaml") . | sha256sum }}
         {{- end }}

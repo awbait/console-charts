@@ -1,13 +1,15 @@
 console {{ .Chart.Version }} (app {{ .Chart.AppVersion }}) deployed in namespace {{ .Release.Namespace | quote }}.
 
 portal: Service {{ include "console.portal.fullname" . }}:{{ .Values.portal.service.port }}, OIDC.
+portal replicas: {{ if .Values.portal.autoscaling.enabled }}autoscaled between {{ .Values.portal.autoscaling.minReplicas }} and {{ .Values.portal.autoscaling.maxReplicas }}{{ else }}{{ .Values.portal.replicaCount }}, fixed{{ end }}.
+portal secrets: {{ if .Values.portal.existingSecret }}an existing Secret, {{ .Values.portal.existingSecret }}{{ else if include "console.externalSecret.enabled" .Values.portal }}External Secrets, from the store {{ (.Values.portal.externalSecret.secretStoreRef).name }}{{ else }}a Secret rendered from values{{ end }}.
 collector: {{ if .Values.collector.enabled }}enabled{{ else }}disabled{{ end }}.
 ingress: {{ if .Values.ingressGateway.enabled }}ingress-gateway (Istio){{ else }}external (not from the chart){{ end }}.
-{{- if and .Values.collector.enabled (not .Values.collector.existingSecret) (not .Values.collector.secrets.REDIS_URL) }}
+{{- if and .Values.collector.enabled (include "console.ownSecret.enabled" .Values.collector) (not .Values.collector.secrets.REDIS_URL) }}
 
 WARNING: collector.secrets.REDIS_URL is not set - the collector will not start.
 {{- end }}
-{{- if and (not .Values.portal.existingSecret) (not .Values.portal.secrets.DATABASE_URL) }}
+{{- if and (include "console.ownSecret.enabled" .Values.portal) (not .Values.portal.secrets.DATABASE_URL) }}
 
 WARNING: portal.secrets.DATABASE_URL is not set - the portal will not start.
 {{- end }}

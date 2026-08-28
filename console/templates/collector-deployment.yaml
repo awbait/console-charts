@@ -16,7 +16,11 @@ spec:
       annotations:
         # Roll the pod when the config/secret changes.
         checksum/config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
-        checksum/secret: {{ include (print $.Template.BasePath "/collector-secret.yaml") . | sha256sum }}
+        # Both files: one of them is empty, depending on where the secrets come
+        # from (see the portal Deployment for what this does not cover).
+        checksum/secret: {{ printf "%s%s"
+          (include (print $.Template.BasePath "/collector-secret.yaml") .)
+          (include (print $.Template.BasePath "/collector-externalsecret.yaml") .) | sha256sum }}
         {{- if .Values.trustedCA.certs }}
         checksum/trusted-ca: {{ include (print $.Template.BasePath "/trusted-ca-configmap.yaml") . | sha256sum }}
         {{- end }}

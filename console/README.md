@@ -60,6 +60,8 @@ portal:
 | `portal.config`   | Несекретные env портала (см. `internal/config/config.go`)        |
 | `portal.secrets`  | Секретные env (рендерятся в `Secret`)                            |
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
+| `portal.externalSecret` | Наполнять `Secret` из Vault через External Secrets Operator |
+| `portal.replicaCount`, `portal.autoscaling` | Сколько реплик портала держать и когда добавлять |
 | `portal.metrics`  | Экспозиция Prometheus-метрик (порт + scrape-аннотации)           |
 | `trustedCA`       | Корневые сертификаты внутреннего УЦ для апстримов по HTTPS        |
 | `*.extraVolumes`, `*.extraVolumeMounts`, `*.extraEnv` | Произвольные тома и env компонента |
@@ -70,6 +72,109 @@ portal:
 Переменные окружения портала соответствуют env-тегам `config.go`; полный список
 с дефолтами - в `.env.example` репозитория console. Пустые значения в `config`/
 `secrets` не рендерятся, поэтому применяются дефолты из `config.go`.
+
+### Секреты из Vault
+
+Секреты портала можно не держать в values. Тогда `Secret`, который монтирует
+Deployment, наполняет External Secrets Operator, читая значения из Vault, а чарт
+хранит только адрес хранилища и то, какие пути из него брать.
+
+Нужны две вещи в кластере: сам External Secrets Operator и `SecretStore`,
+знающий дорогу в Vault. Второй создаёт чарт `secret-store` из этого же
+репозитория - по умолчанию с именем `vault` в том же namespace.
+
+Проще всего, когда все значения лежат в одном пути KV и ключи там уже названы
+как переменные портала (`DATABASE_URL`, `SESSION_SECRET`, `GITLAB_TOKEN` и
+остальные):
+
+```yaml
+portal:
+  externalSecret:
+    enabled: true
+    secretStoreRef:
+      name: vault
+    dataFrom:
+      - extract:
+          key: console/portal
+```
+
+Когда имена в Vault свои, значения перечисляются по одному:
+
+```yaml
+portal:
+  externalSecret:
+    enabled: true
+    secretStoreRef:
+      name: vault
+    data:
+      - secretKey: GITLAB_TOKEN
+        remoteRef:
+          key: console/portal
+          property: gitlab_token
+      - secretKey: ARGOCD_TOKEN
+        remoteRef:
+          key: console/portal
+          property: argocd_token
+```
+
+`dataFrom` и `data` можно задавать вместе: сначала берётся путь целиком, потом
+добавляются отдельные значения. Поля повторяют `ExternalSecret` как есть, без
+переименований, поэтому всё остальное из его документации (`template`,
+`creationPolicy`, `refreshInterval`) тоже доступно. Хранилище на весь кластер
+подключается через `secretStoreRef.kind: ClusterSecretStore`.
+
+То же самое есть у коллектора - `collector.externalSecret`, с одним значением
+`REDIS_URL`.
+
+Три способа задать секреты взаимоисключающие: `secrets` (значения в values),
+`existingSecret` (готовый `Secret`) и `externalSecret`. Задать последние два
+вместе нельзя, и включить `externalSecret`, не указав ни `data`, ни `dataFrom`,
+тоже нельзя - в обоих случаях рендер падает.
+
+Одного оператор не делает: смена значения в Vault не перезапускает поды. `Secret`
+обновится, а портал читает переменные окружения один раз, при старте, поэтому
+после ротации поды надо перезапустить.
+
+### Несколько реплик и автоскейлинг
+
+Портал умеет работать в нескольких репликах. События, которыми живут открытые
+страницы, ходят между ними через Redis, и там же лежит аренда, по которой
+фоновые циклы (сверка заказов, обновление счётчиков) ведёт ровно одна реплика.
+
+Поэтому у обеих настроек одно условие: `portal.config.CACHE=redis`. С
+`CACHE=memory` каждая реплика держала бы свои сессии, не слышала бы чужих
+событий и вела бы фоновые циклы сама - чарт в этом случае не рендерится и
+объясняет, почему. Нужен портал 0.10.0 и новее.
+
+Фиксированное число реплик:
+
+```yaml
+portal:
+  replicaCount: 3
+  config:
+    CACHE: redis
+```
+
+Или автоскейлер, который добавляет их сам:
+
+```yaml
+portal:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  config:
+    CACHE: redis
+```
+
+При включённом `autoscaling` поле `replicas` из Deployment убирается: число
+реплик принадлежит автоскейлеру, и оставленное поле Helm возвращал бы обратно на
+каждом `upgrade`. HPA считает загрузку долей от `resources.requests`, поэтому
+метрика без соответствующего request рендер тоже роняет.
+
+Коллектор не масштабируется: он каждый цикл переписывает снимок целиком, и
+вторая реплика просто во второй раз обходит Kubernetes API.
 
 ### Зависимости
 
@@ -310,6 +415,23 @@ ingressGateway:
 
 Сабчарт вендорится локально; перед упаковкой выполните `helm dependency build`
 (каталог `charts/` и `Chart.lock` в git не хранятся).
+
+## Валидации
+
+Часть сочетаний значений чарт не рендерит вовсе, а падает с объяснением: молча
+поставить сломанный релиз хуже, чем не поставить его совсем.
+
+| Когда падает | Что поправить |
+|---|---|
+| `portal.autoscaling.enabled` или `portal.replicaCount` больше 1, а `portal.config.CACHE` не `redis` | Поставить `CACHE: redis`: без общего Redis реплики не видят сессий и событий друг друга и ведут фоновые циклы каждая сама |
+| `portal.autoscaling.minReplicas` меньше 1 | Минимум - одна реплика |
+| `portal.autoscaling.maxReplicas` меньше `minReplicas` | Поправить границы |
+| Включён `autoscaling` без `targetCPUUtilizationPercentage` и `targetMemoryUtilizationPercentage` | Задать хотя бы одну метрику: без метрики автоскейлер ничего не делает |
+| Метрика CPU или памяти задана, а соответствующего `portal.resources.requests` нет | Задать request: HPA считает загрузку долей от него |
+| Заданы одновременно `existingSecret` и `externalSecret.enabled` (портал или коллектор) | Оставить один способ |
+| Включён `externalSecret` без `data` и без `dataFrom` | Указать, что читать из Vault: иначе оператор создаст пустой Secret |
+| Включён `externalSecret` без `secretStoreRef.name` | Назвать `SecretStore` |
+| `goRuntime.memLimitPercent` больше нуля, а лимит памяти записан так, что чарт не может его разобрать | Поправить лимит или поставить `memLimitPercent: 0` |
 
 ## Проверка рендера
 
