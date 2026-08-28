@@ -1,0 +1,35 @@
+{{/*
+ReferenceGrant next to the gateway, created only when at least one sender sits in
+another namespace. The route of such a sender points its backendRef at the
+Service of the egress gateway, which crosses a namespace boundary; without this
+grant the Gateway API refuses the reference.
+One grant lists every foreign sender namespace, so it carries the name of the
+Gateway (kindShort rg). Skipped when the gateway is disabled.
+*/}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- if .Values.serviceEntries }}
+{{- $root := . }}
+{{- $_ := include "egress-gateway.helpers.app.gatewayFullname" $root }}
+{{- $gwName := $root.Values.egressGateway.name }}
+{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" $root | fromJsonArray | rest }}
+{{- if $namespaces }}
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "rg" "name" $gwName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  from:
+    {{- range $namespace := $namespaces }}
+    - group: gateway.networking.k8s.io
+      kind: TLSRoute
+      namespace: {{ $namespace | quote }}
+    {{- end }}
+  to:
+    - group: ""
+      kind: Service
+{{- end }}
+{{- end }}
+{{- end }}

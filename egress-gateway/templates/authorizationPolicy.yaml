@@ -1,0 +1,39 @@
+{{/*
+AuthorizationPolicy (Istio) attached to the egress gateway of this release, created
+when authorizationPolicy.enabled. It lets the backends through to the gateway:
+ALLOW from the namespaces of the external services of this release, the release
+namespace included.
+The policy is attached through targetRefs, the way a Gateway API gateway is
+targeted, not through a workload selector.
+Shares the name of the Gateway (kindShort ap). Skipped when the gateway is
+disabled.
+*/}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . }}
+{{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $authorizationPolicy) "true" }}
+{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
+{{- $gwName := $root.Values.egressGateway.name }}
+{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" $root | fromJsonArray }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $gwName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gwFullname }}
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces:
+              {{- range $namespace := $namespaces }}
+              - {{ $namespace | quote }}
+              {{- end }}
+{{- end }}
+{{- end }}

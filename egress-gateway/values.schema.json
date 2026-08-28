@@ -2,13 +2,17 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/egress-gateway/values.schema.json",
   "title": "egress-gateway Helm chart values",
-  "description": "Editor-oriented schema for the egress-gateway chart (Istio waypoint egress + kube-ovn VpcEgressGateway). A single egress Gateway with one or more listeners; routes and ServiceEntries are generated per listener.",
+  "description": "Editor-oriented schema for the egress-gateway chart (Istio egress gateway on the Gateway API + kube-ovn VpcEgressGateway). A single Gateway of class istio whose listeners come from the hostnames of the external services; each service also gets a ServiceEntry and a pair of TLSRoutes.",
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
     "identity",
     "generic",
     "egressGateway",
+    "serviceEntries",
+    "networkPolicy",
+    "authorizationPolicy",
+    "egressNamespace",
     "vpcEgressGateway"
   ],
   "required": [
@@ -30,6 +34,40 @@
       "title": "Гейтвей",
       "description": "Одна контролируемая точка, через которую ваши сервисы ходят наружу.",
       "$ref": "#/definitions/egressGateway"
+    },
+    "serviceEntries": {
+      "title": "Внешние сервисы",
+      "description": "На каждый внешний сервис - одна запись. Через них гейтвей выпускает трафик наружу.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/serviceEntry"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Внешний сервис",
+          "body": [
+            {
+              "name": "nx",
+              "hostname": "repository.solution.test"
+            }
+          ]
+        }
+      ]
+    },
+    "networkPolicy": {
+      "title": "Сетевые правила",
+      "description": "Ограничивают, куда гейтвей может ходить и кто может ходить к нему.",
+      "$ref": "#/definitions/networkPolicy"
+    },
+    "authorizationPolicy": {
+      "title": "Правило доступа к гейтвею",
+      "description": "Пускает к гейтвею только ваши сервисы, а не весь кластер.",
+      "$ref": "#/definitions/authorizationPolicy"
+    },
+    "egressNamespace": {
+      "title": "Отдельный namespace под выход",
+      "description": "Вынести выход с известного адреса в свой namespace с отдельной подсетью.",
+      "$ref": "#/definitions/egressNamespace"
     },
     "vpcEgressGateway": {
       "title": "Выход с известного адреса",
@@ -84,6 +122,11 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 65535
+    },
+    "namespaceName": {
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "maxLength": 63
     },
     "tplStringMap": {
       "type": "object",
@@ -184,7 +227,8 @@
       "propertyOrder": [
         "name",
         "enabled",
-        "listeners"
+        "hpa",
+        "resources"
       ],
       "properties": {
         "name": {
@@ -194,111 +238,268 @@
         },
         "enabled": {
           "title": "enabled",
-          "description": "Set to false to keep the settings in values without creating the Gateway and everything derived from its listeners.",
+          "description": "Set to false to keep the settings in values without creating the Gateway and its ConfigMap.",
           "type": "boolean",
           "default": true,
           "ui:widget": "hidden"
         },
-        "listeners": {
-          "title": "Точки выхода",
-          "description": "На каждый внешний сервис - одна точка. Нужна хотя бы одна.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/egressListener"
+        "hpa": {
+          "title": "Автомасштабирование",
+          "description": "Сколько экземпляров гейтвея держать под нагрузкой.",
+          "$ref": "#/definitions/gatewayHpa"
+        },
+        "resources": {
+          "title": "Gateway resources",
+          "description": "Resources for the istio-proxy container in the automatically created Deployment. Rendered into ConfigMap.data.deployment. Hidden in the new order form: created with a default value, edited later from the product card.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/containerResources",
+          "default": {
+            "requests": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            },
+            "limits": {
+              "cpu": "2000m",
+              "memory": "1024Mi"
+            }
           }
         }
       },
       "required": [
-        "name",
-        "listeners"
+        "name"
       ]
     },
-    "egressListener": {
+    "gatewayHpa": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "minReplicas",
+        "maxReplicas",
+        "averageUtilization"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "Включить",
+          "description": "Гейтвей будет сам добавлять экземпляры под нагрузкой.",
+          "type": "boolean",
+          "default": false
+        },
+        "minReplicas": {
+          "title": "Минимум экземпляров",
+          "description": "Столько работает всегда.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 2
+        },
+        "maxReplicas": {
+          "title": "Максимум экземпляров",
+          "description": "Выше этого числа не поднимется.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "averageUtilization": {
+          "title": "Целевая загрузка CPU",
+          "description": "Процент, выше которого добавляется экземпляр.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80
+        }
+      }
+    },
+    "containerResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "requests",
+        "limits"
+      ],
+      "properties": {
+        "requests": {
+          "title": "requests",
+          "description": "Requested resources of the istio-proxy container. For CPU-based HPA it is mandatory to set requests.cpu.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        },
+        "limits": {
+          "title": "limits",
+          "description": "Resource limits of the istio-proxy container.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        }
+      }
+    },
+    "resourceQuantityMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "title": "cpu",
+          "description": "Amount of CPU, for example 100m, 500m, 1.",
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "title": "memory",
+          "description": "Amount of memory, for example 128Mi, 512Mi, 1Gi.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "serviceEntry": {
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
         "name",
         "hostname",
-        "port",
-        "protocol",
-        "addresses",
-        "exportTo",
-        "location",
-        "resolution"
+        "namespace",
+        "enabled"
       ],
       "properties": {
         "name": {
-          "title": "Имя точки",
-          "description": "Короткое имя, по которому вы отличите эту точку от других.",
+          "title": "Имя сервиса",
+          "description": "Короткое имя, по которому вы отличите этот сервис от других.",
           "$ref": "#/definitions/shortToken"
         },
         "hostname": {
           "title": "Домен внешнего сервиса",
-          "description": "Домен, по которому ваши сервисы обращаются наружу.",
+          "description": "Домен, по которому ваши сервисы обращаются наружу. Первый уровень домена станет именем точки выхода на гейтвее.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+        },
+        "namespace": {
+          "title": "Namespace вашего сервиса",
+          "description": "Заполните, если сервис, который ходит наружу, живёт не рядом с гейтвеем. Пустое поле - тот же namespace, что и у гейтвея.",
+          "$ref": "#/definitions/namespaceName"
+        },
+        "enabled": {
+          "title": "enabled",
+          "description": "Set to false to keep the entry in values without creating the ServiceEntry and its routes.",
+          "type": "boolean",
+          "default": true,
+          "ui:widget": "hidden"
+        }
+      },
+      "required": [
+        "name",
+        "hostname"
+      ]
+    },
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "endpoints"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "Включить",
+          "description": "Гейтвей будет ходить только к перечисленным адресам, а принимать - только от ваших сервисов.",
+          "type": "boolean",
+          "default": false
+        },
+        "endpoints": {
+          "title": "Внешние адреса и порты",
+          "description": "Куда гейтвею разрешено ходить. Заполняется, когда сетевые правила включены.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/networkPolicyEndpoint"
+          },
+          "defaultSnippets": [
+            {
+              "label": "Внешний адрес",
+              "body": [
+                {
+                  "address": "10.40.20.50",
+                  "port": 443
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "networkPolicyEndpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "address",
+        "port"
+      ],
+      "properties": {
+        "address": {
+          "title": "Адрес",
+          "description": "IP внешней точки или подсеть в формате CIDR.",
           "type": "string",
           "minLength": 1
         },
         "port": {
           "title": "Порт",
+          "description": "Порт, на который гейтвей ходит по этому адресу.",
           "$ref": "#/definitions/port"
-        },
-        "protocol": {
-          "title": "Протокол",
-          "description": "Как гейтвей разбирает трафик к этому сервису. Если не уверены, оставьте TLS.",
-          "type": "string",
-          "enum": [
-            "TLS",
-            "HTTPS"
-          ],
-          "default": "TLS"
-        },
-        "addresses": {
-          "title": "IP-адреса сервиса",
-          "description": "Заполните, если у сервиса постоянные адреса. Пустое поле - адрес ищется по домену.",
-          "type": "array",
-          "items": {
-            "title": "IP-адрес",
-            "type": "string"
-          }
-        },
-        "exportTo": {
-          "title": "exportTo",
-          "description": "ServiceEntry visibility. Defaults to [\".\"].",
-          "ui:widget": "hidden",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "location": {
-          "title": "location",
-          "description": "Position relative to the mesh. Defaults to MESH_EXTERNAL.",
-          "ui:widget": "hidden",
-          "type": "string",
-          "enum": [
-            "MESH_EXTERNAL",
-            "MESH_INTERNAL"
-          ]
-        },
-        "resolution": {
-          "title": "resolution",
-          "description": "ServiceEntry resolution override. Defaults to STATIC when addresses are set, otherwise DNS.",
-          "ui:widget": "hidden",
-          "type": "string",
-          "enum": [
-            "STATIC",
-            "DNS",
-            "DNS_ROUND_ROBIN",
-            "NONE"
-          ]
         }
       },
       "required": [
-        "name",
-        "hostname",
+        "address",
         "port"
       ]
+    },
+    "authorizationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "Включить",
+          "description": "К гейтвею будут допущены только namespace ваших сервисов.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "egressNamespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "name",
+        "cidrBlock",
+        "allowSubnets"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "Включить",
+          "description": "Выход получит свой namespace и подсеть. Выключено - выход остаётся рядом с гейтвеем.",
+          "type": "boolean",
+          "default": false
+        },
+        "name": {
+          "title": "Имя namespace",
+          "description": "Так же будет называться подсеть. Заполняется, когда отдельный namespace включён.",
+          "$ref": "#/definitions/namespaceName"
+        },
+        "cidrBlock": {
+          "title": "Подсеть",
+          "description": "Блок /29, зарезервированный в Netbox. Например 10.20.30.8/29.",
+          "type": "string",
+          "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/29$"
+        },
+        "allowSubnets": {
+          "title": "Подсети проекта",
+          "description": "С какими подсетями проекта разрешена связность. Служебные подсети чарт добавляет сам.",
+          "type": "array",
+          "items": {
+            "title": "Подсеть",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "vpcEgressGateway": {
       "type": "object",

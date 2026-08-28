@@ -1,14 +1,23 @@
 {{/*
-ConfigMap for the waypoint operator - one per gateway. Shares the same name as
-the Gateway (kindShort egw); the Gateway references it via parametersRef (see
-gateway.yaml).
-data.service - patch for the waypoint Service: disable NodePort and drop port 15021.
+Infrastructure ConfigMap for the Istio Gateway controller - one per gateway.
+Shares the same name as the Gateway (kindShort egw); the Gateway references it
+via parametersRef (see gateway.yaml).
+data.deployment - a patch for the auto-created Deployment (securityContext and the
+resources of the istio-proxy container).
+data.horizontalPodAutoscaler - added when hpa.enabled.
+The Service stays internal through an annotation on the Gateway itself, so
+nothing is written for it here.
 Skipped when the gateway is disabled.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
+{{- $hpa := $gw.hpa | default dict }}
+{{- $hpaEnabled := $hpa.enabled | default false }}
+{{/* resources is hidden in the order form; apply a sane istio-proxy default when omitted (editable later from the product card). */}}
+{{- $defaultResources := dict "requests" (dict "cpu" "100m" "memory" "128Mi") "limits" (dict "cpu" "2000m" "memory" "1024Mi") }}
+{{- $resources := $gw.resources | default $defaultResources }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -17,11 +26,31 @@ metadata:
   namespace: {{ $.Release.Namespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
 data:
-  service: |
+  {{- if $hpaEnabled }}
+  horizontalPodAutoscaler: |
     spec:
-      allocateLoadBalancerNodePorts: false
-      ports:
-      - "$patch": delete
-        port: 15021
+      minReplicas: {{ $hpa.minReplicas | default 2 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 5 }}
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: {{ $hpa.averageUtilization | default 80 }}
+  {{- end }}
+  deployment: |
+    spec:
+      template:
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          {{- if $resources }}
+          containers:
+            - name: istio-proxy
+              resources:
+                {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $resources "context" $) | nindent 16 }}
+          {{- end }}
 {{- end }}
 {{- end }}

@@ -1,39 +1,74 @@
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
-egress-gateway ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
-Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
-Identity labels on every resource: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
+egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+Конвенция имён: {instance}-{cluster}-{kindShort}-{project}-{name}
+Теги на каждом ресурсе: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{- $gw := .Values.egressGateway | default dict }}
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
-{{- $gwName := $gw.name }}
-{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
+{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gw.name "context" $) }}
+{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" . | fromJsonArray }}
 
-Egress Gateway: {{ $gwFullname }} (Gateway + ConfigMap)
-Listeners (each -> ServiceEntry + one Route):
-{{- range $gw.listeners }}
-{{- $protocol := .protocol | default "TLS" | upper }}
-{{- $routeKind := ternary "HTTPRoute" "TLSRoute" (eq $protocol "HTTPS") }}
-  - {{ .name }} -> {{ .hostname }}:{{ .port }} ({{ $protocol }}/Passthrough)
-      SE    {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
-      {{ $routeKind }} {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "parent" $gwName "name" .name "context" $) }}
+Гейтвей: {{ $gwFullname }} (Gateway + ConfigMap), на каждый домен - свой listener на порту 443.
+{{- if gt (len $namespaces) 1 }}
+Отправители лежат в namespace: {{ join ", " $namespaces }}. Для чужих создан ReferenceGrant {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "rg" "name" $gw.name "context" $) }}.
+{{- else }}
+Все отправители лежат в namespace релиза.
+{{- end }}
+{{- $hpa := $gw.hpa | default dict }}
+{{- if $hpa.enabled }}
+Автомасштабирование включено: от {{ $hpa.minReplicas | default 2 }} до {{ $hpa.maxReplicas | default 5 }} экземпляров при загрузке CPU выше {{ $hpa.averageUtilization | default 80 }}%.
+{{- else }}
+Автомасштабирование выключено.
+{{- end }}
+
+{{- $np := .Values.networkPolicy | default dict }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $np) "true" }}
+Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "out" "context" $) }} (куда шлюзу можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "in" "context" $) }} (кто ходит к шлюзу на 443).
+{{- else }}
+Сетевые правила не созданы (networkPolicy.enabled=false).
+{{- end }}
+{{- $ap := .Values.authorizationPolicy | default dict }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $ap) "true" }}
+Правило доступа: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $gw.name "context" $) }} - пускает к шлюзу namespace ваших сервисов.
+{{- else }}
+Правило доступа не создано (authorizationPolicy.enabled=false).
+{{- end }}
+
+{{- with .Values.serviceEntries }}
+
+Внешние сервисы (ServiceEntry и пара маршрутов на каждый):
+{{- range . }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
+{{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" . "context" $) }}
+  * {{ .hostname }} в namespace {{ $namespace }}
+      SE       {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
+      TLSRoute {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "tr" "name" .name "context" $) }} (отправитель -> шлюз)
+      TLSRoute {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "tr" "parent" $gw.name "name" .name "context" $) }} (шлюз -> домен)
+{{- end }}
+{{- end }}
 {{- end }}
 {{- else }}
 
-Egress Gateway: disabled (egressGateway.enabled=false).
+Гейтвей выключен (egressGateway.enabled=false), ресурсы не созданы.
 {{- end }}
 
 {{- with .Values.vpcEgressGateway }}
+{{- $egressNs := include "egress-gateway.helpers.app.egressNamespace" $ }}
 
-VpcEgressGateway (kube-ovn) - selectors point at the egress gateway above:
+Выход с известного адреса (VpcEgressGateway) в namespace {{ $egressNs }} - нацелен
+на поды гейтвея выше, SNAT на подсеть {{ $egressNs }}:
 {{- range . }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
-  * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (externalIPs: {{ len .externalIPs }}, replicas: {{ len .externalIPs }})
+  * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (внешних адресов: {{ len .externalIPs }}, столько же экземпляров)
 {{- end }}
+{{- end }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" ($.Values.egressNamespace | default dict)) "true" }}
+Namespace {{ $egressNs }} и одноимённая подсеть {{ include "egress-gateway.helpers.app.egressSubnetCidr" $ }} созданы этим релизом.
 {{- end }}
 {{- end }}
 
-All resources of this release carry the labels app={{ .Chart.Name }} and
+На всех ресурсах релиза стоят labels app={{ .Chart.Name }} и
 app.kubernetes.io/instance={{ .Release.Name }}.
 {{- else }}
-Resources not created: enabled=false.
+Ресурсы не созданы: enabled=false.
 {{- end }}

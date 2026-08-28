@@ -1,57 +1,44 @@
 {{/*
-ServiceEntry - generated from the egressGateway listeners (one per listener).
-The external service is described directly in the listener:
-  hostname  -> spec.hosts and the route backend
-  port      -> spec.ports[].number
-  protocol  -> spec.ports[].protocol (TLS or HTTPS)
-  addresses -> static IPs: set -> resolution STATIC + endpoints,
-               otherwise -> resolution DNS
-Resource name by convention (kindShort egw, name = listener.name).
-The whole section is skipped when the gateway is disabled.
+ServiceEntry - one per entry of .Values.serviceEntries, each describing a single
+external service. The user fills in the name and the hostname, and optionally the
+namespace the sender lives in; when the namespace is left out the ServiceEntry
+lands next to the gateway, in the release namespace.
+exportTo keeps the entry visible in its own namespace and in the namespace of the
+gateway, so the outbound route next to the gateway resolves the same host.
+Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
+Skipped when the gateway is disabled.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
-{{- $gw := .Values.egressGateway | default dict }}
-{{- if ($gw.enabled | default true) }}
-{{- range $index, $listener := $gw.listeners }}
-{{- $seName := required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name }}
-{{- $hostname := required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname }}
-{{- $port := required (printf "egressGateway.listeners[%d].port is required" $index) $listener.port }}
-{{- $protocol := include "egress-gateway.helpers.listenerProtocol" (dict "label" (printf "egressGateway.listeners[%d].protocol" $index) "value" $listener.protocol) }}
-{{- $addresses := $listener.addresses | default (list) }}
+{{- if .Values.serviceEntries }}
+{{- $root := . }}
+{{- $_ := include "egress-gateway.helpers.app.gatewayFullname" $root }}
+{{- range $index, $entry := .Values.serviceEntries }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
+{{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
+{{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
+{{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" $entry "context" $root) }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $seName "context" $) }}
-  namespace: {{ $.Release.Namespace | quote }}
-  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $) | nindent 2 }}
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $seName "context" $root) }}
+  namespace: {{ $namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   hosts:
     - {{ $hostname | quote }}
-  {{- if $addresses }}
-  addresses:
-    {{- range $address := $addresses }}
-    - {{ $address | quote }}
-    {{- end }}
-  {{- end }}
   exportTo:
-    {{- range $export := ($listener.exportTo | default (list ".")) }}
-    - {{ $export | quote }}
+    - "."
+    {{- if ne $namespace $root.Release.Namespace }}
+    - {{ $root.Release.Namespace | quote }}
     {{- end }}
-  location: {{ $listener.location | default "MESH_EXTERNAL" }}
-  resolution: {{ $listener.resolution | default (ternary "STATIC" "DNS" (gt (len $addresses) 0)) }}
+  location: MESH_EXTERNAL
+  resolution: DNS
   ports:
-    - name: {{ $seName }}
-      number: {{ $port }}
-      protocol: {{ $protocol }}
-  {{- if $addresses }}
-  endpoints:
-    {{- range $address := $addresses }}
-    - address: {{ $address | quote }}
-      ports:
-        {{ $seName }}: {{ $port }}
-    {{- end }}
-  {{- end }}
+    - name: tls
+      number: 443
+      protocol: TLS
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

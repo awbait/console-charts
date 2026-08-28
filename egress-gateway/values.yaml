@@ -1,9 +1,9 @@
 # egress-gateway - дефолтные значения (минимум, чтобы рендер проходил).
 # Пустые дефолты: ничего не создаётся. Чарт автоматически подгружает этот файл
 # при каждом `helm template`, поэтому в нём НЕ должно быть примера
-# egressGateway/vpcEgressGateway (иначе они домержатся в каждый заказ, который
-# опускает эти ключи). Заказ передаёт свои значения; блок identity обязателен
-# (валидируется через values.schema.json).
+# egressGateway/serviceEntries/vpcEgressGateway (иначе они домержатся в каждый
+# заказ, который опускает эти ключи). Заказ передаёт свои значения; блок identity
+# обязателен (валидируется через values.schema.json).
 # Полный reference параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
 
 # Теги окружения и проекта: попадают в имя каждого ресурса и в labels
@@ -19,5 +19,20 @@ generic:
 
 # egressGateway (одиночный объект) намеренно НЕ задан здесь - его передаёт заказ.
 # Аннотированный reference - в values.full.yaml.
+
+serviceEntries: []
+
+# Политики выключены по умолчанию: их включает заказ. У networkPolicy при
+# enabled: true обязателен список endpoints, поэтому молча включать её нельзя.
+networkPolicy:
+  enabled: false
+
+authorizationPolicy:
+  enabled: false
+
+# По умолчанию VpcEgressGateway встаёт в namespace релиза, отдельный namespace
+# с подсетью не создаётся.
+egressNamespace:
+  enabled: false
 
 vpcEgressGateway: []

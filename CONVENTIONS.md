@@ -103,15 +103,15 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 
 ### Расширенная форма с родителем
 
-Когда дочерний ресурс привязан к родительскому (например, `TLSRoute` к своему
-`Gateway` в `egress-gateway`, `xroutes[]` к своему гейтвею в `ingress-gateway`),
-в имя добавляется тег родителя:
+Когда дочерний ресурс привязан к родительскому (например, `NetworkPolicy` к
+своему `Gateway` в `egress-gateway`, `xroutes[]` к своему гейтвею в
+`ingress-gateway`), в имя добавляется тег родителя:
 
 ```
 {instance}-{cluster}-{kindShort}-{parentName}-{project}-{name}
 ```
 
-Примеры: `ed-dev-egw-wp-nbox-rnx`, `ed-dev-hr-edge-a-nbox-app`.
+Примеры: `ed-dev-np-wp-nbox-out`, `ed-dev-hr-edge-a-nbox-app`.
 
 Эта форма и решает, чьё имя обязано быть уникальным: без родителя имя элемента
 занято во всём неймспейсе, с родителем - только внутри него. Столкновение имён
@@ -126,17 +126,18 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | kindShort | Kind                     | Чарт(ы)                    |
 |-----------|--------------------------|----------------------------|
 | `igw`     | `Gateway` (ingress)      | ingress-gateway            |
-| `egw`     | `Gateway` egress (+ его `ConfigMap`/`ServiceEntry`/`TLSRoute`) | egress-gateway |
+| `egw`     | `Gateway` egress (+ его `ConfigMap`/`ServiceEntry`) | egress-gateway        |
 | `wp`      | `Gateway` (istio-waypoint) | waypoint                 |
 | `veg`     | `VpcEgressGateway`       | egress-gateway             |
 | `cm`      | `ConfigMap`              | ingress-gateway            |
-| `np`      | `NetworkPolicy`          | ingress-gateway, policies  |
-| `ap`      | `AuthorizationPolicy`    | ingress-gateway, policies  |
+| `np`      | `NetworkPolicy`          | ingress-gateway, egress-gateway, policies |
+| `ap`      | `AuthorizationPolicy`    | ingress-gateway, egress-gateway, policies |
 | `hr`      | `HTTPRoute`              | ingress-gateway            |
 | `gr`      | `GRPCRoute`              | ingress-gateway            |
-| `tr`      | `TLSRoute`               | ingress-gateway            |
+| `tr`      | `TLSRoute`               | ingress-gateway, egress-gateway |
 | `tcr`     | `TCPRoute`               | ingress-gateway            |
 | `ur`      | `UDPRoute`               | ingress-gateway            |
+| `rg`      | `ReferenceGrant`         | egress-gateway             |
 | `secret`  | `Secret` (TLS)           | ingress-gateway            |
 | `es`      | `ExternalSecret`         | ingress-gateway            |
 
@@ -144,8 +145,8 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 
 - **Код уникален на Kind, но привязка к Kind - в пределах чарта.** Один чарт сам
   решает, какие из своих ресурсов как кодирует. Так, в `ingress-gateway` у
-  `ConfigMap` свой код `cm`, а в `egress-gateway` `ConfigMap`/`ServiceEntry`/
-  `TLSRoute` наследуют код `egw` своего Gateway (один логический объект - egress).
+  `ConfigMap` свой код `cm`, а в `egress-gateway` `ConfigMap` и `ServiceEntry`
+  наследуют код `egw` своего Gateway (один логический объект - egress).
 - **Новый Kind - новый код в реестр.** Заводя ресурс нового типа, добавь короткий
   код сюда и провалидируй его в хелпере `fullname`/`resourceName` своего чарта
   (список разрешённых kindShort там захардкожен и падает на неизвестном).
