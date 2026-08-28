@@ -1,13 +1,15 @@
 {{/*
-Egress Gateway (Gateway API, class istio-waypoint) - a SINGLE gateway built from
-.Values.egressGateway. It may carry more than one listener.
+Egress Gateway (Gateway API, class istio) - a SINGLE gateway built from
+.Values.egressGateway. The user names it; the listeners come from the external
+services of the release, one per hostname:
+  - name     the deepest level of the domain (kc.idp.ecpk.test -> kc);
+  - port     443, protocol TLS, mode Passthrough - fixed;
+  - allowedRoutes stay on Same: the outbound routes are created next to the
+    gateway, and a route from a sender namespace reaches the gateway through a
+    backendRef and a ReferenceGrant, not through this listener.
 infrastructure.parametersRef references the ConfigMap (see configmap.yaml), which
 shares the same name as the Gateway (kindShort egw).
-Per listener:
-  - tls.mode is always Passthrough (not configurable);
-  - protocol is TLS or HTTPS and selects the allowed route kind
-    (TLS -> TLSRoute, HTTPS -> HTTPRoute);
-  - allowedRoutes are restricted to the current namespace.
+The Service of the gateway stays internal (annotation networking.istio.io/service-type).
 The whole gateway is skipped when enabled: false.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
@@ -17,8 +19,9 @@ The whole gateway is skipped when enabled: false.
 {{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
 {{- $gwName := required "egressGateway.name is required" $gw.name }}
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
-{{- if not $gw.listeners }}
-{{- fail "egressGateway.listeners must contain at least one listener" }}
+{{- $entries := .Values.serviceEntries | default list }}
+{{- if not $entries }}
+{{- fail "serviceEntries must contain at least one external service: the gateway takes its listeners from their hostnames" }}
 {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -26,33 +29,28 @@ kind: Gateway
 metadata:
   name: {{ $gwFullname }}
   namespace: {{ $.Release.Namespace | quote }}
-  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $ "annotations" (dict "networking.istio.io/service-type" "ClusterIP" "istio.io/waypoint-for" "service")) | nindent 2 }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $ "annotations" (dict "networking.istio.io/service-type" "ClusterIP")) | nindent 2 }}
 spec:
-  gatewayClassName: istio-waypoint
+  gatewayClassName: istio
   infrastructure:
     parametersRef:
       group: ""
       kind: ConfigMap
       name: {{ $gwFullname }}
   listeners:
-    {{- range $index, $listener := $gw.listeners }}
-    {{- $lName := include "egress-gateway.helpers.shortToken" (dict "label" (printf "egressGateway.listeners[%d].name" $index) "value" (required (printf "egressGateway.listeners[%d].name is required" $index) $listener.name)) }}
-    {{- $protocol := include "egress-gateway.helpers.listenerProtocol" (dict "label" (printf "egressGateway.listeners[%d].protocol" $index) "value" $listener.protocol) }}
-    {{- $routeKind := include "egress-gateway.helpers.routeKind" $protocol }}
-    - name: {{ $lName }}
-      hostname: {{ required (printf "egressGateway.listeners[%d].hostname is required" $index) $listener.hostname | quote }}
-      port: {{ required (printf "egressGateway.listeners[%d].port is required" $index) $listener.port }}
-      protocol: {{ $protocol }}
+    {{- range $index, $entry := $entries }}
+    {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
+    {{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
+    - name: {{ include "egress-gateway.helpers.app.listenerName" (dict "label" (printf "serviceEntries[%d].hostname" $index) "value" $hostname) }}
+      hostname: {{ $hostname | quote }}
+      port: 443
+      protocol: TLS
       tls:
         mode: Passthrough
       allowedRoutes:
-        kinds:
-          - kind: {{ $routeKind }}
         namespaces:
-          from: Selector
-          selector:
-            matchLabels:
-              kubernetes.io/metadata.name: {{ $.Release.Namespace | quote }}
+          from: Same
+    {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}

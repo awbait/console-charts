@@ -16,7 +16,7 @@ Helm-чартами платформы. Он лежит внутри рабоч�
   `internal/config/config.go` и `.env.example` из репозитория `console`.
 - `ingress-gateway/` - Istio Gateway API (Gateway, xRoutes, NetworkPolicy,
   AuthorizationPolicy, OIDC).
-- `egress-gateway/` - Istio waypoint-based egress (Gateway, ServiceEntry, TLSRoute)
+- `egress-gateway/` - Istio waypoint-based egress (Gateway, ServiceEntry)
   + kube-ovn `VpcEgressGateway`.
 - `waypoint/` - Istio ambient waypoint proxy.
 - `policies/` - декларативные правила доступа между сервисами: `NetworkPolicy` +

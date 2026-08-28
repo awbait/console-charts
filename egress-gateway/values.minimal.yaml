@@ -1,15 +1,17 @@
-# Минимальный пример: одна точка egress.
-# Один Gateway с одним TLS Passthrough listener (nx). Из listener генерируются
-# ServiceEntry и один TLSRoute (Kind маршрута берётся из протокола listener).
-# Плюс один VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот Gateway.
+# Минимальный пример: один выход наружу.
+# Гейтвей с одним listener'ом (его чарт выводит из домена внешнего сервиса), один
+# внешний сервис в namespace релиза, пара маршрутов до него и один
+# VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот гейтвей.
 #
 # Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
 # С тегами ниже получится:
-# - ConfigMap        ed-dev-egw-nbox-wp
-# - Gateway          ed-dev-egw-nbox-wp
-# - ServiceEntry     ed-dev-egw-nbox-nx
-# - TLSRoute         ed-dev-egw-wp-nbox-nx   (parent = Gateway, name = listener)
-# - VpcEgressGateway ed-dev-veg-nbox-core
+# - ConfigMap            ed-dev-egw-nbox-eg
+# - Gateway              ed-dev-egw-nbox-eg
+# - ServiceEntry         ed-dev-egw-nbox-nx
+# - TLSRoute             ed-dev-tr-nbox-nx и ed-dev-tr-eg-nbox-nx
+# - NetworkPolicy        ed-dev-np-eg-nbox-out и ed-dev-np-eg-nbox-in
+# - AuthorizationPolicy  ed-dev-ap-nbox-eg
+# - VpcEgressGateway     ed-dev-veg-nbox-core
 
 identity:
   instance: ed         # тег инстанса окружения
@@ -22,14 +24,20 @@ generic:
 
 egressGateway:
   enabled: true
-  name: wp
-  listeners:
-    - name: nx
-      hostname: repository.solution.test
+  name: eg
+
+serviceEntries:
+  - name: nx
+    hostname: repository.solution.test
+
+networkPolicy:
+  enabled: true
+  endpoints:
+    - address: 10.40.20.50
       port: 443
-      protocol: TLS
-      addresses:
-        - 10.40.20.50
+
+authorizationPolicy:
+  enabled: true
 
 vpcEgressGateway:
   - name: core

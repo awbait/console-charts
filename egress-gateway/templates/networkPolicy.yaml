@@ -1,0 +1,88 @@
+{{/*
+Two NetworkPolicies for the gateway workload, created together when
+networkPolicy.enabled. Both select the pods the Istio Gateway controller makes
+for the Gateway (label gateway.networking.k8s.io/gateway-name).
+
+  {name}-out - what the gateway may reach. istiod (istio-system:15012) and
+               CoreDNS (kube-system:1053, TCP and UDP) are fixed; the external
+               endpoints come from networkPolicy.endpoints, which is required
+               when the section is on.
+  {name}-in  - who may reach the gateway: the namespaces of the senders of this
+               release, on the listener port 443.
+
+Skipped when the gateway is disabled.
+*/}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . }}
+{{- $networkPolicy := $root.Values.networkPolicy | default dict }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true" }}
+{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
+{{- $gwName := $root.Values.egressGateway.name }}
+{{- $endpoints := $networkPolicy.endpoints | default list }}
+{{- if not $endpoints }}
+{{- fail "networkPolicy.endpoints is required when networkPolicy.enabled=true: name the address and the port of every external endpoint the gateway has to reach" }}
+{{- end }}
+{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" $root | fromJsonArray }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gwName "name" "out" "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - port: 15012
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 1053
+          protocol: TCP
+        - port: 1053
+          protocol: UDP
+    {{- range $index, $endpoint := $endpoints }}
+    - to:
+        - ipBlock:
+            cidr: {{ include "egress-gateway.helpers.app.endpointCidr" (dict "label" (printf "networkPolicy.endpoints[%d].address" $index) "value" $endpoint.address) | quote }}
+      ports:
+        - port: {{ required (printf "networkPolicy.endpoints[%d].port is required" $index) $endpoint.port }}
+          protocol: TCP
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gwName "name" "in" "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range $namespace := $namespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $namespace | quote }}
+        {{- end }}
+      ports:
+        - port: 443
+          protocol: TCP
+{{- end }}
+{{- end }}
