@@ -399,6 +399,11 @@ collector:
 ```yaml
 ingressGateway:
   enabled: true
+  # Обязателен: из него собираются имена ресурсов гейтвея и labels ecpk/*.
+  identity:
+    instance: ed
+    cluster: dev
+    project: cnsl
   gateways:
     - name: main
       listeners:
@@ -412,6 +417,11 @@ ingressGateway:
           # Имя Service портала: {release}-portal (по умолчанию console-portal).
           backendRefs: [{ name: console-portal, port: 8080 }]
 ```
+
+Пример поднимает вход по HTTP. Если гейтвей должен расшифровывать TLS
+(`tlsMode: Terminate`), сабчарту нужна запись в `ingressGateway.tls.certificates`
+с путём к сертификату в Vault - сертификаты в значениях он больше не принимает.
+Подробности - в `charts/ingress-gateway/README.md`.
 
 Сабчарт вендорится локально; перед упаковкой выполните `helm dependency build`
 (каталог `charts/` и `Chart.lock` в git не хранятся).
