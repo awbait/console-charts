@@ -63,6 +63,130 @@ Collector Secret name: external (existingSecret) or generated.
 {{- end -}}
 
 {{/*
+Whether a component's Secret is filled by the External Secrets Operator instead
+of from values. Empty output means "no" - templates test it with `if`, so keep
+it emitting nothing rather than "false". Parameter: the component values block.
+*/}}
+{{- define "console.externalSecret.enabled" -}}
+{{- if (.externalSecret | default dict).enabled -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Whether a component renders a Secret of its own. It does not when the Secret is
+somebody else's (existingSecret) or the operator's (externalSecret).
+Parameter: the component values block.
+*/}}
+{{- define "console.ownSecret.enabled" -}}
+{{- if and (not .existingSecret) (not (include "console.externalSecret.enabled" .)) -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+ExternalSecret for one component: the same Secret its Deployment mounts, filled
+by the External Secrets Operator from Vault rather than written into values.
+The chart holds no secret in this mode - only the address of the store and which
+paths to read. Parameters (dict):
+  .root      - the chart context
+  .component - .Values.portal or .Values.collector
+  .name      - "portal" or "collector", for the Secret name and the labels
+*/}}
+{{- define "console.externalSecret" -}}
+{{- $root := .root -}}
+{{- $name := .name -}}
+{{- $es := .component.externalSecret | default dict -}}
+{{- $ref := $es.secretStoreRef | default dict -}}
+{{- $target := include (printf "console.%s.secretName" $name) $root -}}
+apiVersion: {{ $es.apiVersion | default "external-secrets.io/v1" }}
+kind: ExternalSecret
+metadata:
+  name: {{ $target }}
+  labels:
+    {{- include "console.labels" $root | nindent 4 }}
+    {{- include (printf "console.%s.selectorLabels" $name) $root | nindent 4 }}
+spec:
+  refreshInterval: {{ $es.refreshInterval | default "1h" | quote }}
+  secretStoreRef:
+    name: {{ required (printf "%s.externalSecret.secretStoreRef.name is required - the SecretStore that points at Vault" $name) $ref.name | quote }}
+    kind: {{ $ref.kind | default "SecretStore" }}
+  target:
+    name: {{ $target }}
+    creationPolicy: {{ $es.creationPolicy | default "Owner" }}
+    {{- with $es.template }}
+    template:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- with $es.dataFrom }}
+  dataFrom:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $es.data }}
+  data:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end -}}
+
+{{/*
+Invariants of the external-secret mode. Parameters (dict):
+  .component - .Values.portal or .Values.collector
+  .name      - "portal" or "collector", for the message
+*/}}
+{{- define "console.externalSecret.validate" -}}
+{{- $name := .name -}}
+{{- $es := .component.externalSecret | default dict -}}
+{{- if $es.enabled -}}
+{{- if .component.existingSecret -}}
+{{- fail (printf "console: %s.existingSecret and %s.externalSecret.enabled are two answers to the same question - keep one of them" $name $name) -}}
+{{- end -}}
+{{- if and (not $es.data) (not $es.dataFrom) -}}
+{{- fail (printf "console: %s.externalSecret needs data or dataFrom - with neither, the operator creates an empty Secret and the pod starts without the values it cannot run without" $name) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Invariants of running more than one portal. The replicas share a Redis: the
+events that keep an open page current travel through it, and so does the lease
+that decides which replica runs the background loops. Without it every replica
+would reconcile in parallel, asking GitLab and Argo CD the same questions and
+racing each other writing the answers back.
+
+The same applies to autoscaling, which is only a second replica arriving on its
+own. Both need a portal that knows how to share (app 0.10.0 and newer).
+*/}}
+{{- define "console.portal.validateScale" -}}
+{{- $portal := .Values.portal -}}
+{{- $auto := $portal.autoscaling | default dict -}}
+{{- $replicas := $portal.replicaCount | default 1 | int -}}
+{{- if or $auto.enabled (gt $replicas 1) -}}
+{{- if ne (($portal.config).CACHE | toString) "redis" -}}
+{{- fail "console: more than one portal replica requires portal.config.CACHE=redis - with the in-memory cache each replica keeps its own sessions, hears none of the others' events and runs the background loops on its own" -}}
+{{- end -}}
+{{- end -}}
+{{- if $auto.enabled -}}
+{{- $min := $auto.minReplicas | default 1 | int -}}
+{{- $max := $auto.maxReplicas | default 1 | int -}}
+{{- if lt $min 1 -}}
+{{- fail (printf "console: portal.autoscaling.minReplicas must be at least 1, got %d" $min) -}}
+{{- end -}}
+{{- if lt $max $min -}}
+{{- fail (printf "console: portal.autoscaling.maxReplicas (%d) must not be below minReplicas (%d)" $max $min) -}}
+{{- end -}}
+{{- if not (or $auto.targetCPUUtilizationPercentage $auto.targetMemoryUtilizationPercentage) -}}
+{{- fail "console: portal.autoscaling needs targetCPUUtilizationPercentage or targetMemoryUtilizationPercentage - an autoscaler with no metric never scales" -}}
+{{- end -}}
+{{- if and $auto.targetCPUUtilizationPercentage (not (dig "requests" "cpu" "" ($portal.resources | default dict))) -}}
+{{- fail "console: portal.autoscaling scales on CPU, which is a percentage of portal.resources.requests.cpu - set the request or drop targetCPUUtilizationPercentage" -}}
+{{- end -}}
+{{- if and $auto.targetMemoryUtilizationPercentage (not (dig "requests" "memory" "" ($portal.resources | default dict))) -}}
+{{- fail "console: portal.autoscaling scales on memory, which is a percentage of portal.resources.requests.memory - set the request or drop targetMemoryUtilizationPercentage" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Portal ServiceAccount name.
 */}}
 {{- define "console.serviceAccountName" -}}
