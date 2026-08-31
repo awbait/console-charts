@@ -8,8 +8,8 @@ identity:
   cluster: dev         # тег кластера окружения
   project: demo        # тег проекта, до 9 символов
 
-namespace:
-  name: app            # получится demo-dev-ns-app
+global:
+  namespacePurpose: app  # получится demo-dev-ns-app
 
 resourceQuotas:
   limits:

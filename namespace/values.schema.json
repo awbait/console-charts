@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "propertyOrder": [
     "identity",
+    "global",
     "namespace",
     "resourceQuotas",
     "subnet",
@@ -16,7 +17,7 @@
   ],
   "required": [
     "identity",
-    "namespace",
+    "global",
     "resourceQuotas"
   ],
   "properties": {
@@ -55,15 +56,27 @@
     },
     "waypoint": {
       "title": "Waypoint subchart",
-      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. A subchart cannot read its parent's values, so namespacePurpose repeats namespace.name and the chart refuses to render when the two disagree.",
+      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. The namespace it deploys into comes from global.namespacePurpose; a waypoint.* override that disagrees with the namespace this chart builds stops the render.",
       "type": "object",
       "ui:widget": "hidden"
     },
     "global": {
-      "title": "Global values",
-      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "title": "Неймспейс",
+      "description": "Значения, которые видят и чарт, и его сабчарты.",
       "type": "object",
-      "ui:widget": "hidden"
+      "propertyOrder": [
+        "namespacePurpose"
+      ],
+      "properties": {
+        "namespacePurpose": {
+          "title": "Назначение",
+          "description": "Одно слово о том, что будет жить в неймспейсе: app, api, monitoring. Остальное имя платформа соберёт сама, получится nbox-dev-ns-app.",
+          "$ref": "#/definitions/purposeToken"
+        }
+      },
+      "required": [
+        "namespacePurpose"
+      ]
     },
     "enabled": {
       "title": "Enabled",
@@ -178,9 +191,10 @@
       ],
       "properties": {
         "name": {
-          "title": "Назначение",
-          "description": "Одно слово о том, что будет жить в неймспейсе: app, api, monitoring. Остальное имя платформа соберёт сама, получится nbox-dev-ns-app.",
-          "$ref": "#/definitions/purposeToken"
+          "title": "Назначение неймспейса",
+          "description": "Переопределяет global.namespacePurpose для самого неймспейса. Служебное поле: обычно назначение задаётся один раз в global, чтобы его видели и сабчарты.",
+          "$ref": "#/definitions/purposeToken",
+          "ui:widget": "hidden"
         },
         "displayName": {
           "title": "Отображаемое имя",
@@ -211,10 +225,7 @@
           "default": "lk",
           "ui:widget": "hidden"
         }
-      },
-      "required": [
-        "name"
-      ]
+      }
     },
     "resourceQuotas": {
       "type": "object",

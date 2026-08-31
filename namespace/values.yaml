@@ -16,8 +16,14 @@ generic:
   labels: {}           # общие labels на ВСЕ ресурсы чарта (Namespace/ResourceQuota/Subnet)
   annotations: {}      # общие annotations на ВСЕ ресурсы чарта
 
+# Назначение неймспейса: одно слово, из которого собираются имена. Лежит в
+# global, потому что его же читает сабчарт waypoint - Helm раздаёт global всем
+# сабчартам, и вводить назначение дважды не нужно.
+global:
+  namespacePurpose: app
+
 namespace:
-  name: app            # назначение неймспейса; полное имя - {project}-{cluster}-ns-{name}
+  # name переопределяет global.namespacePurpose только для самого неймспейса
   displayName: "Managed namespace"
   role: other
   creator: lk
@@ -26,10 +32,9 @@ serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
   waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
 
-# Значения сабчарта waypoint. Он не видит значений родителя, поэтому назначение
-# неймспейса повторяется здесь: чарт проверяет, что оно совпадает с namespace.name.
+# Значения сабчарта waypoint. Неймспейс он берёт из global.namespacePurpose,
+# отдельно указывать не нужно.
 waypoint:
-  namespacePurpose: app
   waypoints:
     - name: mesh
       enabled: true

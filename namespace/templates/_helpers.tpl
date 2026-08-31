@@ -78,12 +78,26 @@ the tags the same values put on the resource. Parameters: .context, .kindShort
 {{- end -}}
 
 {{/*
+The purpose the namespace is named after: namespace.name, or
+global.namespacePurpose when the chart's own field is empty.
+
+Subcharts cannot read their parent's values, but Helm copies global into every
+one of them, so a purpose entered once in global reaches both this chart and the
+waypoint subchart, and the two arrive at the same namespace with nothing to keep
+in sync by hand.
+*/}}
+{{- define "namespace.helpers.namespacePurpose" -}}
+{{- $global := .Values.global | default dict -}}
+{{- (.Values.namespace | default dict).name | default $global.namespacePurpose -}}
+{{- end -}}
+
+{{/*
 Name of the Namespace the chart creates, e.g. nbox-dev-ns-app.
 Every template that needs it calls this, so the Namespace, the ResourceQuota
 inside it and the Subnet bound to it can never drift apart.
 */}}
 {{- define "namespace.helpers.namespaceName" -}}
-{{- include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" (.Values.namespace | default dict).name) -}}
+{{- include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" (include "namespace.helpers.namespacePurpose" .)) -}}
 {{- end -}}
 
 {{/*
@@ -176,10 +190,12 @@ true
 
 {{/*
 Guards the waypoint subchart: it is a mesh feature, and it deploys into the
-namespace this chart creates. The subchart cannot read the parent's values, so
-the purpose it builds the namespace name from is repeated in its own values -
-and two values that must agree are checked here rather than left to drift into
-a waypoint standing in a namespace nobody ordered.
+namespace this chart creates.
+
+Normally the purpose travels through global and both charts agree by
+construction. A subchart value still wins over global, so a waypoint.* override
+that disagrees with the namespace this chart builds is refused here rather than
+left to become a waypoint standing in a namespace nobody ordered.
 */}}
 {{- define "namespace.helpers.checkWaypoint" -}}
 {{- $mesh := .Values.serviceMesh | default dict -}}
@@ -187,9 +203,20 @@ a waypoint standing in a namespace nobody ordered.
 {{- if ne (include "namespace.helpers.serviceMeshEnabled" .) "true" -}}
 {{- fail "serviceMesh.waypoint needs the service mesh: set serviceMesh.enabled to true or drop the waypoint" -}}
 {{- end -}}
-{{- $purpose := (.Values.waypoint | default dict).namespacePurpose | default "" | toString -}}
-{{- if ne $purpose ((.Values.namespace | default dict).name | default "" | toString) -}}
-{{- fail (printf "waypoint.namespacePurpose must repeat namespace.name (%q), got %q" .Values.namespace.name $purpose) -}}
+{{- $wanted := include "namespace.helpers.namespaceName" . -}}
+{{- $global := .Values.global | default dict -}}
+{{- $own := (.Values.namespace | default dict).name | default "" | toString -}}
+{{- if and $own (ne $own ($global.namespacePurpose | default "" | toString)) -}}
+{{- fail (printf "namespace.name (%q) is invisible to the waypoint subchart, which reads global.namespacePurpose (%q): put the purpose in global or drop the waypoint" $own ($global.namespacePurpose | default "")) -}}
+{{- end -}}
+{{- $sub := .Values.waypoint | default dict -}}
+{{- $override := $sub.namespaceOverride | default "" | toString -}}
+{{- if and $override (ne $override $wanted) -}}
+{{- fail (printf "waypoint.namespaceOverride must be the namespace this chart creates (%q), got %q" $wanted $override) -}}
+{{- end -}}
+{{- $purpose := $sub.namespacePurpose | default "" | toString -}}
+{{- if and $purpose (ne $purpose (include "namespace.helpers.namespacePurpose" .)) -}}
+{{- fail (printf "waypoint.namespacePurpose must repeat the namespace purpose (%q), got %q" (include "namespace.helpers.namespacePurpose" .) $purpose) -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}

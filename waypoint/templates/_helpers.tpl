@@ -82,6 +82,11 @@ Namespace the waypoints go into, decided in three steps:
      when the values name only the purpose;
   3. the release namespace.
 
+Both values also read from global (global.namespaceOverride,
+global.namespacePurpose), which is how the parent hands them over: Helm copies
+global into every subchart, so the purpose is entered once and both charts build
+the same name from it. The chart's own value wins when both are set.
+
 Step 2 exists because the chart is also installed as a subchart of "namespace",
 which names the namespace it creates from the same three parts. A subchart
 cannot read its parent's values, and the release namespace of a portal order is
@@ -90,8 +95,9 @@ Naming the purpose here lets both charts arrive at one namespace.
 Parameter: the root context.
 */}}
 {{- define "waypoint.helpers.targetNamespace" -}}
-{{- $override := .Values.namespaceOverride | default "" | toString -}}
-{{- $purpose := .Values.namespacePurpose | default "" | toString -}}
+{{- $global := .Values.global | default dict -}}
+{{- $override := .Values.namespaceOverride | default $global.namespaceOverride | default "" | toString -}}
+{{- $purpose := .Values.namespacePurpose | default $global.namespacePurpose | default "" | toString -}}
 {{- if $override -}}
 {{- $value := $override | lower -}}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
