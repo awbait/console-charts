@@ -20,21 +20,85 @@ true
 {{- end -}}
 {{- end -}}
 
-{{- define "namespace.helpers.parseStorageQuotas" -}}
-{{- if .Values.resourceQuotas.storage }}
-{{- fromJson .Values.resourceQuotas.storage | toYaml }}
-{{- else }}
-{}
-{{- end }}
-{{- end }}
-
-
 {{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "namespace.helpers.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+DNS tag validation (identity.cluster). Parameters: .label, .value.
+Returns the value in lower-case.
+*/}}
+{{- define "namespace.helpers.tag" -}}
+{{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Short DNS tag validation (identity.project, the purpose part of a name).
+Parameters: .label, .value and the optional bounds .min (default 2) and .max
+(default 12). Returns the value in lower-case.
+*/}}
+{{- define "namespace.helpers.shortToken" -}}
+{{- $min := .min | default 2 | int -}}
+{{- $max := .max | default 12 | int -}}
+{{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
+{{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
+{{- fail (printf "%s must be %d..%d characters, got %q" .label $min $max $value) -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Resource name: {project}-{cluster}-{kindShort}-{purpose}.
+
+The order names only the purpose (namespace.name, subnet.subnets[].name); the
+project and the cluster come from identity, so a name can never disagree with
+the tags the same values put on the resource. Parameters: .context, .kindShort
+(ns|subnet), .name. Truncated to 63 characters, e.g. nbox-dev-ns-app.
+*/}}
+{{- define "namespace.helpers.resourceName" -}}
+{{- $identity := .context.Values.identity | default dict -}}
+{{- $project := include "namespace.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
+{{- $cluster := include "namespace.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $kind := required "kindShort is required" .kindShort | toString | lower -}}
+{{- if not (has $kind (list "ns" "subnet")) -}}
+{{- fail (printf "kindShort must be one of ns, subnet, got %q" $kind) -}}
+{{- end -}}
+{{- $name := include "namespace.helpers.shortToken" (dict "label" (printf "%s name" $kind) "value" .name) -}}
+{{- printf "%s-%s-%s-%s" $project $cluster $kind $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+The purpose the namespace is named after: namespace.name, or
+global.namespacePurpose when the chart's own field is empty.
+
+Subcharts cannot read their parent's values, but Helm copies global into every
+one of them, so a purpose entered once in global reaches both this chart and the
+waypoint subchart, and the two arrive at the same namespace with nothing to keep
+in sync by hand.
+*/}}
+{{- define "namespace.helpers.namespacePurpose" -}}
+{{- $global := .Values.global | default dict -}}
+{{- (.Values.namespace | default dict).name | default $global.namespacePurpose -}}
+{{- end -}}
+
+{{/*
+Name of the Namespace the chart creates, e.g. nbox-dev-ns-app.
+Every template that needs it calls this, so the Namespace, the ResourceQuota
+inside it and the Subnet bound to it can never drift apart.
+*/}}
+{{- define "namespace.helpers.namespaceName" -}}
+{{- include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" (include "namespace.helpers.namespacePurpose" .)) -}}
+{{- end -}}
 
 {{/*
 Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
@@ -106,54 +170,157 @@ annotations:
 
 
 {{/*
-Parses a JSON list and renders it as YAML list.
-Usage:
-  {{ include "namespace.helpers.jsonListToYamlList" .Values.myJsonString }}
+Whether the service mesh is on for this namespace. Returns "true" or "" (for
+if-tests).
+
+Only the dev cluster leaves the choice open: everywhere else the mesh is part of
+the platform and serviceMesh.enabled is ignored rather than obeyed, so a
+namespace cannot quietly opt out of the rules the environment runs on.
 */}}
-{{- define "namespace.helpers.jsonListToYamlList" -}}
-{{- $unmarshaled := fromJson . -}}
-{{- toYaml $unmarshaled | nindent 0 -}}
+{{- define "namespace.helpers.serviceMeshEnabled" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- $cluster := include "namespace.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- if eq $cluster "dev" -}}
+{{- ternary "true" "" (eq (toString $mesh.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
 {{- end -}}
 
 {{/*
-Get the gateway IP from cidrBlock by incrementing the last octet of an IP address by 1
-Net mask is supposed to be >= 24
+Guards the waypoint subchart: it is a mesh feature, and it deploys into the
+namespace this chart creates.
+
+Normally the purpose travels through global and both charts agree by
+construction. A subchart value still wins over global, so a waypoint.* override
+that disagrees with the namespace this chart builds is refused here rather than
+left to become a waypoint standing in a namespace nobody ordered.
 */}}
-{{- define "namespace.helpers.getGatewayIP" -}}
-{{- $cidr := . -}}
-
-{{/* Split CIDR to get IP part */}}
-{{- $splitResult := splitList "/" $cidr -}}
-{{- if lt (len $splitResult) 2 -}}
-{{- printf "Invalid CIDR format: %s" $cidr | fail -}}
+{{- define "namespace.helpers.checkWaypoint" -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- if $mesh.waypoint -}}
+{{- if ne (include "namespace.helpers.serviceMeshEnabled" .) "true" -}}
+{{- fail "serviceMesh.waypoint needs the service mesh: set serviceMesh.enabled to true or drop the waypoint" -}}
+{{- end -}}
+{{- $wanted := include "namespace.helpers.namespaceName" . -}}
+{{- $global := .Values.global | default dict -}}
+{{- $own := (.Values.namespace | default dict).name | default "" | toString -}}
+{{- if and $own (ne $own ($global.namespacePurpose | default "" | toString)) -}}
+{{- fail (printf "namespace.name (%q) is invisible to the waypoint subchart, which reads global.namespacePurpose (%q): put the purpose in global or drop the waypoint" $own ($global.namespacePurpose | default "")) -}}
+{{- end -}}
+{{- $sub := .Values.waypoint | default dict -}}
+{{- $override := $sub.namespaceOverride | default "" | toString -}}
+{{- if and $override (ne $override $wanted) -}}
+{{- fail (printf "waypoint.namespaceOverride must be the namespace this chart creates (%q), got %q" $wanted $override) -}}
+{{- end -}}
+{{- $purpose := $sub.namespacePurpose | default "" | toString -}}
+{{- if and $purpose (ne $purpose (include "namespace.helpers.namespacePurpose" .)) -}}
+{{- fail (printf "waypoint.namespacePurpose must repeat the namespace purpose (%q), got %q" (include "namespace.helpers.namespacePurpose" .) $purpose) -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
-{{- $ipPart := index $splitResult 0 -}}
-{{- $maskPart := index $splitResult 1 -}}
-
-{{/* Split IP into octets */}}
-{{- $octets := splitList "." $ipPart -}}
+{{/*
+IPv4 address as a number, so addresses can be counted off without caring where
+the octet boundaries fall. Parameter: the dotted address.
+*/}}
+{{- define "namespace.helpers.ipToInt" -}}
+{{- $octets := splitList "." (toString .) -}}
 {{- if ne (len $octets) 4 -}}
-{{- printf "Invalid IP address format: must contain exactly 4 octets, got: %s" $ipPart | fail -}}
+{{- fail (printf "IPv4 address must have 4 octets, got %q" .) -}}
+{{- end -}}
+{{- $value := 0 -}}
+{{- range $octets -}}
+{{- if not (regexMatch "^[0-9]{1,3}$" .) -}}
+{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- end -}}
+{{- $octet := int . -}}
+{{- if gt $octet 255 -}}
+{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- end -}}
+{{- $value = add (mul $value 256) $octet -}}
+{{- end -}}
+{{- $value -}}
 {{- end -}}
 
-{{/* Get last octet and convert to integer */}}
-{{- $lastOctetStr := index $octets 3 -}}
-{{- $lastOctet := $lastOctetStr | int -}}
-
-{{/* Validate octet range */}}
-{{- if or (lt $lastOctet 0) (gt $lastOctet 254) -}}
-{{- printf "Last octet must be between 0 and 254, got: %s" $lastOctetStr | fail -}}
+{{/*
+The inverse of ipToInt: a number back into a dotted address.
+*/}}
+{{- define "namespace.helpers.intToIp" -}}
+{{- $value := int64 . -}}
+{{- printf "%d.%d.%d.%d" (div $value 16777216) (mod (div $value 65536) 256) (mod (div $value 256) 256) (mod $value 256) -}}
 {{- end -}}
 
-{{/* Increment last octet */}}
-{{- $newLastOctet := add $lastOctet 1 -}}
+{{/*
+Number of addresses in a CIDR block. The mask is limited to 16..30: a wider
+block is never handed to one namespace, and a narrower one has no room for the
+gateway plus a single pod. Parameter: the mask as a string or number.
+*/}}
+{{- define "namespace.helpers.subnetSize" -}}
+{{- $mask := toString . -}}
+{{- if not (regexMatch "^[0-9]{1,2}$" $mask) -}}
+{{- fail (printf "subnet mask must be a number 16..30, got %q" $mask) -}}
+{{- end -}}
+{{- $bits := int $mask -}}
+{{- if or (lt $bits 16) (gt $bits 30) -}}
+{{- fail (printf "subnet mask must be 16..30, got %q" $mask) -}}
+{{- end -}}
+{{- $size := 1 -}}
+{{- range until (sub 32 $bits | int) -}}
+{{- $size = mul $size 2 -}}
+{{- end -}}
+{{- $size -}}
+{{- end -}}
 
-{{/* Build new IP address */}}
-{{- $firstOctet := index $octets 0 -}}
-{{- $secondOctet := index $octets 1 -}}
-{{- $thirdOctet := index $octets 2 -}}
+{{/*
+First address of a subnet as a number, with the CIDR block validated on the way.
+Parameter: the cidrBlock string, e.g. 10.24.8.0/22.
+*/}}
+{{- define "namespace.helpers.subnetBase" -}}
+{{- $parts := splitList "/" (toString .) -}}
+{{- if ne (len $parts) 2 -}}
+{{- fail (printf "cidrBlock must be written as address/mask, got %q" .) -}}
+{{- end -}}
+{{- $base := include "namespace.helpers.ipToInt" (index $parts 0) | int64 -}}
+{{- $size := include "namespace.helpers.subnetSize" (index $parts 1) | int64 -}}
+{{- if ne (mod $base $size) (int64 0) -}}
+{{- fail (printf "cidrBlock must start at the first address of the block, got %q" .) -}}
+{{- end -}}
+{{- $base -}}
+{{- end -}}
 
-{{/* Join octets back together */}}
-{{- printf "%s.%s.%s.%d" $firstOctet $secondOctet $thirdOctet $newLastOctet -}}
+{{/*
+Gateway address of a subnet: the first address after the network one.
+Parameter: the cidrBlock string.
+*/}}
+{{- define "namespace.helpers.subnetGateway" -}}
+{{- include "namespace.helpers.intToIp" (add (include "namespace.helpers.subnetBase" . | int64) 1) -}}
+{{- end -}}
+
+{{/*
+Addresses kept away from pods, as a comma-separated list: the gateway, then as
+many addresses right behind it as the order asked to reserve. The order names a
+count rather than addresses, because it has no way to know which addresses the
+block holds. Parameters: .cidrBlock, .count.
+
+The last address of the block is the broadcast one and the first is the network
+itself, so what is left for pods is size-2; reserving all of it leaves the
+subnet with no room and stops the render.
+*/}}
+{{- define "namespace.helpers.subnetExcludeIps" -}}
+{{- $base := include "namespace.helpers.subnetBase" .cidrBlock | int64 -}}
+{{- $size := include "namespace.helpers.subnetSize" (index (splitList "/" (toString .cidrBlock)) 1) | int64 -}}
+{{- $count := .count | default 0 | int64 -}}
+{{- if lt $count (int64 0) -}}
+{{- fail (printf "reservedIps must not be negative, got %d" $count) -}}
+{{- end -}}
+{{- if ge (add $count 3) $size -}}
+{{- fail (printf "cidrBlock %s has no room for %d reserved addresses on top of the gateway" .cidrBlock $count) -}}
+{{- end -}}
+{{- $addresses := list (include "namespace.helpers.intToIp" (add $base 1)) -}}
+{{- range $i := until (int $count) -}}
+{{- $addresses = append $addresses (include "namespace.helpers.intToIp" (add $base 2 $i)) -}}
+{{- end -}}
+{{- join "," $addresses -}}
 {{- end -}}

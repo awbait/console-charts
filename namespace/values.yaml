@@ -5,7 +5,8 @@
 enabled: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
-# ecpk/project на всех ресурсах. Допустимые значения - в README.md.
+# ecpk/project на всех ресурсах, а project и cluster - ещё и в имена ресурсов.
+# Допустимые значения - в README.md.
 identity:
   instance: ed         # тег инстанса окружения
   cluster: dev         # тег кластера окружения
@@ -15,17 +16,29 @@ generic:
   labels: {}           # общие labels на ВСЕ ресурсы чарта (Namespace/ResourceQuota/Subnet)
   annotations: {}      # общие annotations на ВСЕ ресурсы чарта
 
+# Назначение неймспейса: одно слово, из которого собираются имена. Лежит в
+# global, потому что его же читает сабчарт waypoint - Helm раздаёт global всем
+# сабчартам, и вводить назначение дважды не нужно.
+global:
+  namespacePurpose: app
+
 namespace:
-  namespaceName: "project-dev-ns-default"
-  projectName: project
-  clusterName: common
+  # name переопределяет global.namespacePurpose только для самого неймспейса
   displayName: "Managed namespace"
+  role: other
   creator: lk
-  annotations: {}
-  labels: {}
 
 serviceMesh:
-  enabled: false
+  enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
+
+# Значения сабчарта waypoint. Неймспейс он берёт из global.namespacePurpose,
+# отдельно указывать не нужно.
+waypoint:
+  waypoints:
+    - name: mesh
+      enabled: true
+      for: service
 
 resourceQuotas:
   limits:
@@ -35,13 +48,15 @@ resourceQuotas:
     cpu: ""
     memory: ""
   podsAmount: 1000
+  # Квоты на хранилища: класс -> объём. Пустое значение - диск не выдаётся.
   storage:
-    storages: {}
+    topolvm-mu: ""
+    topolvm-ri: ""
 
 subnet:
   enable: false
   subnets:
-    - name: "project-dev-subnet-default"
-      cidrBlock: ""
-      excludeIps: []
+      # name не задан: подсеть возьмёт назначение неймспейса
+    - cidrBlock: ""    # заполняет платформа, диапазон бронируется в Netbox
+      reservedIps: 0   # сколько адресов не выдавать подам, кроме адреса шлюза
       allowSubnets: []

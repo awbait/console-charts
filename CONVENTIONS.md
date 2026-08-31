@@ -591,10 +591,13 @@ lefthook install
   `identity` и `values.schema.json` пока нет. Связь его env-ключей с `config.go`/
   `.env.example` основного репозитория описана в `CLAUDE.md`.
 - **`namespace`** (до версии 3.0.0 назывался `managed-namespace`) - cpaas-нейминг
-  (labels `cpaas.io/*`, `app.cpaas.io/name`): имена ресурсов задаёт платформа,
-  5-частная схема не применяется. Блок `identity` есть, но участвует только в
-  identity-labels. Чарт в процессе доработки (RBAC, Istio-лейблы, deny-default
-  NetworkPolicy, параметризация `creator`) - см. `idp/TODO.md`.
+  (labels `cpaas.io/*`, `app.cpaas.io/name`). 5-частная схема не применяется:
+  имя собирается из трёх частей, `{identity.project}-{identity.cluster}-{ns|subnet}-{назначение}`,
+  где назначение (2..12 символов) - единственное, что называет заказ. Блок
+  `identity` участвует и в identity-labels, и в именах, и в cpaas-полях
+  (`cpaas.io/project`, `cpaas.io/cluster`). Чарт в процессе доработки (RBAC,
+  Istio-лейблы, deny-default NetworkPolicy, параметризация `creator`) - см.
+  `idp/TODO.md`.
 - **`project`** - тот же cpaas-нейминг: имя ресурса берётся из `project.name`.
   Блок `identity` есть и работает так же, как в `namespace`; тег `cluster` в нём
   означает окружение релиза, а не кластеры проекта из секции `clusters`.

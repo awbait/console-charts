@@ -7,21 +7,24 @@
   "additionalProperties": false,
   "propertyOrder": [
     "identity",
+    "global",
     "namespace",
     "resourceQuotas",
     "subnet",
     "generic",
-    "serviceMesh"
+    "serviceMesh",
+    "waypoint"
   ],
   "required": [
     "identity",
-    "namespace",
+    "global",
     "resourceQuotas"
   ],
   "properties": {
     "identity": {
       "title": "Окружение и проект",
-      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
+      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ. В форме скрыто: значения подставляет портал.",
+      "ui:widget": "hidden",
       "$ref": "#/definitions/identity"
     },
     "namespace": {
@@ -51,11 +54,29 @@
       "ui:widget": "hidden",
       "$ref": "#/definitions/serviceMesh"
     },
-    "global": {
-      "title": "Global values",
-      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+    "waypoint": {
+      "title": "Waypoint subchart",
+      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. The namespace it deploys into comes from global.namespacePurpose; a waypoint.* override that disagrees with the namespace this chart builds stops the render.",
       "type": "object",
       "ui:widget": "hidden"
+    },
+    "global": {
+      "title": "Неймспейс",
+      "description": "Значения, которые видят и чарт, и его сабчарты.",
+      "type": "object",
+      "propertyOrder": [
+        "namespacePurpose"
+      ],
+      "properties": {
+        "namespacePurpose": {
+          "title": "Назначение",
+          "description": "Одно слово о том, что будет жить в неймспейсе: app, api, monitoring. Остальное имя платформа соберёт сама, получится nbox-dev-ns-app.",
+          "$ref": "#/definitions/purposeToken"
+        }
+      },
+      "required": [
+        "namespacePurpose"
+      ]
     },
     "enabled": {
       "title": "Enabled",
@@ -76,6 +97,12 @@
       "type": "string",
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
       "maxLength": 63
+    },
+    "purposeToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 12
     },
     "quantity": {
       "type": "string"
@@ -157,30 +184,17 @@
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
-        "namespaceName",
-        "projectName",
-        "clusterName",
+        "name",
         "displayName",
         "role",
-        "labels",
-        "annotations",
         "creator"
       ],
       "properties": {
-        "namespaceName": {
-          "title": "Имя неймспейса",
-          "description": "Имя, под которым неймспейс появится в кластере. Принято складывать его из продукта, среды и назначения: nbox-dev-ns-app.",
-          "$ref": "#/definitions/dnsName"
-        },
-        "projectName": {
-          "title": "Проект-владелец",
-          "description": "Проект платформы, внутри которого создаётся неймспейс.",
-          "type": "string"
-        },
-        "clusterName": {
-          "title": "Кластер размещения",
-          "description": "Кластер платформы, в котором появится неймспейс.",
-          "type": "string"
+        "name": {
+          "title": "Назначение неймспейса",
+          "description": "Переопределяет global.namespacePurpose для самого неймспейса. Служебное поле: обычно назначение задаётся один раз в global, чтобы его видели и сабчарты.",
+          "$ref": "#/definitions/purposeToken",
+          "ui:widget": "hidden"
         },
         "displayName": {
           "title": "Отображаемое имя",
@@ -189,7 +203,7 @@
         },
         "role": {
           "title": "Роль неймспейса",
-          "description": "Что будет жить в этом неймспейсе.",
+          "description": "Что будет жить в этом неймспейсе. В форме скрыто: обычным сервисам подходит other.",
           "type": "string",
           "enum": [
             "ingress",
@@ -200,17 +214,9 @@
             "Точки входа трафика (ingress)",
             "Точки выхода трафика (egress)",
             "Обычные сервисы (other)"
-          ]
-        },
-        "labels": {
-          "title": "Дополнительные labels",
-          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
-          "$ref": "#/definitions/stringMap"
-        },
-        "annotations": {
-          "title": "Дополнительные annotations",
-          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
-          "$ref": "#/definitions/stringMap"
+          ],
+          "default": "other",
+          "ui:widget": "hidden"
         },
         "creator": {
           "title": "creator",
@@ -219,11 +225,7 @@
           "default": "lk",
           "ui:widget": "hidden"
         }
-      },
-      "required": [
-        "namespaceName",
-        "projectName"
-      ]
+      }
     },
     "resourceQuotas": {
       "type": "object",
@@ -286,13 +288,23 @@
         },
         "storage": {
           "title": "Квоты на хранилище",
+          "description": "Сколько места на дисках смогут занять сервисы этого неймспейса. Оставьте поле пустым, если такой диск не нужен.",
           "type": "object",
           "additionalProperties": false,
+          "propertyOrder": [
+            "topolvm-mu",
+            "topolvm-ri"
+          ],
           "properties": {
-            "storages": {
-              "title": "Объём по классам хранилища",
-              "description": "Ключ - класс хранилища, значение - объём. Например nfs: 100Gi.",
-              "$ref": "#/definitions/stringMap"
+            "topolvm-mu": {
+              "title": "Быстрый диск для частой записи (topolvm-mu)",
+              "description": "Данные лежат на диске того сервера, где работает сервис. Берите его, когда сервис пишет постоянно: очереди сообщений, журналы, аналитические базы. Копии на других серверах нет, поэтому сервис должен уметь восстановиться сам. Например 100Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "topolvm-ri": {
+              "title": "Экономичный диск для частого чтения (topolvm-ri)",
+              "description": "Тот же диск сервера, дешевле и медленнее на запись. Берите его для кешей, поисковых индексов и данных, которые всегда можно загрузить заново. Копии на других серверах нет. Например 200Gi.",
+              "$ref": "#/definitions/quantity"
             }
           }
         },
@@ -346,20 +358,29 @@
       "additionalProperties": false,
       "propertyOrder": [
         "name",
-        "cidrBlock",
+        "reservedIps",
         "allowSubnets",
-        "excludeIps"
+        "cidrBlock"
       ],
       "properties": {
         "name": {
-          "title": "Имя подсети",
-          "description": "Имя, под которым подсеть появится в кластере.",
-          "$ref": "#/definitions/dnsName"
+          "title": "Назначение подсети",
+          "description": "Одно слово, как и у неймспейса. Оставьте пустым, если подсеть одна: она возьмёт назначение неймспейса и будет называться nbox-dev-subnet-app.",
+          "$ref": "#/definitions/purposeToken"
+        },
+        "reservedIps": {
+          "title": "Сколько адресов зарезервировать",
+          "description": "Адреса, которые не достанутся сервисам: их можно занять чем-то своим, например точкой входа с постоянным адресом. Сами адреса выдаст платформа, вы увидите их в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно указывать его не нужно.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16,
+          "default": 0
         },
         "cidrBlock": {
           "title": "Диапазон адресов",
-          "description": "Забронированный диапазон вместе с маской. Например 10.24.8.0/22.",
-          "type": "string"
+          "description": "Забронированный в Netbox диапазон вместе с маской, например 10.24.8.0/24. Служебное поле, его заполняет платформа.",
+          "type": "string",
+          "ui:widget": "hidden"
         },
         "allowSubnets": {
           "title": "Разрешённые подсети",
@@ -369,19 +390,9 @@
             "title": "Диапазон адресов",
             "type": "string"
           }
-        },
-        "excludeIps": {
-          "title": "Зарезервированные адреса",
-          "description": "Адреса, которые не будут выданы подам. Адрес шлюза исключается сам.",
-          "type": "array",
-          "items": {
-            "title": "IP-адрес",
-            "type": "string"
-          }
         }
       },
       "required": [
-        "name",
         "cidrBlock"
       ]
     },
@@ -408,13 +419,40 @@
     "serviceMesh": {
       "type": "object",
       "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "waypoint"
+      ],
       "properties": {
         "enabled": {
-          "title": "enabled",
-          "description": "Enable Service Mesh for the Namespace.",
+          "title": "Сервисная сетка",
+          "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
+        },
+        "waypoint": {
+          "title": "Прокси для правил доступа",
+          "description": "Нужен, когда правила доступа разбирают не только адрес, но и сам запрос. Без сетки не работает.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "waypoint": {
+            "ui:widget": "hidden"
+          }
         }
       }
     }

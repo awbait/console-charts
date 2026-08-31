@@ -75,6 +75,47 @@ The result is truncated to 63 characters. Example: ed-dev-wp-nbox-mesh.
 {{- end -}}
 
 {{/*
+Namespace the waypoints go into, decided in three steps:
+  1. namespaceOverride, when the values name the namespace outright;
+  2. the name built the way the namespace chart builds it,
+     {identity.project}-{identity.cluster}-ns-{namespacePurpose},
+     when the values name only the purpose;
+  3. the release namespace.
+
+Both values also read from global (global.namespaceOverride,
+global.namespacePurpose), which is how the parent hands them over: Helm copies
+global into every subchart, so the purpose is entered once and both charts build
+the same name from it. The chart's own value wins when both are set.
+
+Step 2 exists because the chart is also installed as a subchart of "namespace",
+which names the namespace it creates from the same three parts. A subchart
+cannot read its parent's values, and the release namespace of a portal order is
+the destination namespace of the Argo application, which is not the same string.
+Naming the purpose here lets both charts arrive at one namespace.
+Parameter: the root context.
+*/}}
+{{- define "waypoint.helpers.targetNamespace" -}}
+{{- $global := .Values.global | default dict -}}
+{{- $override := .Values.namespaceOverride | default $global.namespaceOverride | default "" | toString -}}
+{{- $purpose := .Values.namespacePurpose | default $global.namespacePurpose | default "" | toString -}}
+{{- if $override -}}
+{{- $value := $override | lower -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "namespaceOverride must be DNS-like lowercase, got %q" $override) -}}
+{{- end -}}
+{{- $value | trunc 63 | trimSuffix "-" -}}
+{{- else if $purpose -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- $project := include "waypoint.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
+{{- $cluster := include "waypoint.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $name := include "waypoint.helpers.shortToken" (dict "label" "namespacePurpose" "value" $purpose "max" 12) -}}
+{{- printf "%s-%s-ns-%s" $project $cluster $name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- .Release.Namespace -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Selector labels - stable identification of chart resources.
 */}}
 {{- define "waypoint.helpers.app.selectorLabels" -}}

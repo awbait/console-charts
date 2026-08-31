@@ -8,6 +8,8 @@
   "propertyOrder": [
     "identity",
     "generic",
+    "namespaceOverride",
+    "namespacePurpose",
     "waypoints"
   ],
   "required": [
@@ -24,6 +26,20 @@
       "description": "Common labels/annotations applied to all chart resources.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
+    },
+    "namespaceOverride": {
+      "title": "namespaceOverride",
+      "description": "Namespace the waypoints go into, spelled out. Empty falls through to namespacePurpose and then to the release namespace.",
+      "type": "string",
+      "maxLength": 63,
+      "ui:widget": "hidden"
+    },
+    "namespacePurpose": {
+      "title": "namespacePurpose",
+      "description": "Purpose part of the namespace name, used when the chart runs as a subchart of \"namespace\": the name is built as {identity.project}-{identity.cluster}-ns-{namespacePurpose}. Ignored when namespaceOverride is set.",
+      "type": "string",
+      "maxLength": 12,
+      "ui:widget": "hidden"
     },
     "waypoints": {
       "title": "Вейпоинты",

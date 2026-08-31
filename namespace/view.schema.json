@@ -2,21 +2,34 @@
   "views": {
     "order": {
       "include": [
+        "global",
         "namespace",
         "resourceQuotas",
         "serviceMesh"
       ],
-      "identity": "/namespace/namespaceName",
+      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults.",
+      "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
-        "pointer": "/namespace/namespaceName",
+        "pointer": "/global/namespacePurpose",
         "hideOrderField": true
       },
       "overrides": {
+        "global": {
+          "ui:widget": "edit",
+          "ui:view": {
+            "include": [
+              "namespacePurpose"
+            ]
+          }
+        },
         "serviceMesh": {
           "ui:view": {
             "overrides": {
               "enabled": {
+                "ui:widget": "edit"
+              },
+              "waypoint": {
                 "ui:widget": "edit"
               }
             }
@@ -40,6 +53,9 @@
             "overrides": {
               "enabled": {
                 "ui:widget": "edit"
+              },
+              "waypoint": {
+                "ui:widget": "edit"
               }
             }
           },
@@ -47,6 +63,16 @@
         }
       }
     }
+  },
+  "defaults": {
+    "/identity/instance": "ed",
+    "/identity/cluster": "dev",
+    "/identity/project": "nbox",
+    "/namespace/role": "other",
+    "/namespace/creator": "console",
+    "/waypoint/identity/instance": "ed",
+    "/waypoint/identity/cluster": "dev",
+    "/waypoint/identity/project": "nbox"
   },
   "actions": [
     {

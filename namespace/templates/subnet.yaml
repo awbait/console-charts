@@ -1,38 +1,34 @@
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
-{{ if .Values.subnet.enable }}
+{{- if .Values.subnet.enable }}
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}
-{{- $gatewayIP := include "namespace.helpers.getGatewayIP" .cidrBlock -}}
+{{- $excluded := splitList "," (include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps)) }}
+---
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
-  name: {{ .name | lower | trunc 63 | trimSuffix "-" }}
+  name: {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default $root.Values.namespace.name)) }}
   {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   default: false
   protocol: IPv4
   cidrBlock: {{ .cidrBlock }}
   natOutgoing: false
-  excludeIps:   
-    - {{ $gatewayIP }}
-    {{- if .excludeIps }}
-    {{- range .excludeIps }}
+  excludeIps:
+    {{- range $excluded }}
     - {{ . }}
     {{- end }}
-    {{- end }}
-  gateway: {{ $gatewayIP }}
+  gateway: {{ include "namespace.helpers.subnetGateway" .cidrBlock }}
   gatewayType: centralized
   private: true
   allowSubnets:
     - 172.30.0.0/15
-    {{- if .allowSubnets }}
     {{- range .allowSubnets }}
     - {{ . }}
     {{- end }}
-    {{- end }}
   enableEcmp: false
   namespaces:
-    - {{ $root.Values.namespace.namespaceName }}
+    - {{ include "namespace.helpers.namespaceName" $root }}
 {{- end }}
 {{- end }}
 {{- end -}}
