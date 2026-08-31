@@ -156,6 +156,45 @@ annotations:
 
 
 {{/*
+Whether the service mesh is on for this namespace. Returns "true" or "" (for
+if-tests).
+
+Only the dev cluster leaves the choice open: everywhere else the mesh is part of
+the platform and serviceMesh.enabled is ignored rather than obeyed, so a
+namespace cannot quietly opt out of the rules the environment runs on.
+*/}}
+{{- define "namespace.helpers.serviceMeshEnabled" -}}
+{{- $identity := .Values.identity | default dict -}}
+{{- $cluster := include "namespace.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- if eq $cluster "dev" -}}
+{{- ternary "true" "" (eq (toString $mesh.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Guards the waypoint subchart: it is a mesh feature, and it deploys into the
+namespace this chart creates. The subchart cannot read the parent's values, so
+the purpose it builds the namespace name from is repeated in its own values -
+and two values that must agree are checked here rather than left to drift into
+a waypoint standing in a namespace nobody ordered.
+*/}}
+{{- define "namespace.helpers.checkWaypoint" -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- if $mesh.waypoint -}}
+{{- if ne (include "namespace.helpers.serviceMeshEnabled" .) "true" -}}
+{{- fail "serviceMesh.waypoint needs the service mesh: set serviceMesh.enabled to true or drop the waypoint" -}}
+{{- end -}}
+{{- $purpose := (.Values.waypoint | default dict).namespacePurpose | default "" | toString -}}
+{{- if ne $purpose ((.Values.namespace | default dict).name | default "" | toString) -}}
+{{- fail (printf "waypoint.namespacePurpose must repeat namespace.name (%q), got %q" .Values.namespace.name $purpose) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 IPv4 address as a number, so addresses can be counted off without caring where
 the octet boundaries fall. Parameter: the dotted address.
 */}}

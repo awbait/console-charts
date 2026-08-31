@@ -11,7 +11,8 @@
     "resourceQuotas",
     "subnet",
     "generic",
-    "serviceMesh"
+    "serviceMesh",
+    "waypoint"
   ],
   "required": [
     "identity",
@@ -51,6 +52,12 @@
       "description": "Istio ambient integration, switched on at the environment level. When enabled the Namespace gets the istio-discovery and istio.io/dataplane-mode labels and the networking.k8s.io/enable-netpol annotation.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/serviceMesh"
+    },
+    "waypoint": {
+      "title": "Waypoint subchart",
+      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. A subchart cannot read its parent's values, so namespacePurpose repeats namespace.name and the chart refuses to render when the two disagree.",
+      "type": "object",
+      "ui:widget": "hidden"
     },
     "global": {
       "title": "Global values",
@@ -401,13 +408,40 @@
     "serviceMesh": {
       "type": "object",
       "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "waypoint"
+      ],
       "properties": {
         "enabled": {
-          "title": "enabled",
-          "description": "Enable Service Mesh for the Namespace.",
+          "title": "Сервисная сетка",
+          "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
+        },
+        "waypoint": {
+          "title": "Прокси для правил доступа",
+          "description": "Нужен, когда правила доступа разбирают не только адрес, но и сам запрос. Без сетки не работает.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "waypoint": {
+            "ui:widget": "hidden"
+          }
         }
       }
     }

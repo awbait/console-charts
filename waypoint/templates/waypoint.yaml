@@ -16,7 +16,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
-  namespace: {{ $root.Release.Namespace | quote }}
+  namespace: {{ include "waypoint.helpers.targetNamespace" $root | quote }}
   {{- include "waypoint.helpers.app.metadata" (dict "context" $root "labels" (dict "istio.io/waypoint-for" $for)) | nindent 2 }}
 spec:
   gatewayClassName: istio-waypoint

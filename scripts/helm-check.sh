@@ -17,6 +17,16 @@ fail=0
 for chartyaml in */Chart.yaml; do
   chart=${chartyaml%/Chart.yaml}
 
+  # A chart with subcharts does not render until they are in its charts/ dir.
+  # Ours live in this repo (file://../<chart>), so the build is local and needs
+  # no network; --skip-refresh keeps it from reaching out to chart repositories.
+  if grep -q "^dependencies:" "$chartyaml"; then
+    echo ">> helm dependency build $chart"
+    if ! helm dependency build "$chart" --skip-refresh >/dev/null; then
+      fail=1
+    fi
+  fi
+
   render_files=""
   [ -f "$chart/values.minimal.yaml" ] && render_files="$render_files values.minimal.yaml"
   [ -f "$chart/values.full.yaml" ] && render_files="$render_files values.full.yaml"

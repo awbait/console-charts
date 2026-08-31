@@ -13,4 +13,8 @@ generic:
   labels: {}
   annotations: {}
 
+# Куда встают вейпоинты. Пусто в обоих полях - неймспейс релиза.
+namespaceOverride: ""    # готовое имя неймспейса
+namespacePurpose: ""     # только назначение: имя соберётся как у чарта namespace
+
 waypoints: []

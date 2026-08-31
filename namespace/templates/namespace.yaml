@@ -1,5 +1,7 @@
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 {{- $identity := .Values.identity | default dict }}
+{{- $mesh := eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
+{{- include "namespace.helpers.checkWaypoint" . }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -7,7 +9,7 @@ metadata:
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
     cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
     cpaas.io/project-inner-namespace: {{ $identity.project }}
-    {{- if .Values.serviceMesh.enabled }}
+    {{- if $mesh }}
     networking.k8s.io/enable-netpol: "true"
     {{- end }}
     {{- range $k, $v := (.Values.generic | default dict).annotations }}
@@ -18,7 +20,7 @@ metadata:
     cpaas.io/project: {{ $identity.project }}
     namespace-role: {{ .Values.namespace.role | default "other" }}
     kubernetes.io/metadata.name: {{ include "namespace.helpers.namespaceName" . }}
-    {{- if .Values.serviceMesh.enabled }}
+    {{- if $mesh }}
     istio-discovery: enabled
     istio.io/dataplane-mode: ambient
     {{- end }}

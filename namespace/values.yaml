@@ -23,7 +23,17 @@ namespace:
   creator: lk
 
 serviceMesh:
-  enabled: false
+  enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
+
+# Значения сабчарта waypoint. Он не видит значений родителя, поэтому назначение
+# неймспейса повторяется здесь: чарт проверяет, что оно совпадает с namespace.name.
+waypoint:
+  namespacePurpose: app
+  waypoints:
+    - name: mesh
+      enabled: true
+      for: service
 
 resourceQuotas:
   limits:

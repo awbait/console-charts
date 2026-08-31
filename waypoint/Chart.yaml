@@ -2,5 +2,5 @@ apiVersion: v2
 name: waypoint
 description: Пропускает через себя обмен внутри вашего пространства, чтобы работали правила доступа между сервисами.
 type: application
-version: 2.1.0
+version: 2.2.0
 appVersion: "1.0.0"

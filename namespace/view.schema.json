@@ -54,7 +54,10 @@
     "/identity/cluster": "dev",
     "/identity/project": "nbox",
     "/namespace/role": "other",
-    "/namespace/creator": "console"
+    "/namespace/creator": "console",
+    "/waypoint/identity/instance": "ed",
+    "/waypoint/identity/cluster": "dev",
+    "/waypoint/identity/project": "nbox"
   },
   "actions": [
     {
