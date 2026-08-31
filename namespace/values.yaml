@@ -5,7 +5,8 @@
 enabled: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
-# ecpk/project на всех ресурсах. Допустимые значения - в README.md.
+# ecpk/project на всех ресурсах, а project и cluster - ещё и в имена ресурсов.
+# Допустимые значения - в README.md.
 identity:
   instance: ed         # тег инстанса окружения
   cluster: dev         # тег кластера окружения
@@ -16,10 +17,9 @@ generic:
   annotations: {}      # общие annotations на ВСЕ ресурсы чарта
 
 namespace:
-  namespaceName: "project-dev-ns-default"
-  projectName: project
-  clusterName: common
+  name: app            # назначение неймспейса; полное имя - {project}-{cluster}-ns-{name}
   displayName: "Managed namespace"
+  role: other
   creator: lk
   annotations: {}
   labels: {}
@@ -41,7 +41,7 @@ resourceQuotas:
 subnet:
   enable: false
   subnets:
-    - name: "project-dev-subnet-default"
+    - name: app        # назначение подсети; полное имя - {project}-{cluster}-subnet-{name}
       cidrBlock: ""
       excludeIps: []
       allowSubnets: []

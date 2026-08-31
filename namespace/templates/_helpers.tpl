@@ -37,6 +37,65 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+DNS tag validation (identity.cluster). Parameters: .label, .value.
+Returns the value in lower-case.
+*/}}
+{{- define "namespace.helpers.tag" -}}
+{{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Short DNS tag validation (identity.project, the purpose part of a name).
+Parameters: .label, .value and the optional bounds .min (default 2) and .max
+(default 12). Returns the value in lower-case.
+*/}}
+{{- define "namespace.helpers.shortToken" -}}
+{{- $min := .min | default 2 | int -}}
+{{- $max := .max | default 12 | int -}}
+{{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
+{{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
+{{- fail (printf "%s must be %d..%d characters, got %q" .label $min $max $value) -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "%s must be DNS-like lowercase, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Resource name: {project}-{cluster}-{kindShort}-{purpose}.
+
+The order names only the purpose (namespace.name, subnet.subnets[].name); the
+project and the cluster come from identity, so a name can never disagree with
+the tags the same values put on the resource. Parameters: .context, .kindShort
+(ns|subnet), .name. Truncated to 63 characters, e.g. nbox-dev-ns-app.
+*/}}
+{{- define "namespace.helpers.resourceName" -}}
+{{- $identity := .context.Values.identity | default dict -}}
+{{- $project := include "namespace.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
+{{- $cluster := include "namespace.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
+{{- $kind := required "kindShort is required" .kindShort | toString | lower -}}
+{{- if not (has $kind (list "ns" "subnet")) -}}
+{{- fail (printf "kindShort must be one of ns, subnet, got %q" $kind) -}}
+{{- end -}}
+{{- $name := include "namespace.helpers.shortToken" (dict "label" (printf "%s name" $kind) "value" .name) -}}
+{{- printf "%s-%s-%s-%s" $project $cluster $kind $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Name of the Namespace the chart creates, e.g. nbox-dev-ns-app.
+Every template that needs it calls this, so the Namespace, the ResourceQuota
+inside it and the Subnet bound to it can never drift apart.
+*/}}
+{{- define "namespace.helpers.namespaceName" -}}
+{{- include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" (.Values.namespace | default dict).name) -}}
+{{- end -}}
+
+{{/*
 Identity labels: ecpk/instance, ecpk/cluster, ecpk/project.
 
 Each label is rendered only when the matching identity.* value is set, so a

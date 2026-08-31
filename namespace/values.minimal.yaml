@@ -9,9 +9,7 @@ identity:
   project: demo        # тег проекта, до 9 символов
 
 namespace:
-  namespaceName: "demo-dev-ns-app"
-  projectName: demo
-  clusterName: common
+  name: app            # получится demo-dev-ns-app
 
 resourceQuotas:
   limits:

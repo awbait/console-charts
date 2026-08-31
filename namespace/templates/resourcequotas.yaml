@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: {{ .Values.resourceQuotas.name | default "default" }}
-  namespace: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+  namespace: {{ include "namespace.helpers.namespaceName" . }}
   {{- include "namespace.helpers.metadata" (dict "context" .) | nindent 2 }}
 spec:
   hard:

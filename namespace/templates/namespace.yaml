@@ -1,11 +1,12 @@
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
+{{- $identity := .Values.identity | default dict }}
 apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
     cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
-    cpaas.io/project-inner-namespace: {{ .Values.namespace.projectName }}
+    cpaas.io/project-inner-namespace: {{ $identity.project }}
     {{- if .Values.serviceMesh.enabled }}
     networking.k8s.io/enable-netpol: "true"
     {{- end }}
@@ -16,12 +17,10 @@ metadata:
     {{ $k }}: {{ tpl (toString $v) $ | quote }}
     {{- end }}
   labels:
-    cpaas.io/cluster: {{ .Values.namespace.clusterName }}
-    cpaas.io/project: {{ .Values.namespace.projectName }}
-    {{- with .Values.namespace.role }}
-    namespace-role: {{ . }}
-    {{- end }}
-    kubernetes.io/metadata.name: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+    cpaas.io/cluster: {{ $identity.cluster }}
+    cpaas.io/project: {{ $identity.project }}
+    namespace-role: {{ .Values.namespace.role | default "other" }}
+    kubernetes.io/metadata.name: {{ include "namespace.helpers.namespaceName" . }}
     {{- if .Values.serviceMesh.enabled }}
     istio-discovery: enabled
     istio.io/dataplane-mode: ambient
@@ -30,6 +29,6 @@ metadata:
     {{- with .Values.namespace.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  name: {{ .Values.namespace.namespaceName | lower | trunc 63 | trimSuffix "-" }}
+  name: {{ include "namespace.helpers.namespaceName" . }}
 #spec: []
 {{- end -}}

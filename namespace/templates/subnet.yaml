@@ -6,7 +6,7 @@
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
-  name: {{ .name | lower | trunc 63 | trimSuffix "-" }}
+  name: {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" .name) }}
   {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   default: false
@@ -32,7 +32,7 @@ spec:
     {{- end }}
   enableEcmp: false
   namespaces:
-    - {{ $root.Values.namespace.namespaceName }}
+    - {{ include "namespace.helpers.namespaceName" $root }}
 {{- end }}
 {{- end }}
 {{- end -}}

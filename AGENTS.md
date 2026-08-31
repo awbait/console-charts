@@ -82,11 +82,13 @@
 
 Эталоны: `namespace`, `project`.
 
-- Ресурс - объект Alauda/cpaas (`Namespace`, `auth.alauda.io/v1 Project`, ...). Имя
-  ресурса берётся напрямую из значения (`namespace.namespaceName`, `project.name`),
-  а не собирается по 5-частной схеме.
-- labels в cpaas-стиле (`app.cpaas.io/name`, `cpaas.io/*`). Блок `identity` есть,
-  но в имена не входит: из него собираются только labels `ecpk/*`.
+- Ресурс - объект Alauda/cpaas (`Namespace`, `auth.alauda.io/v1 Project`, ...).
+  5-частная схема имён не применяется: в `project` имя берётся напрямую из
+  значения (`project.name`), в `namespace` собирается из трёх частей
+  (`{project}-{cluster}-{ns|subnet}-{назначение}`).
+- labels в cpaas-стиле (`app.cpaas.io/name`, `cpaas.io/*`). Блок `identity` есть:
+  из него собираются labels `ecpk/*`, а в `namespace` - ещё и cpaas-поля
+  (`cpaas.io/project`, `cpaas.io/cluster`) и первые две части имени.
 - Есть служебный флаг `global.enable` (консоль включает его при заказе; при `false`
   чарт не создаёт ничего).
 - Хелперы `<chart>.helpers.*`: `chart`, `labels`, `metadata` и валидаторы имён.

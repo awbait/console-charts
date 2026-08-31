@@ -21,7 +21,8 @@
   "properties": {
     "identity": {
       "title": "Окружение и проект",
-      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
+      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ. В форме скрыто: значения подставляет портал.",
+      "ui:widget": "hidden",
       "$ref": "#/definitions/identity"
     },
     "namespace": {
@@ -76,6 +77,12 @@
       "type": "string",
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
       "maxLength": 63
+    },
+    "purposeToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 12
     },
     "quantity": {
       "type": "string"
@@ -157,9 +164,7 @@
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
-        "namespaceName",
-        "projectName",
-        "clusterName",
+        "name",
         "displayName",
         "role",
         "labels",
@@ -167,20 +172,10 @@
         "creator"
       ],
       "properties": {
-        "namespaceName": {
-          "title": "Имя неймспейса",
-          "description": "Имя, под которым неймспейс появится в кластере. Принято складывать его из продукта, среды и назначения: nbox-dev-ns-app.",
-          "$ref": "#/definitions/dnsName"
-        },
-        "projectName": {
-          "title": "Проект-владелец",
-          "description": "Проект платформы, внутри которого создаётся неймспейс.",
-          "type": "string"
-        },
-        "clusterName": {
-          "title": "Кластер размещения",
-          "description": "Кластер платформы, в котором появится неймспейс.",
-          "type": "string"
+        "name": {
+          "title": "Назначение",
+          "description": "Одно слово о том, что будет жить в неймспейсе: app, api, monitoring. Остальное имя платформа соберёт сама, получится nbox-dev-ns-app.",
+          "$ref": "#/definitions/purposeToken"
         },
         "displayName": {
           "title": "Отображаемое имя",
@@ -189,7 +184,7 @@
         },
         "role": {
           "title": "Роль неймспейса",
-          "description": "Что будет жить в этом неймспейсе.",
+          "description": "Что будет жить в этом неймспейсе. В форме скрыто: обычным сервисам подходит other.",
           "type": "string",
           "enum": [
             "ingress",
@@ -200,7 +195,9 @@
             "Точки входа трафика (ingress)",
             "Точки выхода трафика (egress)",
             "Обычные сервисы (other)"
-          ]
+          ],
+          "default": "other",
+          "ui:widget": "hidden"
         },
         "labels": {
           "title": "Дополнительные labels",
@@ -221,8 +218,7 @@
         }
       },
       "required": [
-        "namespaceName",
-        "projectName"
+        "name"
       ]
     },
     "resourceQuotas": {
@@ -352,9 +348,9 @@
       ],
       "properties": {
         "name": {
-          "title": "Имя подсети",
-          "description": "Имя, под которым подсеть появится в кластере.",
-          "$ref": "#/definitions/dnsName"
+          "title": "Назначение подсети",
+          "description": "Одно слово, как и у неймспейса. Полное имя платформа соберёт сама, получится nbox-dev-subnet-app.",
+          "$ref": "#/definitions/purposeToken"
         },
         "cidrBlock": {
           "title": "Диапазон адресов",

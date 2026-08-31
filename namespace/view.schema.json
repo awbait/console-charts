@@ -6,10 +6,11 @@
         "resourceQuotas",
         "serviceMesh"
       ],
-      "identity": "/namespace/namespaceName",
+      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. identity и роль неймспейса в форме скрыты, их проставляет блок defaults.",
+      "identity": "/namespace/name",
       "namespace": {
         "source": "values",
-        "pointer": "/namespace/namespaceName",
+        "pointer": "/namespace/name",
         "hideOrderField": true
       },
       "overrides": {
@@ -47,6 +48,13 @@
         }
       }
     }
+  },
+  "defaults": {
+    "/identity/instance": "ed",
+    "/identity/cluster": "dev",
+    "/identity/project": "nbox",
+    "/namespace/role": "other",
+    "/namespace/creator": "console"
   },
   "actions": [
     {
