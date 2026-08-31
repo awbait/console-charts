@@ -21,8 +21,6 @@ namespace:
   displayName: "Managed namespace"
   role: other
   creator: lk
-  annotations: {}
-  labels: {}
 
 serviceMesh:
   enabled: false
@@ -43,7 +41,7 @@ resourceQuotas:
 subnet:
   enable: false
   subnets:
-    - name: app        # назначение подсети; полное имя - {project}-{cluster}-subnet-{name}
-      cidrBlock: ""
-      excludeIps: []
+      # name не задан: подсеть возьмёт назначение неймспейса
+    - cidrBlock: ""    # заполняет платформа, диапазон бронируется в Netbox
+      reservedIps: 0   # сколько адресов не выдавать подам, кроме адреса шлюза
       allowSubnets: []

@@ -10,9 +10,6 @@ metadata:
     {{- if .Values.serviceMesh.enabled }}
     networking.k8s.io/enable-netpol: "true"
     {{- end }}
-    {{- with .Values.namespace.annotations }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
     {{- range $k, $v := (.Values.generic | default dict).annotations }}
     {{ $k }}: {{ tpl (toString $v) $ | quote }}
     {{- end }}
@@ -26,9 +23,6 @@ metadata:
     istio.io/dataplane-mode: ambient
     {{- end }}
     {{- include "namespace.helpers.labels" . | nindent 4 }}
-    {{- with .Values.namespace.labels }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
   name: {{ include "namespace.helpers.namespaceName" . }}
 #spec: []
 {{- end -}}

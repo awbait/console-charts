@@ -167,8 +167,6 @@
         "name",
         "displayName",
         "role",
-        "labels",
-        "annotations",
         "creator"
       ],
       "properties": {
@@ -198,16 +196,6 @@
           ],
           "default": "other",
           "ui:widget": "hidden"
-        },
-        "labels": {
-          "title": "Дополнительные labels",
-          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
-          "$ref": "#/definitions/stringMap"
-        },
-        "annotations": {
-          "title": "Дополнительные annotations",
-          "description": "Ставятся только на сам неймспейс, не на квоты и подсети.",
-          "$ref": "#/definitions/stringMap"
         },
         "creator": {
           "title": "creator",
@@ -352,20 +340,29 @@
       "additionalProperties": false,
       "propertyOrder": [
         "name",
-        "cidrBlock",
+        "reservedIps",
         "allowSubnets",
-        "excludeIps"
+        "cidrBlock"
       ],
       "properties": {
         "name": {
           "title": "Назначение подсети",
-          "description": "Одно слово, как и у неймспейса. Полное имя платформа соберёт сама, получится nbox-dev-subnet-app.",
+          "description": "Одно слово, как и у неймспейса. Оставьте пустым, если подсеть одна: она возьмёт назначение неймспейса и будет называться nbox-dev-subnet-app.",
           "$ref": "#/definitions/purposeToken"
+        },
+        "reservedIps": {
+          "title": "Сколько адресов зарезервировать",
+          "description": "Адреса, которые не достанутся сервисам: их можно занять чем-то своим, например точкой входа с постоянным адресом. Сами адреса выдаст платформа, вы увидите их в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно указывать его не нужно.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16,
+          "default": 0
         },
         "cidrBlock": {
           "title": "Диапазон адресов",
-          "description": "Забронированный диапазон вместе с маской. Например 10.24.8.0/22.",
-          "type": "string"
+          "description": "Забронированный в Netbox диапазон вместе с маской, например 10.24.8.0/24. Служебное поле, его заполняет платформа.",
+          "type": "string",
+          "ui:widget": "hidden"
         },
         "allowSubnets": {
           "title": "Разрешённые подсети",
@@ -375,19 +372,9 @@
             "title": "Диапазон адресов",
             "type": "string"
           }
-        },
-        "excludeIps": {
-          "title": "Зарезервированные адреса",
-          "description": "Адреса, которые не будут выданы подам. Адрес шлюза исключается сам.",
-          "type": "array",
-          "items": {
-            "title": "IP-адрес",
-            "type": "string"
-          }
         }
       },
       "required": [
-        "name",
         "cidrBlock"
       ]
     },

@@ -156,54 +156,105 @@ annotations:
 
 
 {{/*
-Parses a JSON list and renders it as YAML list.
-Usage:
-  {{ include "namespace.helpers.jsonListToYamlList" .Values.myJsonString }}
+IPv4 address as a number, so addresses can be counted off without caring where
+the octet boundaries fall. Parameter: the dotted address.
 */}}
-{{- define "namespace.helpers.jsonListToYamlList" -}}
-{{- $unmarshaled := fromJson . -}}
-{{- toYaml $unmarshaled | nindent 0 -}}
+{{- define "namespace.helpers.ipToInt" -}}
+{{- $octets := splitList "." (toString .) -}}
+{{- if ne (len $octets) 4 -}}
+{{- fail (printf "IPv4 address must have 4 octets, got %q" .) -}}
+{{- end -}}
+{{- $value := 0 -}}
+{{- range $octets -}}
+{{- if not (regexMatch "^[0-9]{1,3}$" .) -}}
+{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- end -}}
+{{- $octet := int . -}}
+{{- if gt $octet 255 -}}
+{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- end -}}
+{{- $value = add (mul $value 256) $octet -}}
+{{- end -}}
+{{- $value -}}
 {{- end -}}
 
 {{/*
-Get the gateway IP from cidrBlock by incrementing the last octet of an IP address by 1
-Net mask is supposed to be >= 24
+The inverse of ipToInt: a number back into a dotted address.
 */}}
-{{- define "namespace.helpers.getGatewayIP" -}}
-{{- $cidr := . -}}
-
-{{/* Split CIDR to get IP part */}}
-{{- $splitResult := splitList "/" $cidr -}}
-{{- if lt (len $splitResult) 2 -}}
-{{- printf "Invalid CIDR format: %s" $cidr | fail -}}
+{{- define "namespace.helpers.intToIp" -}}
+{{- $value := int64 . -}}
+{{- printf "%d.%d.%d.%d" (div $value 16777216) (mod (div $value 65536) 256) (mod (div $value 256) 256) (mod $value 256) -}}
 {{- end -}}
 
-{{- $ipPart := index $splitResult 0 -}}
-{{- $maskPart := index $splitResult 1 -}}
-
-{{/* Split IP into octets */}}
-{{- $octets := splitList "." $ipPart -}}
-{{- if ne (len $octets) 4 -}}
-{{- printf "Invalid IP address format: must contain exactly 4 octets, got: %s" $ipPart | fail -}}
+{{/*
+Number of addresses in a CIDR block. The mask is limited to 16..30: a wider
+block is never handed to one namespace, and a narrower one has no room for the
+gateway plus a single pod. Parameter: the mask as a string or number.
+*/}}
+{{- define "namespace.helpers.subnetSize" -}}
+{{- $mask := toString . -}}
+{{- if not (regexMatch "^[0-9]{1,2}$" $mask) -}}
+{{- fail (printf "subnet mask must be a number 16..30, got %q" $mask) -}}
+{{- end -}}
+{{- $bits := int $mask -}}
+{{- if or (lt $bits 16) (gt $bits 30) -}}
+{{- fail (printf "subnet mask must be 16..30, got %q" $mask) -}}
+{{- end -}}
+{{- $size := 1 -}}
+{{- range until (sub 32 $bits | int) -}}
+{{- $size = mul $size 2 -}}
+{{- end -}}
+{{- $size -}}
 {{- end -}}
 
-{{/* Get last octet and convert to integer */}}
-{{- $lastOctetStr := index $octets 3 -}}
-{{- $lastOctet := $lastOctetStr | int -}}
-
-{{/* Validate octet range */}}
-{{- if or (lt $lastOctet 0) (gt $lastOctet 254) -}}
-{{- printf "Last octet must be between 0 and 254, got: %s" $lastOctetStr | fail -}}
+{{/*
+First address of a subnet as a number, with the CIDR block validated on the way.
+Parameter: the cidrBlock string, e.g. 10.24.8.0/22.
+*/}}
+{{- define "namespace.helpers.subnetBase" -}}
+{{- $parts := splitList "/" (toString .) -}}
+{{- if ne (len $parts) 2 -}}
+{{- fail (printf "cidrBlock must be written as address/mask, got %q" .) -}}
+{{- end -}}
+{{- $base := include "namespace.helpers.ipToInt" (index $parts 0) | int64 -}}
+{{- $size := include "namespace.helpers.subnetSize" (index $parts 1) | int64 -}}
+{{- if ne (mod $base $size) (int64 0) -}}
+{{- fail (printf "cidrBlock must start at the first address of the block, got %q" .) -}}
+{{- end -}}
+{{- $base -}}
 {{- end -}}
 
-{{/* Increment last octet */}}
-{{- $newLastOctet := add $lastOctet 1 -}}
+{{/*
+Gateway address of a subnet: the first address after the network one.
+Parameter: the cidrBlock string.
+*/}}
+{{- define "namespace.helpers.subnetGateway" -}}
+{{- include "namespace.helpers.intToIp" (add (include "namespace.helpers.subnetBase" . | int64) 1) -}}
+{{- end -}}
 
-{{/* Build new IP address */}}
-{{- $firstOctet := index $octets 0 -}}
-{{- $secondOctet := index $octets 1 -}}
-{{- $thirdOctet := index $octets 2 -}}
+{{/*
+Addresses kept away from pods, as a comma-separated list: the gateway, then as
+many addresses right behind it as the order asked to reserve. The order names a
+count rather than addresses, because it has no way to know which addresses the
+block holds. Parameters: .cidrBlock, .count.
 
-{{/* Join octets back together */}}
-{{- printf "%s.%s.%s.%d" $firstOctet $secondOctet $thirdOctet $newLastOctet -}}
+The last address of the block is the broadcast one and the first is the network
+itself, so what is left for pods is size-2; reserving all of it leaves the
+subnet with no room and stops the render.
+*/}}
+{{- define "namespace.helpers.subnetExcludeIps" -}}
+{{- $base := include "namespace.helpers.subnetBase" .cidrBlock | int64 -}}
+{{- $size := include "namespace.helpers.subnetSize" (index (splitList "/" (toString .cidrBlock)) 1) | int64 -}}
+{{- $count := .count | default 0 | int64 -}}
+{{- if lt $count (int64 0) -}}
+{{- fail (printf "reservedIps must not be negative, got %d" $count) -}}
+{{- end -}}
+{{- if ge (add $count 3) $size -}}
+{{- fail (printf "cidrBlock %s has no room for %d reserved addresses on top of the gateway" .cidrBlock $count) -}}
+{{- end -}}
+{{- $addresses := list (include "namespace.helpers.intToIp" (add $base 1)) -}}
+{{- range $i := until (int $count) -}}
+{{- $addresses = append $addresses (include "namespace.helpers.intToIp" (add $base 2 $i)) -}}
+{{- end -}}
+{{- join "," $addresses -}}
 {{- end -}}

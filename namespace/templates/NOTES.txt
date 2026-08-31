@@ -10,7 +10,8 @@ Created:
   Subnet(s):
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}
-    - {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" .name) }} ({{ .cidrBlock }})
+    - {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default $root.Values.namespace.name)) }} ({{ .cidrBlock }})
+      addresses kept away from pods: {{ include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps) | replace "," ", " }}
 {{- end }}
 {{- else }}
   Subnet:        not created (subnet.enable=false)
