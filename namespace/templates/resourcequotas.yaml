@@ -12,13 +12,13 @@ spec:
     pods: {{ .Values.resourceQuotas.podsAmount }}
     requests.cpu: {{ .Values.resourceQuotas.requests.cpu | default .Values.resourceQuotas.limits.cpu }}
     requests.memory: {{ .Values.resourceQuotas.requests.memory | default .Values.resourceQuotas.limits.memory }}
-    {{- if .Values.resourceQuotas.storage.storages }}
     {{- $storageQuotas := dict }}
-    {{- range $storageClass, $quota := .Values.resourceQuotas.storage.storages }}
+    {{- range $storageClass, $quota := .Values.resourceQuotas.storage | default dict }}
+    {{- if $quota }}
     {{- $_ := set $storageQuotas (printf "%s.storageclass.storage.k8s.io/requests.storage" $storageClass) $quota }}
+    {{- end }}
     {{- end }}
     {{- if $storageQuotas }}
     {{- $storageQuotas | toYaml | nindent 4 }}
-    {{- end }}
     {{- end }}
 {{- end -}}

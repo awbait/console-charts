@@ -20,15 +20,6 @@ true
 {{- end -}}
 {{- end -}}
 
-{{- define "namespace.helpers.parseStorageQuotas" -}}
-{{- if .Values.resourceQuotas.storage }}
-{{- fromJson .Values.resourceQuotas.storage | toYaml }}
-{{- else }}
-{}
-{{- end }}
-{{- end }}
-
-
 {{/*
 Create chart name and version as used by the chart label.
 */}}

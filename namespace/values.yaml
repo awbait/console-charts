@@ -35,8 +35,10 @@ resourceQuotas:
     cpu: ""
     memory: ""
   podsAmount: 1000
+  # Квоты на хранилища: класс -> объём. Пустое значение - класс не выдаётся.
   storage:
-    storages: {}
+    topolvm-mu: ""
+    topolvm-ri: ""
 
 subnet:
   enable: false
