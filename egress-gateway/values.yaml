@@ -30,9 +30,4 @@ networkPolicy:
 authorizationPolicy:
   enabled: false
 
-# По умолчанию VpcEgressGateway встаёт в namespace релиза, отдельный namespace
-# с подсетью не создаётся.
-egressNamespace:
-  enabled: false
-
 vpcEgressGateway: []

@@ -7,15 +7,14 @@ nodeSelector pins the gateways to the control-plane nodes: the ingress gateway
 of the service runs on the workers, and the two must not share a node.
 
 Derived (not configurable):
-  - namespace     the namespace the chart creates (egressNamespace.enabled) or
-                  the release namespace;
+  - namespace     the release namespace;
   - replicas      = number of externalIPs;
   - selectors     namespaceSelector + podSelector point at the Istio egress
                   gateway created from .Values.egressGateway: the release
                   namespace and the pods of that Gateway
                   (label gateway.networking.k8s.io/gateway-name);
-  - policies      SNAT for the subnet the gateway sits in, which carries the
-                  name of that namespace.
+  - policies      SNAT for the subnet of the release namespace, which carries
+                  the same name.
 
 A VpcEgressGateway only makes sense together with the egress Gateway it points
 at, so egressGateway must be enabled and named when this section is used.
@@ -24,7 +23,7 @@ at, so egressGateway must be enabled and named when this section is used.
 {{- if .Values.vpcEgressGateway }}
 {{- $root := . }}
 {{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
-{{- $namespace := include "egress-gateway.helpers.app.egressNamespace" $root }}
+{{- $namespace := $root.Release.Namespace }}
 {{- range $index, $veg := .Values.vpcEgressGateway }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $veg) "true" }}
 {{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $veg.externalIPs }}

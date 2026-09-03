@@ -19,6 +19,46 @@
 
 ---
 
+## [5.0.0] - 2026-09-03
+
+Шлюз перестроен по официальной ambient-схеме Istio (egress через waypoint).
+Раньше чарт собирал классический egress: Gateway класса `istio` с listener'ом
+на каждый домен и парой `TLSRoute` на внешний сервис. Маршрут от отправителя
+при этом вставал с `BackendNotFound` (он вёл на имя `Gateway`, а трафик
+принимает Service с суффиксом `-istio`), а рядом висело предупреждение
+`ResolvedWaypoints`: в ambient-кластере маршрут от `ServiceEntry` без привязки
+к waypoint всё равно бы не применился. Вместо точечных починок чарт переведён
+на схему, где обе проблемы не существуют.
+
+### Changed
+- **BREAKING. Шлюз - это waypoint.** `Gateway` теперь класса `istio-waypoint` с
+  лейблом `istio.io/waypoint-for: service` и одним listener'ом `mesh` (порт
+  15008, протокол HBONE) вместо listener'а на каждый домен. `ServiceEntry`
+  привязывается к нему лейблом `istio.io/use-waypoint` (при чужом namespace -
+  ещё и `istio.io/use-waypoint-namespace`), и ztunnel сам туннелирует трафик
+  отправителей в waypoint. Значения заказа не меняются. Что поправить: namespace
+  отправителей должны быть в ambient (`istio.io/dataplane-mode=ambient`), иначе
+  перехватывать трафик некому.
+- **Входящая `NetworkPolicy` пускает HBONE.** Порт входа сменился с 443 на
+  15008: к waypoint приходит туннель ztunnel, а не сам TLS-трафик.
+- **Чужой namespace отправителя допускается через `allowedRoutes`.** Listener
+  `mesh` перечисляет namespace отправителей селектором; пока все отправители в
+  namespace релиза, остаётся `from: Same`.
+
+### Removed
+- **Пара `TLSRoute` на внешний сервис.** Доставку до waypoint и выход наружу
+  берёт на себя ztunnel и сам waypoint, маршруты стали не нужны.
+- **`ReferenceGrant`.** Ссылок через границу namespace больше нет: маршрутов
+  нет, а привязка лейблом в грантах не нуждается.
+- **kindShort `tr` и `rg`** ушли из реестра имён чарта вместе со своими
+  ресурсами.
+- **BREAKING. Секция `egressNamespace`.** Отдельный namespace с подсетью `/29`
+  под выход больше не создаётся: `VpcEgressGateway` всегда встаёт в namespace
+  релиза, SNAT пишется на подсеть, одноимённую этому namespace. Что поправить:
+  уберите секцию `egressNamespace` из значений; namespace и подсеть, созданные
+  прошлыми релизами, Helm удалит при обновлении - убедитесь, что подсеть в
+  Netbox освобождена.
+
 ## [4.0.0] - 2026-08-28
 
 Крупная переработка. Шлюз перестал быть набором ручных listener'ов: теперь вы

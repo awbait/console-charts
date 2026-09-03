@@ -1,12 +1,16 @@
 {{/*
-Egress Gateway (Gateway API, class istio) - a SINGLE gateway built from
-.Values.egressGateway. The user names it; the listeners come from the external
-services of the release, one per hostname:
-  - name     the deepest level of the domain (kc.idp.ecpk.test -> kc);
-  - port     443, protocol TLS, mode Passthrough - fixed;
-  - allowedRoutes stay on Same: the outbound routes are created next to the
-    gateway, and a route from a sender namespace reaches the gateway through a
-    backendRef and a ReferenceGrant, not through this listener.
+Egress waypoint (Gateway API, class istio-waypoint) - a SINGLE gateway built
+from .Values.egressGateway. The user names it; everything else is the standard
+waypoint shape from the Istio ambient egress pattern:
+  - label istio.io/waypoint-for: service - the waypoint serves ServiceEntries;
+  - one listener: mesh, port 15008, protocol HBONE. ztunnel tunnels the traffic
+    of every ServiceEntry labelled istio.io/use-waypoint into it, and the
+    waypoint lets it out to the external host itself - no routes, no Service
+    backendRefs.
+  - allowedRoutes stay on Same while every sender sits in the release
+    namespace; a sender namespace of its own gets into a Selector, because a
+    cross-namespace waypoint binding is only honoured when the listener admits
+    that namespace.
 infrastructure.parametersRef references the ConfigMap (see configmap.yaml), which
 shares the same name as the Gateway (kindShort egw).
 The Service of the gateway stays internal (annotation networking.istio.io/service-type).
@@ -21,36 +25,39 @@ The whole gateway is skipped when enabled: false.
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gwName "context" $) }}
 {{- $entries := .Values.serviceEntries | default list }}
 {{- if not $entries }}
-{{- fail "serviceEntries must contain at least one external service: the gateway takes its listeners from their hostnames" }}
+{{- fail "serviceEntries must contain at least one external service: the waypoint carries no traffic until a ServiceEntry is bound to it" }}
 {{- end }}
+{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" . | fromJsonArray }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: {{ $gwFullname }}
   namespace: {{ $.Release.Namespace | quote }}
-  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $ "annotations" (dict "networking.istio.io/service-type" "ClusterIP")) | nindent 2 }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $ "labels" (dict "istio.io/waypoint-for" "service") "annotations" (dict "networking.istio.io/service-type" "ClusterIP")) | nindent 2 }}
 spec:
-  gatewayClassName: istio
+  gatewayClassName: istio-waypoint
   infrastructure:
     parametersRef:
       group: ""
       kind: ConfigMap
       name: {{ $gwFullname }}
   listeners:
-    {{- range $index, $entry := $entries }}
-    {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
-    {{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
-    - name: {{ include "egress-gateway.helpers.app.listenerName" (dict "label" (printf "serviceEntries[%d].hostname" $index) "value" $hostname) }}
-      hostname: {{ $hostname | quote }}
-      port: 443
-      protocol: TLS
-      tls:
-        mode: Passthrough
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+      {{- if gt (len $namespaces) 1 }}
       allowedRoutes:
         namespaces:
-          from: Same
-    {{- end }}
-    {{- end }}
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range $namespace := $namespaces }}
+                  - {{ $namespace | quote }}
+                  {{- end }}
+      {{- end }}
 {{- end }}
 {{- end }}

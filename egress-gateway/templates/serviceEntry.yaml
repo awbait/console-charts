@@ -3,27 +3,36 @@ ServiceEntry - one per entry of .Values.serviceEntries, each describing a single
 external service. The user fills in the name and the hostname, and optionally the
 namespace the sender lives in; when the namespace is left out the ServiceEntry
 lands next to the gateway, in the release namespace.
+The label istio.io/use-waypoint binds the entry to the egress waypoint of this
+release: ztunnel picks the traffic of the entry up and tunnels it into the
+waypoint over HBONE. When the entry sits in a namespace of its own, the second
+label istio.io/use-waypoint-namespace says where the waypoint is, and the
+listener of the waypoint admits that namespace (see gateway.yaml).
 exportTo keeps the entry visible in its own namespace and in the namespace of the
-gateway, so the outbound route next to the gateway resolves the same host.
+gateway, so the waypoint resolves the same host.
 Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
 Skipped when the gateway is disabled.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- if .Values.serviceEntries }}
 {{- $root := . }}
-{{- $_ := include "egress-gateway.helpers.app.gatewayFullname" $root }}
+{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
 {{- range $index, $entry := .Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
 {{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
 {{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" $entry "context" $root) }}
+{{- $waypointLabels := dict "istio.io/use-waypoint" $gwFullname }}
+{{- if ne $namespace $root.Release.Namespace }}
+{{- $_ := set $waypointLabels "istio.io/use-waypoint-namespace" $root.Release.Namespace }}
+{{- end }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $seName "context" $root) }}
   namespace: {{ $namespace | quote }}
-  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root "labels" $waypointLabels) | nindent 2 }}
 spec:
   hosts:
     - {{ $hostname | quote }}

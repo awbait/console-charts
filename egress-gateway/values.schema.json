@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/egress-gateway/values.schema.json",
   "title": "egress-gateway Helm chart values",
-  "description": "Editor-oriented schema for the egress-gateway chart (Istio egress gateway on the Gateway API + kube-ovn VpcEgressGateway). A single Gateway of class istio whose listeners come from the hostnames of the external services; each service also gets a ServiceEntry and a pair of TLSRoutes.",
+  "description": "Editor-oriented schema for the egress-gateway chart (Istio ambient egress waypoint + kube-ovn VpcEgressGateway). A single Gateway of class istio-waypoint with one HBONE listener; each external service gets a ServiceEntry bound to the waypoint via the istio.io/use-waypoint label, and ztunnel tunnels the traffic in.",
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
@@ -12,7 +12,6 @@
     "serviceEntries",
     "networkPolicy",
     "authorizationPolicy",
-    "egressNamespace",
     "vpcEgressGateway"
   ],
   "required": [
@@ -63,11 +62,6 @@
       "title": "Правило доступа к гейтвею",
       "description": "Пускает к гейтвею только ваши сервисы, а не весь кластер.",
       "$ref": "#/definitions/authorizationPolicy"
-    },
-    "egressNamespace": {
-      "title": "Отдельный namespace под выход",
-      "description": "Вынести выход с известного адреса в свой namespace с отдельной подсетью.",
-      "$ref": "#/definitions/egressNamespace"
     },
     "vpcEgressGateway": {
       "title": "Выход с известного адреса",
@@ -375,7 +369,7 @@
         },
         "enabled": {
           "title": "enabled",
-          "description": "Set to false to keep the entry in values without creating the ServiceEntry and its routes.",
+          "description": "Set to false to keep the entry in values without creating the ServiceEntry.",
           "type": "boolean",
           "default": true,
           "ui:widget": "hidden"
@@ -459,45 +453,6 @@
           "description": "К гейтвею будут допущены только namespace ваших сервисов.",
           "type": "boolean",
           "default": false
-        }
-      }
-    },
-    "egressNamespace": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "enabled",
-        "name",
-        "cidrBlock",
-        "allowSubnets"
-      ],
-      "properties": {
-        "enabled": {
-          "title": "Включить",
-          "description": "Выход получит свой namespace и подсеть. Выключено - выход остаётся рядом с гейтвеем.",
-          "type": "boolean",
-          "default": false
-        },
-        "name": {
-          "title": "Имя namespace",
-          "description": "Так же будет называться подсеть. Заполняется, когда отдельный namespace включён.",
-          "$ref": "#/definitions/namespaceName"
-        },
-        "cidrBlock": {
-          "title": "Подсеть",
-          "description": "Блок /29, зарезервированный в Netbox. Например 10.20.30.8/29.",
-          "type": "string",
-          "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/29$"
-        },
-        "allowSubnets": {
-          "title": "Подсети проекта",
-          "description": "С какими подсетями проекта разрешена связность. Служебные подсети чарт добавляет сам.",
-          "type": "array",
-          "items": {
-            "title": "Подсеть",
-            "type": "string",
-            "minLength": 1
-          }
         }
       }
     },

@@ -59,10 +59,9 @@ Returns the value in lower-case.
 Full resource name by convention:
   without parent: {instance}-{cluster}-{kindShort}-{project}-{name}
   with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
-Params: .context, .kindShort (egw|veg|np|ap|tr|rg), .name (2..6 characters),
+Params: .context, .kindShort (egw|veg|np|ap), .name (2..6 characters),
         .parent (optional, parent Gateway name, 2..6 characters; for the
-        NetworkPolicies, of which one gateway has two, and for the outbound
-        TLSRoute, which shares its name with the inbound one).
+        NetworkPolicies, of which one gateway has two).
 */}}
 {{- define "egress-gateway.helpers.app.fullname" -}}
 {{- $identity := .context.Values.identity | default dict -}}
@@ -70,8 +69,8 @@ Params: .context, .kindShort (egw|veg|np|ap|tr|rg), .name (2..6 characters),
 {{- $cluster := include "egress-gateway.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
 {{- $project := include "egress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "kindShort is required" .kindShort | toString | lower -}}
-{{- if not (has $kind (list "egw" "veg" "np" "ap" "tr" "rg")) -}}
-{{- fail (printf "kindShort must be one of egw|veg|np|ap|tr|rg, got %q" $kind) -}}
+{{- if not (has $kind (list "egw" "veg" "np" "ap")) -}}
+{{- fail (printf "kindShort must be one of egw|veg|np|ap, got %q" $kind) -}}
 {{- end -}}
 {{- $name := include "egress-gateway.helpers.shortToken" (dict "label" "name" "value" .name) -}}
 {{- if .parent -}}
@@ -97,21 +96,6 @@ true
 {{- end -}}
 
 {{/*
-Listener name of an external service: the deepest level of its domain, which is
-the first label of the hostname (kc.idp.ecpk.test -> kc). It names the listener
-on the Gateway and pins the outbound route to it through sectionName.
-Params: .label, .value (the hostname).
-*/}}
-{{- define "egress-gateway.helpers.app.listenerName" -}}
-{{- $hostname := required (printf "%s is required" .label) .value | toString | lower | trim -}}
-{{- $name := index (splitList "." $hostname) 0 -}}
-{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) -}}
-{{- fail (printf "%s must start with a DNS-like label, got %q" .label $hostname) -}}
-{{- end -}}
-{{- $name -}}
-{{- end -}}
-
-{{/*
 Namespace an external service lands in: serviceEntries[].namespace when set,
 the release namespace otherwise. Params: .entry, .context.
 */}}
@@ -130,9 +114,10 @@ the release namespace otherwise. Params: .entry, .context.
 {{/*
 Every namespace a sender of this release sits in: the release namespace plus the
 namespace of each enabled external service. Returned as a JSON array in
-declaration order. It drives who may reach the gateway (NetworkPolicy,
-AuthorizationPolicy) and which namespaces need a ReferenceGrant. A single element
-means every sender sits in the release namespace and nothing crosses a boundary.
+declaration order. It drives who may reach the waypoint (NetworkPolicy,
+AuthorizationPolicy) and which namespaces its listener admits (allowedRoutes). A
+single element means every sender sits in the release namespace and nothing
+crosses a boundary.
 Parameter: the root context.
 */}}
 {{- define "egress-gateway.helpers.app.backendNamespaces" -}}
@@ -150,16 +135,16 @@ Parameter: the root context.
 
 {{/*
 Names that would collide in the cluster. Two external services with one name in
-one namespace give two ServiceEntries called the same, two hostnames sharing a
-first label give two listeners called the same, and two outbound addresses with
-one name give two VpcEgressGateways: the second definition simply overwrites the
-first. Checked here, once per render, so the order stops with a readable message
+one namespace give two ServiceEntries called the same, two entries with one
+hostname bind the same host twice, and two outbound addresses with one name give
+two VpcEgressGateways: the second definition simply overwrites the first.
+Checked here, once per render, so the order stops with a readable message
 instead.
 Parameter: the root context.
 */}}
 {{- define "egress-gateway.helpers.app.uniqueNames" -}}
 {{- $entries := dict -}}
-{{- $listeners := dict -}}
+{{- $hostnames := dict -}}
 {{- range $index, $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}
 {{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" $entry "context" $) -}}
@@ -168,11 +153,11 @@ Parameter: the root context.
 {{- fail (printf "serviceEntries[%d].name %q is already taken by another external service in namespace %q; the two would share one ServiceEntry" $index ($entry.name | toString | lower) $namespace) -}}
 {{- end -}}
 {{- $_ := set $entries $key true -}}
-{{- $listener := include "egress-gateway.helpers.app.listenerName" (dict "label" (printf "serviceEntries[%d].hostname" $index) "value" $entry.hostname) -}}
-{{- if hasKey $listeners $listener -}}
-{{- fail (printf "serviceEntries[%d].hostname %q starts with %q, which another external service already uses for its listener; give the two domains different first labels" $index ($entry.hostname | toString | lower) $listener) -}}
+{{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname | toString | lower -}}
+{{- if hasKey $hostnames $hostname -}}
+{{- fail (printf "serviceEntries[%d].hostname %q is already taken by another external service; the two would bind one host twice" $index $hostname) -}}
 {{- end -}}
-{{- $_ := set $listeners $listener true -}}
+{{- $_ := set $hostnames $hostname true -}}
 {{- end -}}
 {{- end -}}
 {{- $vegs := dict -}}
@@ -210,50 +195,6 @@ Parameter: .gatewayResourceName.
 */}}
 {{- define "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" -}}
 gateway.networking.k8s.io/gateway-name: {{ required "gatewayResourceName is required" .gatewayResourceName | quote }}
-{{- end -}}
-
-{{/*
-Namespace the VpcEgressGateway lands in: the namespace the chart creates when
-egressNamespace.enabled, the release namespace otherwise. The kube-ovn subnet
-the outbound traffic is SNAT'ed from carries the same name, so this is also the
-subnet name that goes into the VpcEgressGateway policies.
-Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.app.egressNamespace" -}}
-{{- $egressNamespace := .Values.egressNamespace | default dict -}}
-{{- if eq (include "egress-gateway.helpers.app.enabled" $egressNamespace) "true" -}}
-{{- $name := required "egressNamespace.name is required when egressNamespace.enabled=true" $egressNamespace.name | toString | lower -}}
-{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) -}}
-{{- fail (printf "egressNamespace.name must be DNS-like lowercase, got %q" $name) -}}
-{{- end -}}
-{{- $name | trunc 63 | trimSuffix "-" -}}
-{{- else -}}
-{{- .Release.Namespace -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-CIDR of the egress subnet: required when the namespace is created, and always a
-/29 - the subnet holds one gateway address and a handful of VpcEgressGateway
-pods, nothing else.
-Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.app.egressSubnetCidr" -}}
-{{- $egressNamespace := .Values.egressNamespace | default dict -}}
-{{- $cidr := required "egressNamespace.cidrBlock is required when egressNamespace.enabled=true" $egressNamespace.cidrBlock | toString | trim -}}
-{{- if not (regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}/29$" $cidr) -}}
-{{- fail (printf "egressNamespace.cidrBlock must be an IPv4 /29 block, got %q" $cidr) -}}
-{{- end -}}
-{{- $cidr -}}
-{{- end -}}
-
-{{/*
-Gateway address of a subnet: the network address plus one, the same rule the
-namespace chart follows. Parameter: the CIDR block.
-*/}}
-{{- define "egress-gateway.helpers.app.subnetGatewayIP" -}}
-{{- $octets := splitList "." (index (splitList "/" .) 0) -}}
-{{- printf "%s.%s.%s.%d" (index $octets 0) (index $octets 1) (index $octets 2) (add (index $octets 3 | int) 1) -}}
 {{- end -}}
 
 {{/*
