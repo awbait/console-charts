@@ -8,7 +8,8 @@ for the Gateway (label gateway.networking.k8s.io/gateway-name).
                endpoints come from networkPolicy.endpoints, which is required
                when the section is on.
   {name}-in  - who may reach the gateway: the namespaces of the senders of this
-               release, on the listener port 443.
+               release, on the HBONE listener port 15008 (ztunnel tunnels the
+               sender traffic into the waypoint on that port).
 
 Skipped when the gateway is disabled.
 */}}
@@ -82,7 +83,7 @@ spec:
               kubernetes.io/metadata.name: {{ $namespace | quote }}
         {{- end }}
       ports:
-        - port: 443
+        - port: 15008
           protocol: TCP
 {{- end }}
 {{- end }}

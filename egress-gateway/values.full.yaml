@@ -1,29 +1,28 @@
 # ============================================================================
 #  Helm-чарт: egress-gateway - полный reference значений
-#  Все параметры с описанием. Чарт разворачивает выход наружу через Istio
-#  egress-gateway (Gateway API) и kube-ovn VpcEgressGateway. Независимые секции:
+#  Все параметры с описанием. Чарт разворачивает выход наружу по ambient-схеме
+#  Istio: egress-шлюз - это waypoint, ztunnel сам заворачивает в него трафик
+#  привязанных ServiceEntry по HBONE, плюс kube-ovn VpcEgressGateway.
+#  Независимые секции:
 #
-#    egressGateway      - ОДИН Gateway класса istio и его ConfigMap. Listener'ы
-#                         чарт выводит из доменов внешних сервисов: по одному на
-#                         домен, порт 443, протокол TLS. Пользователь задаёт имя,
-#                         автомасштабирование и ресурсы.
+#    egressGateway      - ОДИН Gateway класса istio-waypoint и его ConfigMap.
+#                         Один listener: mesh, порт 15008, протокол HBONE.
+#                         Пользователь задаёт имя, автомасштабирование и ресурсы.
 #
 #    serviceEntries[]   - внешние сервисы, к которым нужен доступ. На каждый
-#                         создаётся ServiceEntry в namespace отправителя, пара
-#                         TLSRoute (отправитель -> шлюз и шлюз -> домен) и, при
-#                         чужом namespace, ReferenceGrant.
+#                         создаётся ServiceEntry в namespace отправителя с
+#                         лейблом istio.io/use-waypoint, привязывающим его к
+#                         шлюзу. Маршруты не нужны: трафик доставляет ztunnel.
 #
 #    networkPolicy      - две NetworkPolicy на под'ы шлюза: куда шлюзу можно
-#                         ходить и кто может ходить к нему на порт 443.
+#                         ходить и кто может ходить к нему на порт 15008.
 #
 #    authorizationPolicy - AuthorizationPolicy (Istio): пускает бэкенды к шлюзу.
 #
-#    egressNamespace    - по флагу создаёт namespace с лейблом role=egress и
-#                         подсеть /29 под VpcEgressGateway.
-#
 #    vpcEgressGateway[] - VpcEgressGateway (kube-ovn): egress на уровне VPC
-#                         (externalIPs, SNAT-политики). Его селекторы выводятся
-#                         так, чтобы указывать на Gateway выше.
+#                         (externalIPs, SNAT-политики). Встаёт в namespace
+#                         релиза; его селекторы выводятся так, чтобы указывать
+#                         на Gateway выше.
 #
 #  Имя каждого ресурса:
 #    {instance}-{cluster}-{kindShort}-{project}-{name}
@@ -38,11 +37,9 @@
 #   egw - Istio Egress-Gateway  (Gateway, ConfigMap, ServiceEntry)
 #   veg - VPC Egress Gateway    (VpcEgressGateway)
 #   np  - NetworkPolicy         ap - AuthorizationPolicy
-#   tr  - TLSRoute              rg - ReferenceGrant
-# name задаётся на каждый ресурс (2..6 символов, DNS-формат). У NetworkPolicy и
-# у исходящего TLSRoute перед проектом стоит имя шлюза, потому что на один шлюз
-# их по паре: {instance}-{cluster}-np-{gateway}-{project}-{out|in} и
-# {instance}-{cluster}-tr-{gateway}-{project}-{name}.
+# name задаётся на каждый ресурс (2..6 символов, DNS-формат). У NetworkPolicy
+# перед проектом стоит имя шлюза, потому что на один шлюз их пара:
+# {instance}-{cluster}-np-{gateway}-{project}-{out|in}.
 #
 # Эти же теги проставляются на каждый ресурс чарта как labels:
 #   ecpk/instance: <instance>
@@ -72,12 +69,13 @@ generic:
 
 
 # ============================================================================
-# egressGateway - ОДИН шлюз класса istio (Gateway + ConfigMap)
+# egressGateway - ОДИН шлюз класса istio-waypoint (Gateway + ConfigMap)
 # ============================================================================
-# Один Gateway на релиз. Listener'ы задавать не нужно: чарт делает по одному на
-# каждый домен из serviceEntries[]. Имя listener'а - последний уровень домена
-# (kc.idp.ecpk.test -> kc), порт всегда 443, протокол TLS, режим Passthrough,
-# allowedRoutes - from: Same (исходящие маршруты создаются рядом со шлюзом).
+# Один Gateway на релиз, он же egress-waypoint (лейбл istio.io/waypoint-for:
+# service). Listener всегда один и задавать его не нужно: mesh, порт 15008,
+# протокол HBONE. Пока все отправители в namespace релиза, allowedRoutes
+# остаётся from: Same; чужой namespace отправителя чарт сам допускает к
+# waypoint через Selector.
 #   name    - обязателен, 2..6 символов; {name} в имени Gateway/ConfigMap (egw)
 #   enabled - по умолчанию true; false -> ничего из этой секции не создаётся
 #   hpa     - автомасштабирование создаваемого Deployment
@@ -105,17 +103,15 @@ egressGateway:
 # ============================================================================
 # serviceEntries - внешние сервисы, список
 # ============================================================================
-# На каждый элемент чарт создаёт:
-#   ServiceEntry     в namespace отправителя;
-#   TLSRoute         отправитель -> шлюз (рядом с ServiceEntry: parentRefs на
-#                    ServiceEntry, backendRefs на Service шлюза, порт 443);
-#   TLSRoute         шлюз -> домен (рядом со шлюзом: parentRefs на Gateway с
-#                    привязкой к listener'у, backendRefs на сам домен);
-#   listener         на Gateway, по одному на домен;
-#   ReferenceGrant   рядом со шлюзом, если отправитель в другом namespace.
+# На каждый элемент чарт создаёт один ServiceEntry в namespace отправителя с
+# лейблом istio.io/use-waypoint: <имя шлюза>. Этого достаточно: ztunnel сам
+# туннелирует трафик к домену в waypoint по HBONE, а тот выпускает его наружу.
+# Маршруты и ReferenceGrant не создаются. Namespace отправителя должен быть в
+# ambient (istio.io/dataplane-mode=ambient).
 # Захардкожено в шаблоне (НЕ настраивается здесь):
 #   location MESH_EXTERNAL, resolution DNS, порт tls/443/TLS;
-#   exportTo ["."] и, при чужом namespace, ещё и namespace шлюза.
+#   exportTo ["."] и, при чужом namespace, ещё и namespace шлюза;
+#   лейбл istio.io/use-waypoint-namespace при чужом namespace.
 # Пользователь задаёт:
 #   name      - обязателен, 2..6 символов; {name} в имени ресурса (egw)
 #   hostname  - обязателен, домен внешнего сервиса
@@ -127,8 +123,9 @@ serviceEntries:
 
   - name: art
     hostname: artifactory.solution.test
-    # Отправитель лежит в другом namespace: ServiceEntry и маршрут до шлюза
-    # уедут туда, а рядом со шлюзом появится ReferenceGrant.
+    # Отправитель лежит в другом namespace: ServiceEntry уедет туда, получит
+    # второй лейбл istio.io/use-waypoint-namespace, а listener шлюза допустит
+    # этот namespace через allowedRoutes.
     namespace: nbox-apps
     # Служебное поле, в форме портала скрыто. По умолчанию true.
     enabled: true
@@ -142,7 +139,7 @@ serviceEntries:
 #                   (istio-system, порт 15012) и CoreDNS (kube-system, порт 1053
 #                   по TCP и UDP). Остальное - ваши endpoints ниже.
 #   {gateway}-in  - кто может ходить к шлюзу: namespace ваших сервисов из
-#                   serviceEntries[] и namespace релиза, порт 443.
+#                   serviceEntries[] и namespace релиза, порт 15008 (HBONE).
 # endpoints[] обязателен при enabled: true - иначе шлюз не дойдёт ни до одного
 # внешнего сервиса. По записи на адрес и порт:
 #   address - IP внешней точки или подсеть в формате CIDR (одиночный IP чарт
@@ -170,36 +167,6 @@ authorizationPolicy:
 
 
 # ============================================================================
-# egressNamespace - отдельный namespace и подсеть под VpcEgressGateway
-# ============================================================================
-# Два варианта размещения VpcEgressGateway:
-#   enabled: false - шлюз встаёт в namespace релиза, ничего не создаётся,
-#                    SNAT пишется на подсеть с именем namespace релиза;
-#   enabled: true  - чарт создаёт namespace с лейблом role=egress и одноимённую
-#                    подсеть kube-ovn на /29, шлюз встаёт туда, SNAT пишется на
-#                    эту подсеть.
-# Имя namespace и подсети задаёте вы: оба видны за пределами релиза, поэтому
-# 5-частная конвенция имён к ним не применяется.
-# Захардкожено в подсети (НЕ настраивается здесь): default=false, protocol=IPv4,
-# natOutgoing=false, gatewayType=centralized, private=true, enableEcmp=false,
-# адрес шлюза (первый адрес блока), привязка к одному namespace.
-egressNamespace:
-  enabled: true
-
-  # Имя namespace и одноимённой подсети. Обязательно при enabled: true.
-  name: nbox-egress
-
-  # CIDR подсети, зарезервированный в Netbox. Всегда /29: в подсети живут только
-  # адрес шлюза и под'ы VpcEgressGateway. Обязательно при enabled: true.
-  cidrBlock: 10.20.30.8/29
-
-  # Подсети проекта, с которыми подсети egress разрешена связность.
-  # Служебную Service-Subnet (172.30.0.0/15) чарт добавляет сам.
-  allowSubnets:
-    - 10.20.30.0/29
-
-
-# ============================================================================
 # vpcEgressGateway - VpcEgressGateway (kube-ovn), список
 # ============================================================================
 # Захардкожено в шаблоне (НЕ настраивается здесь): vpc, externalSubnet
@@ -207,11 +174,11 @@ egressNamespace:
 # templates/VPCEgressGateway.yaml. Шлюзы прибиты к мастер-узлам: ingress-шлюз
 # сервиса живёт на воркерах, и делить узел с ним они не должны.
 # Выводится автоматически (НЕ настраивается здесь):
-#   namespace = namespace из egressNamespace или namespace релиза;
+#   namespace = namespace релиза;
 #   replicas  = число externalIPs;
 #   selectors = namespaceSelector + podSelector, указывающие на Gateway выше
 #               (namespace релиза + под'ы этого шлюза);
-#   policies  = SNAT на подсеть, одноимённую namespace шлюза.
+#   policies  = SNAT на подсеть, одноимённую namespace релиза.
 # Пользователь задаёт:
 #   name        - обязателен, 2..6 символов; {name} в имени ресурса (veg)
 #   enabled     - по умолчанию true

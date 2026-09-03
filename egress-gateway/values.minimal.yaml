@@ -1,14 +1,13 @@
 # Минимальный пример: один выход наружу.
-# Гейтвей с одним listener'ом (его чарт выводит из домена внешнего сервиса), один
-# внешний сервис в namespace релиза, пара маршрутов до него и один
-# VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот гейтвей.
+# Гейтвей-waypoint (istio-waypoint, один listener HBONE 15008), один внешний
+# сервис в namespace релиза, привязанный к гейтвею лейблом istio.io/use-waypoint,
+# и один VpcEgressGateway (kube-ovn), чьи селекторы указывают на этот гейтвей.
 #
 # Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
 # С тегами ниже получится:
 # - ConfigMap            ed-dev-egw-nbox-eg
 # - Gateway              ed-dev-egw-nbox-eg
 # - ServiceEntry         ed-dev-egw-nbox-nx
-# - TLSRoute             ed-dev-tr-nbox-nx и ed-dev-tr-eg-nbox-nx
 # - NetworkPolicy        ed-dev-np-eg-nbox-out и ed-dev-np-eg-nbox-in
 # - AuthorizationPolicy  ed-dev-ap-nbox-eg
 # - VpcEgressGateway     ed-dev-veg-nbox-core

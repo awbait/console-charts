@@ -8,9 +8,9 @@ egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Releas
 {{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gw.name "context" $) }}
 {{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" . | fromJsonArray }}
 
-Гейтвей: {{ $gwFullname }} (Gateway + ConfigMap), на каждый домен - свой listener на порту 443.
+Гейтвей: {{ $gwFullname }} (Gateway класса istio-waypoint + ConfigMap), принимает трафик отправителей по HBONE на порту 15008.
 {{- if gt (len $namespaces) 1 }}
-Отправители лежат в namespace: {{ join ", " $namespaces }}. Для чужих создан ReferenceGrant {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "rg" "name" $gw.name "context" $) }}.
+Отправители лежат в namespace: {{ join ", " $namespaces }}. Чужие namespace допущены к waypoint через allowedRoutes его listener'а.
 {{- else }}
 Все отправители лежат в namespace релиза.
 {{- end }}
@@ -23,7 +23,7 @@ egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Releas
 
 {{- $np := .Values.networkPolicy | default dict }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $np) "true" }}
-Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "out" "context" $) }} (куда шлюзу можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "in" "context" $) }} (кто ходит к шлюзу на 443).
+Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "out" "context" $) }} (куда шлюзу можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "in" "context" $) }} (кто ходит к шлюзу на 15008).
 {{- else }}
 Сетевые правила не созданы (networkPolicy.enabled=false).
 {{- end }}
@@ -36,16 +36,17 @@ egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Releas
 
 {{- with .Values.serviceEntries }}
 
-Внешние сервисы (ServiceEntry и пара маршрутов на каждый):
+Внешние сервисы (ServiceEntry, привязанный к waypoint лейблом istio.io/use-waypoint):
 {{- range . }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
 {{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" . "context" $) }}
   * {{ .hostname }} в namespace {{ $namespace }}
-      SE       {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
-      TLSRoute {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "tr" "name" .name "context" $) }} (отправитель -> шлюз)
-      TLSRoute {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "tr" "parent" $gw.name "name" .name "context" $) }} (шлюз -> домен)
+      SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
 {{- end }}
 {{- end }}
+
+Трафик к этим доменам ztunnel сам заворачивает в waypoint, маршруты не нужны.
+Namespace отправителей должны быть в ambient (istio.io/dataplane-mode=ambient).
 {{- end }}
 {{- else }}
 
@@ -53,17 +54,13 @@ egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Releas
 {{- end }}
 
 {{- with .Values.vpcEgressGateway }}
-{{- $egressNs := include "egress-gateway.helpers.app.egressNamespace" $ }}
 
-Выход с известного адреса (VpcEgressGateway) в namespace {{ $egressNs }} - нацелен
-на поды гейтвея выше, SNAT на подсеть {{ $egressNs }}:
+Выход с известного адреса (VpcEgressGateway) в namespace {{ $.Release.Namespace }} - нацелен
+на поды гейтвея выше, SNAT на подсеть {{ $.Release.Namespace }}:
 {{- range . }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
   * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (внешних адресов: {{ len .externalIPs }}, столько же экземпляров)
 {{- end }}
-{{- end }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" ($.Values.egressNamespace | default dict)) "true" }}
-Namespace {{ $egressNs }} и одноимённая подсеть {{ include "egress-gateway.helpers.app.egressSubnetCidr" $ }} созданы этим релизом.
 {{- end }}
 {{- end }}
 

@@ -134,10 +134,9 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | `ap`      | `AuthorizationPolicy`    | ingress-gateway, egress-gateway, policies |
 | `hr`      | `HTTPRoute`              | ingress-gateway            |
 | `gr`      | `GRPCRoute`              | ingress-gateway            |
-| `tr`      | `TLSRoute`               | ingress-gateway, egress-gateway |
+| `tr`      | `TLSRoute`               | ingress-gateway            |
 | `tcr`     | `TCPRoute`               | ingress-gateway            |
 | `ur`      | `UDPRoute`               | ingress-gateway            |
-| `rg`      | `ReferenceGrant`         | egress-gateway             |
 | `secret`  | `Secret` (TLS)           | ingress-gateway            |
 | `es`      | `ExternalSecret`         | ingress-gateway            |
 
