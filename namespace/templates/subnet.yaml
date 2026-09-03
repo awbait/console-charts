@@ -2,12 +2,19 @@
 {{- if .Values.subnet.enable }}
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}
+{{- /* The order asks for a mask, the platform reserves a block and fills cidrBlock in; a mismatch means the reservation went wrong, so stop the render. */ -}}
+{{- if .mask }}
+{{- $cidrMask := index (splitList "/" (toString .cidrBlock)) 1 | default "" }}
+{{- if ne (toString .mask) (toString $cidrMask) }}
+{{- fail (printf "subnet %q: cidrBlock %q does not carry the ordered mask /%v" (.name | default (include "namespace.helpers.namespacePurpose" $root) | toString) (toString .cidrBlock) .mask) }}
+{{- end }}
+{{- end }}
 {{- $excluded := splitList "," (include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps)) }}
 ---
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
-  name: {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default $root.Values.namespace.name)) }}
+  name: {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default (include "namespace.helpers.namespacePurpose" $root))) }}
   {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   default: false
