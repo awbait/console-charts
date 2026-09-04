@@ -6,4 +6,7 @@ description: Заводит проект команды сразу в неско
 
 type: application
 
-version: "3.0.0"
+version: "3.0.1"
+
+maintainers:
+  - name: core
