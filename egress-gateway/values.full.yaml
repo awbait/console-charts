@@ -177,17 +177,25 @@ authorizationPolicy:
 #   namespace = namespace релиза;
 #   replicas  = число externalIPs;
 #   selectors = namespaceSelector + podSelector, указывающие на Gateway выше
-#               (namespace релиза + под'ы этого шлюза);
-#   policies  = SNAT на подсеть, одноимённую namespace релиза.
+#               (namespace релиза + под'ы этого шлюза).
 # Пользователь задаёт:
 #   name        - обязателен, 2..6 символов; {name} в имени ресурса (veg)
 #   enabled     - по умолчанию true
 #   externalIPs - обязателен, внешние IP (replicas = len(externalIPs))
+#   subnets     - обязателен, подсети, чей трафик выходит через этот выход.
+#                 В policies[].subnets у kube-ovn идут ИМЕНА ресурсов Subnet,
+#                 а не CIDR. Подсети вашего пространства называются
+#                 {проект}-{кластер}-subnet-{назначение}, например
+#                 nbox-dev-subnet-app; их создаёт чарт namespace, и в одном
+#                 пространстве их может быть несколько. На каждую подсеть из
+#                 списка чарт заводит правило SNAT.
 vpcEgressGateway:
   - name: core
     externalIPs:
       - 10.193.101.10
       - 10.193.101.11
+    subnets:
+      - nbox-dev-subnet-app
 
   - name: core2
     # Служебное поле, в форме портала скрыто. По умолчанию true.
@@ -196,6 +204,10 @@ vpcEgressGateway:
       - 10.193.101.12
       - 10.193.101.13
       - 10.193.101.14
+    # Через один выход может ходить несколько подсетей.
+    subnets:
+      - nbox-dev-subnet-back
+      - nbox-dev-subnet-data
 
 # ----------------------------------------------------------------------------
 # Служебные поля
