@@ -43,3 +43,6 @@ vpcEgressGateway:
     externalIPs:
       - 10.193.101.10
       - 10.193.101.11
+    # Подсети вашего пространства, чей трафик выйдет с адресов выше.
+    subnets:
+      - nbox-dev-subnet-app
