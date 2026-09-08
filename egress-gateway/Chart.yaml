@@ -2,7 +2,7 @@ apiVersion: v2
 name: egress-gateway
 description: Выпускает трафик ваших сервисов наружу через одну контролируемую точку. Нужен, когда во внешние системы можно ходить только с известного адреса.
 type: application
-version: 5.0.1
+version: 6.0.0
 appVersion: "1.0.0"
 maintainers:
   - name: core
