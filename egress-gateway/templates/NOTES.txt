@@ -56,10 +56,10 @@ Namespace отправителей должны быть в ambient (istio.io/da
 {{- with .Values.vpcEgressGateway }}
 
 Выход с известного адреса (VpcEgressGateway) в namespace {{ $.Release.Namespace }} - нацелен
-на поды гейтвея выше, SNAT на подсеть {{ $.Release.Namespace }}:
+на поды гейтвея выше, SNAT на перечисленные подсети:
 {{- range . }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
-  * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (внешних адресов: {{ len .externalIPs }}, столько же экземпляров)
+  * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (внешних адресов: {{ len .externalIPs }}, столько же экземпляров; подсети: {{ join ", " .subnets }})
 {{- end }}
 {{- end }}
 {{- end }}
