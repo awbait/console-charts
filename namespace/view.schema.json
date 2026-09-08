@@ -5,9 +5,10 @@
         "global",
         "namespace",
         "resourceQuotas",
-        "serviceMesh"
+        "serviceMesh",
+        "waypoint/waypoints"
       ],
-      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults.",
+      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults. Поле \"waypoint/waypoints\" - это список вейпоинтов из сабчарта waypoint: он лежит в values под ключом waypoint, и без имени с косой чертой его поля назвать нельзя.",
       "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
@@ -35,6 +36,9 @@
             }
           },
           "ui:widget": "edit"
+        },
+        "waypoint/waypoints": {
+          "description": "Прокси, через которые пойдёт трафик ваших сервисов. Список работает, только когда выше включён вейпоинт. Обычно хватает одного."
         }
       }
     },
@@ -44,8 +48,10 @@
       ]
     },
     "serviceMesh": {
+      "$comment": "Форма пункта «Действия»: включает сетку и тут же даёт поправить список вейпоинтов, иначе включить вейпоинт можно, а настроить его нечем.",
       "include": [
-        "serviceMesh"
+        "serviceMesh",
+        "waypoint/waypoints"
       ],
       "overrides": {
         "serviceMesh": {
@@ -60,6 +66,9 @@
             }
           },
           "ui:widget": "edit"
+        },
+        "waypoint/waypoints": {
+          "description": "Прокси, через которые пойдёт трафик ваших сервисов. Список работает, только когда выше включён вейпоинт. Обычно хватает одного."
         }
       }
     }
