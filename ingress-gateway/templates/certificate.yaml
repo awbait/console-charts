@@ -1,0 +1,53 @@
+{{/*
+Certificate (cert-manager) per listener whose hostname no entry of
+tls.certificates covers: the platform issuer signs it and keeps a
+kubernetes.io/tls Secret in the release namespace up to date. This is the
+default path, so an order that only names a domain needs nothing else.
+
+A listener takes part when its protocol is HTTPS or TLS, tlsMode is Terminate
+and certificateRefs is not set. One listener gives one Certificate: two
+listeners on one hostname get a certificate each, which keeps the name of every
+Secret derived from its own listener and independent of the order of the list.
+
+The Certificate leaves with the release, the Secret it wrote stays behind unless
+cert-manager runs with certificate owner references.
+*/}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- $issuer := (($root.Values.tls | default dict).issuer) | default dict -}}
+{{- range $gIndex, $gateway := $root.Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
+{{- range $lIndex, $listener := $gateway.listeners }}
+{{- $protocol := upper ($listener.protocol | default "" | toString) }}
+{{- $tlsMode := $listener.tlsMode | default "Passthrough" }}
+{{- if and (or (eq $protocol "HTTPS") (eq $protocol "TLS")) (eq $tlsMode "Terminate") (not $listener.certificateRefs) }}
+{{- $selected := fromJson (include "ingress-gateway.helpers.app.listenerCertificate" (dict "gateway" $gateway "listener" $listener "gIndex" $gIndex "lIndex" $lIndex "context" $root)) }}
+{{- if eq $selected.mode "auto" }}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $gIndex) $gateway.name }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Certificate" "name" $listener.name "parent" $gatewayName "nameMax" 9 "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  secretName: {{ $selected.secretName | quote }}
+  dnsNames:
+    - {{ include "ingress-gateway.helpers.tplvalues.render" (dict "value" $listener.hostname "context" $root) | quote }}
+  {{- with $issuer.duration }}
+  duration: {{ . | quote }}
+  {{- end }}
+  {{- with $issuer.renewBefore }}
+  renewBefore: {{ . | quote }}
+  {{- end }}
+  issuerRef:
+    name: {{ required "tls.issuer.name is required to issue a certificate automatically" $issuer.name | quote }}
+    kind: {{ $issuer.kind | default "ClusterIssuer" | quote }}
+    group: {{ $issuer.group | default "cert-manager.io" | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

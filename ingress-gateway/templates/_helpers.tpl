@@ -59,13 +59,15 @@ Returns the value in lower-case.
 Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
 Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret).
+tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret),
+cert (Certificate).
 Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
 {{- $kind := required "kind is required" . | toString | lower -}}
 {{- if eq $kind "gateway" -}}igw
 {{- else if eq $kind "externalsecret" -}}es
+{{- else if eq $kind "certificate" -}}cert
 {{- else if eq $kind "configmap" -}}cm
 {{- else if eq $kind "authorizationpolicy" -}}ap
 {{- else if eq $kind "networkpolicy" -}}np
@@ -105,12 +107,18 @@ Returns "true", or nothing at all (an empty string is false at the call site).
 Certificate for a listener with tlsMode: Terminate. Parameters: .hostname, .context.
 The hostname is looked up in tls.certificates (the certificates of this order),
 first match wins. Returns a JSON object, empty when no certificate covers the
-hostname:
+hostname. Common fields:
+  source      - "vault" (read from a store) or "existing" (Secret the order
+                already has). An entry without source is a vault entry.
+  domain      - domain of the entry, as written
+For source: vault
   name        - short name of the entry, the {name} part of the Secret name
   path        - where the certificate lies in the store
   storeName   - name of the SecretStore, always in the namespace of the release
   crtProperty - key of the certificate inside the stored entry
   keyProperty - key of its private key
+For source: existing
+  secretName  - name of the Secret the order brings itself
 */}}
 {{- define "ingress-gateway.helpers.app.certificate" -}}
 {{- $tls := .context.Values.tls | default dict -}}
@@ -118,8 +126,19 @@ hostname:
 {{- $found := dict -}}
 {{- range $entry := $tls.certificates | default list -}}
 {{- if and (not $found) (eq (include "ingress-gateway.helpers.app.hostCovered" (dict "domain" $entry.domain "hostname" $hostname)) "true") -}}
+{{- $domain := $entry.domain | toString -}}
+{{- $source := $entry.source | default "vault" | toString -}}
+{{- if eq $source "existing" -}}
+{{- $found = dict
+      "source" "existing"
+      "domain" $domain
+      "secretName" (required (printf "tls certificate for %q: secretName is required" $domain) $entry.secretName | toString)
+-}}
+{{- else -}}
 {{- $name := required "tls certificate: name is required" $entry.name | toString -}}
 {{- $found = dict
+      "source" "vault"
+      "domain" $domain
       "name" $name
       "path" (required (printf "tls certificate %q: path is required" $name) $entry.path | toString)
       "storeName" (required (printf "tls certificate %q: store is required (set it on the entry or in tls.store)" $name) ($entry.store | default $tls.store) | toString)
@@ -128,7 +147,91 @@ hostname:
 -}}
 {{- end -}}
 {{- end -}}
+{{- end -}}
 {{- $found | toJson -}}
+{{- end -}}
+
+{{/*
+Is automatic issuing on? tls.issuer.enabled, true unless values say otherwise.
+Returns "true" or "" (for if-tests). Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.issuerEnabled" -}}
+{{- $issuer := ((.Values.tls | default dict).issuer) | default dict -}}
+{{- if hasKey $issuer "enabled" -}}
+{{- ternary "true" "" (eq (toString $issuer.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Does the platform issuer cover .hostname? Parameters: .hostname, .context.
+tls.issuer.domains lists the suffixes its PKI role is allowed to sign; an empty
+list means the chart does not check and leaves the decision to the issuer. A
+listed domain covers itself and everything under it, at any depth, which is how
+a PKI role with allow_subdomains behaves:
+  idp.ecpk.test covers idp.ecpk.test, app.idp.ecpk.test, *.a.idp.ecpk.test
+A leading "*." in the list is ignored: the suffix is what matters.
+Returns "true", or nothing at all.
+*/}}
+{{- define "ingress-gateway.helpers.app.issuerCovers" -}}
+{{- $issuer := ((.context.Values.tls | default dict).issuer) | default dict -}}
+{{- $domains := $issuer.domains | default list -}}
+{{- $hostname := .hostname | default "" | toString | lower -}}
+{{- if not $domains -}}true
+{{- else -}}
+{{- $covered := "" -}}
+{{- range $item := $domains -}}
+{{- $domain := $item | toString | lower | trimPrefix "*." -}}
+{{- if and $domain $hostname -}}
+{{- if or (eq $hostname $domain) (hasSuffix (printf ".%s" $domain) $hostname) -}}
+{{- $covered = "true" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $covered -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Where a listener with tlsMode: Terminate takes its certificate from. Parameters:
+.gateway, .listener, .gIndex, .lIndex, .context. This is the single place the
+Gateway, the ExternalSecret and the Certificate agree on, so they can never
+disagree about the name of the Secret. Returns a JSON object:
+  mode       - "vault", "existing" or "auto"
+  secretName - Secret the listener references
+  cert       - the matching tls.certificates entry (vault only)
+The mode follows the certificates of the order: an entry covering the hostname
+decides, and a hostname no entry covers is issued automatically by the platform
+issuer. Fails when nothing can serve the listener.
+*/}}
+{{- define "ingress-gateway.helpers.app.listenerCertificate" -}}
+{{- $root := .context -}}
+{{- $gIndex := .gIndex | int -}}
+{{- $lIndex := .lIndex | int -}}
+{{- $listener := .listener -}}
+{{- $hostname := $listener.hostname | default "" | toString -}}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $gIndex) .gateway.name -}}
+{{- $cert := fromJson (include "ingress-gateway.helpers.app.certificate" (dict "hostname" $hostname "context" $root)) -}}
+{{- if $cert -}}
+{{- if eq $cert.source "existing" -}}
+{{- dict "mode" "existing" "secretName" $cert.secretName | toJson -}}
+{{- else -}}
+{{- dict "mode" "vault" "cert" $cert "secretName" (include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "parent" $gatewayName "context" $root)) | toJson -}}
+{{- end -}}
+{{- else -}}
+{{- if not (eq (include "ingress-gateway.helpers.app.issuerEnabled" $root) "true") -}}
+{{- fail (printf "gateways[%d].listeners[%d]: no certificate covers hostname %q - add an entry to tls.certificates with a domain that covers it" $gIndex $lIndex $hostname) -}}
+{{- end -}}
+{{- if not $hostname -}}
+{{- fail (printf "gateways[%d].listeners[%d]: hostname is required to issue a certificate automatically" $gIndex $lIndex) -}}
+{{- end -}}
+{{- if not (include "ingress-gateway.helpers.app.issuerCovers" (dict "hostname" $hostname "context" $root)) -}}
+{{- fail (printf "gateways[%d].listeners[%d]: hostname %q is not issued by the platform issuer - add an entry to tls.certificates with a certificate for it" $gIndex $lIndex $hostname) -}}
+{{- end -}}
+{{- $listenerName := required (printf "gateways[%d].listeners[%d].name is required to issue a certificate automatically" $gIndex $lIndex) $listener.name -}}
+{{- dict "mode" "auto" "secretName" (include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" $listenerName "parent" $gatewayName "nameMax" 9 "context" $root)) | toJson -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -148,7 +251,10 @@ Resource name by convention:
   with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
 Parameters: .context, .kind (k8s kind), .name (2..6 characters, 2..9 for the
 kinds named after a gateway), .parent (optional gateway name, 2..9; routes use
-it, so two routes of one kind may carry one name under different gateways).
+it, so two routes of one kind may carry one name under different gateways),
+.nameMax (optional upper bound for .name, for a resource named after something
+other than its own entry: an automatically issued certificate is named after a
+listener, which is allowed 9).
 kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
 The result is truncated to 63 characters.
 Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
@@ -161,7 +267,7 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
 {{- $kind := required "resourceName.kind is required" .kind | toString | lower -}}
 {{- $kindShort := include "ingress-gateway.helpers.app.kindShort" $kind -}}
 {{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
-{{- $nameMax := ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy")) -}}
+{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy"))) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
 {{- if .parent -}}
 {{- $parent := include "ingress-gateway.helpers.shortToken" (dict "label" "parentGatewayName" "value" .parent "max" 9) -}}
@@ -218,6 +324,17 @@ Parameter: the root context.
 {{- fail (printf "gateways[%d].name %q is already taken by another Gateway; the two would share every resource name" $index $name) -}}
 {{- end -}}
 {{- $_ := set $seen $name true -}}
+{{- /* A listener name reaches the name of an automatically issued certificate, so two of them under one gateway would share it. */ -}}
+{{- $listeners := dict -}}
+{{- range $lIndex, $listener := $gateway.listeners -}}
+{{- $listenerName := $listener.name | default "" | toString | lower -}}
+{{- if $listenerName -}}
+{{- if hasKey $listeners $listenerName -}}
+{{- fail (printf "gateways[%d].listeners[%d].name %q is already taken by another listener of gateway %q" $index $lIndex $listenerName $name) -}}
+{{- end -}}
+{{- $_ := set $listeners $listenerName true -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- $routes := dict -}}
@@ -234,11 +351,14 @@ Parameter: the root context.
 {{- end -}}
 {{- $certs := dict -}}
 {{- range $index, $cert := ((.Values.tls | default dict).certificates | default list) -}}
-{{- $name := $cert.name | toString | lower -}}
-{{- if hasKey $certs $name -}}
+{{- $name := $cert.name | default "" | toString | lower -}}
+{{- if not $name -}}
+{{- /* An entry pointing at a Secret the order already has carries no name: the Secret is named by the user, and nothing is derived from it. */ -}}
+{{- else if hasKey $certs $name -}}
 {{- fail (printf "tls.certificates[%d].name %q is already taken by another certificate; a listener would get whichever of them was found first" $index $name) -}}
-{{- end -}}
+{{- else -}}
 {{- $_ := set $certs $name true -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 

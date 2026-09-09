@@ -10,6 +10,9 @@
 #    networkPolicy        - NetworkPolicy для workload'а каждого Gateway.
 #    authorizationPolicy  - AuthorizationPolicy (Istio) для workload'а Gateway.
 #    oidcAuth             - вход через OIDC: oauth2-proxy и Keycloak.
+#    tls                  - сертификаты точек входа: автовыпуск через
+#                           cert-manager (по умолчанию), ExternalSecret из
+#                           хранилища или готовый секрет заказа.
 #
 #  Имя каждого ресурса:
 #    {instance}-{cluster}-{kindShort}-{project}-{name}
@@ -118,7 +121,8 @@ networkPolicy:
 #   hpa         - HorizontalPodAutoscaler для создаваемого Deployment
 #   resources   - ресурсы контейнера istio-proxy (ConfigMap.data.deployment)
 #   listeners[] - список listener'ов:
-#     name          - имя listener'а (sectionName в parentRefs), длина не ограничена
+#     name          - имя listener'а (sectionName в parentRefs), 2..9 символов;
+#                     подставляется в имя автовыпущенного сертификата
 #     port/protocol - обязательны (HTTP/HTTPS/TCP/UDP/TLS)
 #     hostname      - обязателен для HTTPS и TLS, у TCP и UDP не используется
 #     tlsMode       - Terminate (по умолчанию для HTTPS) | Passthrough (для TLS)
@@ -126,8 +130,11 @@ networkPolicy:
 #                     в кластере под своим именем (см. секцию tls ниже)
 #     allowedRoutes - какие маршруты listener принимает
 #
-# Сертификат для tlsMode: Terminate ищется по hostname в tls.certificates. Если
-# ни один домен не покрывает hostname, рендер падает и называет этот hostname.
+# Сертификат для tlsMode: Terminate ищется по hostname в tls.certificates. Домен,
+# который не покрыт ни одной записью, выпускается автоматически: чарт создаёт
+# Certificate у платформенного издателя. Имя такого сертификата и его секрета
+# собирается из имени гейтвея и имени listener'а, поэтому у двух listener'ов
+# одного гейтвея не может быть одинаковых имён.
 gateways:
   - name: main
     enabled: true
@@ -191,6 +198,34 @@ gateways:
         port: 8444
         protocol: HTTPS
         hostname: api.str.idp.ecpk.test
+        tlsMode: Terminate
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+      # Домена нет ни в одной записи tls.certificates, поэтому сертификат
+      # выпускается сам: Certificate ed-dev-cert-main-nbox-pub и секрет
+      # ed-dev-secret-main-nbox-pub. Заказу для этого ничего вводить не нужно,
+      # кроме самого домена.
+      - name: pub
+        port: 8446
+        protocol: HTTPS
+        hostname: app.idp.ecpk.test
+        tlsMode: Terminate
+        allowedRoutes:
+          namespaces:
+            from: Same
+          kinds:
+            - kind: HTTPRoute
+
+      # Домен покрыт записью с source: existing, значит секрет уже лежит
+      # в namespace и чарт только ссылается на него.
+      - name: shop
+        port: 8447
+        protocol: HTTPS
+        hostname: shop.example.org
         tlsMode: Terminate
         allowedRoutes:
           namespaces:
@@ -571,6 +606,39 @@ oidcAuth:
 #   секрет         {instance}-{cluster}-secret-{project}-{name}
 #   ExternalSecret {instance}-{cluster}-es-{project}-{name}
 tls:
+  # issuer - платформенный издатель для автовыпуска. В форме заказа скрыт
+  # целиком: значения задаются при сборке чарта, а не заказчиком.
+  issuer:
+    # Выключатель автовыпуска. false -> домен, не покрытый ни одной записью
+    # certificates, останавливает рендер. Ставится в кластере без cert-manager.
+    enabled: true
+
+    # Имя издателя в кластере.
+    name: platform-ca
+
+    # ClusterIssuer (по умолчанию) или Issuer в namespace релиза.
+    kind: ClusterIssuer
+
+    # API-группа издателя. Меняется только для внешних издателей
+    # (например, awspca.cert-manager.io).
+    group: cert-manager.io
+
+    # Домены, которые издателю разрешено подписывать. Роль Vault PKI выпускает
+    # только их, поэтому чарт проверяет домен заранее и останавливает заказ
+    # с внятным сообщением, вместо того чтобы оставить в кластере сертификат,
+    # висящий в Pending. Домен покрывает и себя, и всё под ним на любую
+    # глубину: idp.ecpk.test подходит и для app.idp.ecpk.test, и для
+    # a.str.idp.ecpk.test. Пустой список - не проверять.
+    domains:
+      - idp.ecpk.test
+      - edp.ecpk.test
+
+    # Срок сертификата и за сколько до конца перевыпускать. Не заданы - решает
+    # cert-manager (90 дней, перевыпуск за треть срока до конца), а Vault PKI
+    # всё равно обрежет срок по max_ttl своей роли.
+    duration: 2160h
+    renewBefore: 720h
+
   # Хранилище по умолчанию: имя SecretStore в namespace релиза. Берётся, когда
   # у записи не задано своё. В форме скрыто, хранилище выбирается у записи.
   store: vault
@@ -586,12 +654,20 @@ tls:
   # External Secrets Operator старой версии (external-secrets.io/v1beta1).
   apiVersion: external-secrets.io/v1
 
-  # Сертификаты заказа: любой домен, любого уровня, в том числе вне ecpk.test.
+  # Сертификаты, которые заказ приносит с собой. Домен, которого здесь нет,
+  # получает сертификат автовыпуском, поэтому обычному заказу этот список
+  # не нужен вовсе. Домены любого уровня, в том числе вне ecpk.test.
+  #
+  # source говорит, откуда берётся сертификат:
+  #   vault    - лежит в хранилище, чарт создаёт ExternalSecret (по умолчанию,
+  #              если source не задан);
+  #   existing - уже лежит в кластере секретом, чарт только ссылается на него.
   certificates:
     # Хранилище не задано - берётся tls.store, то есть SecretStore vault
     # в namespace релиза.
     - name: web
       domain: "*.example.ru"
+      source: vault
       path: teams/nbox/certs/example-ru
 
     # Другое хранилище того же namespace, если сертификаты команды лежат
@@ -599,10 +675,22 @@ tls:
     # внутри записи Vault ключи названы иначе.
     - name: str
       domain: "*.str.idp.ecpk.test"
+      source: vault
       path: teams/nbox/certs/str
       store: vault-nbox
       crtProperty: certificate
       keyProperty: private_key
+
+    # Готовый секрет в namespace заказа: его принесли не этим чартом, чарт
+    # ничего не создаёт и только ссылается на него из listener'а. Короткого
+    # имени у такой записи нет: секрет уже назван.
+    #
+    # Домен здесь намеренно не из example.ru: сертификат для listener'а ищется
+    # первым совпадением сверху вниз, и запись *.example.ru выше перехватила бы
+    # shop.example.ru раньше этой.
+    - domain: shop.example.org
+      source: existing
+      secretName: shop-example-org-tls
 
 
 # ============================================================================
