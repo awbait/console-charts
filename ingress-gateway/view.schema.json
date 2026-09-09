@@ -78,9 +78,10 @@
     "order": {
       "include": [
         "identity",
-        "gateways"
+        "gateways",
+        "tls"
       ],
-      "$comment": "Первичный заказ: naming-теги + ровно один Gateway, без xroutes. Роуты добавляются позже в карточке заказа (вид routes) через PATCH того же values.",
+      "$comment": "Первичный заказ: naming-теги + ровно один Gateway, без xroutes. Роуты добавляются позже в карточке заказа (вид routes) через PATCH того же values. Раздел tls показан пустым списком: сертификат по умолчанию выпускается сам, запись нужна только тому, у кого он уже есть.",
       "identity": "/gateways/0/name",
       "overrides": {
         "gateways": {

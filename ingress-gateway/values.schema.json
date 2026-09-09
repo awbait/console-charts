@@ -136,7 +136,7 @@
     },
     "tls": {
       "title": "Сертификаты",
-      "description": "Сертификаты для точек входа, которые расшифровывают TLS сами.",
+      "description": "Точка входа, которая расшифровывает TLS сама, получает сертификат автоматически. Заполните этот раздел, только если сертификат у вас уже есть.",
       "$ref": "#/definitions/tls"
     },
     "global": {
@@ -159,6 +159,7 @@
       "additionalProperties": false,
       "propertyOrder": [
         "certificates",
+        "issuer",
         "store",
         "refreshInterval",
         "crtProperty",
@@ -168,23 +169,30 @@
       "properties": {
         "certificates": {
           "title": "Сертификаты",
-          "description": "Сертификат для домена вашей точки входа. Сам сертификат лежит в Vault, здесь вы говорите, где именно.",
+          "description": "Заполняйте, только если сертификат у вас уже есть. По умолчанию сертификат для домена точки входа выпускается автоматически, и вводить здесь ничего не нужно.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/tlsCertificate"
           },
           "defaultSnippets": [
             {
-              "label": "Сертификат из Vault",
+              "label": "Сертификат из хранилища",
               "body": [
                 {
                   "name": "cert",
                   "domain": "*.str.idp.ecpk.test",
+                  "source": "vault",
                   "path": "teams/myteam/certs/str"
                 }
               ]
             }
           ]
+        },
+        "issuer": {
+          "ui:widget": "hidden",
+          "title": "issuer",
+          "description": "Platform issuer that signs the certificates the order does not bring itself. Set when the chart is built, not by the customer. Hidden.",
+          "$ref": "#/definitions/tlsIssuer"
         },
         "store": {
           "ui:widget": "hidden",
@@ -223,11 +231,26 @@
       }
     },
     "tlsCertificate": {
+      "title": "Сертификат",
+      "description": "Откуда взять сертификат для домена, если он у вас уже есть.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/tlsCertificateVault"
+        },
+        {
+          "$ref": "#/definitions/tlsCertificateExisting"
+        }
+      ]
+    },
+    "tlsCertificateVault": {
+      "title": "Из хранилища",
+      "description": "Сертификат лежит в Vault. Портал заведёт секрет в вашем namespace и будет держать его в актуальном состоянии.",
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
         "name",
         "domain",
+        "source",
         "path",
         "store",
         "crtProperty",
@@ -244,6 +267,12 @@
           "description": "Домен, который покрывает сертификат. Звёздочка заменяет один уровень: «*.example.ru» подходит для «app.example.ru».",
           "type": "string",
           "minLength": 1
+        },
+        "source": {
+          "ui:widget": "hidden",
+          "title": "source",
+          "description": "Discriminator of the variant. An entry without it is a store entry too, which is how the orders made before the field existed keep working. Hidden.",
+          "const": "vault"
         },
         "path": {
           "title": "Путь в Vault",
@@ -276,6 +305,103 @@
         "domain",
         "path"
       ]
+    },
+    "tlsCertificateExisting": {
+      "title": "Готовый секрет",
+      "description": "Сертификат уже лежит в вашем namespace секретом. Портал ничего не создаёт и только сошлётся на него.",
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "domain",
+        "source",
+        "secretName"
+      ],
+      "properties": {
+        "domain": {
+          "title": "Домен",
+          "description": "Домен, который покрывает сертификат. Звёздочка заменяет один уровень: «*.example.ru» подходит для «app.example.ru».",
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "ui:widget": "hidden",
+          "title": "source",
+          "description": "Discriminator of the variant. Hidden.",
+          "const": "existing"
+        },
+        "secretName": {
+          "title": "Имя секрета",
+          "description": "Секрет типа kubernetes.io/tls в вашем namespace.",
+          "$ref": "#/definitions/k8sName"
+        }
+      },
+      "required": [
+        "domain",
+        "source",
+        "secretName"
+      ]
+    },
+    "tlsIssuer": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "name",
+        "kind",
+        "group",
+        "domains",
+        "duration",
+        "renewBefore"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "enabled",
+          "description": "Issue a certificate for a hostname no entry of certificates covers. false = such a hostname stops the render instead. Hidden.",
+          "type": "boolean",
+          "default": true
+        },
+        "name": {
+          "title": "name",
+          "description": "Name of the cert-manager issuer in the cluster. Hidden.",
+          "$ref": "#/definitions/k8sName"
+        },
+        "kind": {
+          "title": "kind",
+          "description": "ClusterIssuer (default) or an Issuer in the namespace of the release. Hidden.",
+          "type": "string",
+          "enum": [
+            "ClusterIssuer",
+            "Issuer"
+          ]
+        },
+        "group": {
+          "title": "group",
+          "description": "API group of the issuer, for an external issuer. Hidden.",
+          "type": "string",
+          "minLength": 1
+        },
+        "domains": {
+          "title": "domains",
+          "description": "Domain suffixes the issuer is allowed to sign. A hostname outside them stops the render instead of leaving a Certificate stuck in Pending. Empty = do not check. Hidden.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "duration": {
+          "title": "duration",
+          "description": "Requested certificate lifetime (Go duration, e.g. 2160h). The PKI role caps it. Hidden.",
+          "type": "string",
+          "minLength": 1
+        },
+        "renewBefore": {
+          "title": "renewBefore",
+          "description": "How long before expiry to renew (Go duration, e.g. 720h). Hidden.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "k8sName": {
       "type": "string",
@@ -372,6 +498,12 @@
       "maxLength": 6
     },
     "gatewayToken": {
+      "type": "string",
+      "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9
+    },
+    "listenerToken": {
       "type": "string",
       "pattern": "^[a-z]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
@@ -724,8 +856,8 @@
       "properties": {
         "name": {
           "title": "Имя точки",
-          "description": "Короткое имя. По нему маршрут выбирает, к какой точке привязаться.",
-          "$ref": "#/definitions/k8sName"
+          "description": "Короткое имя, от 2 до 9 символов. По нему маршрут выбирает, к какой точке привязаться, и по нему называется сертификат, если он выпускается автоматически.",
+          "$ref": "#/definitions/listenerToken"
         },
         "port": {
           "title": "Порт",
@@ -752,7 +884,7 @@
         },
         "tlsMode": {
           "title": "Что делать с TLS",
-          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. Добавьте его в разделе «Сертификаты».",
+          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. По умолчанию он выпустится автоматически. Если сертификат у вас уже есть, опишите его в разделе «Сертификаты».",
           "type": "string",
           "default": "Passthrough",
           "enum": [

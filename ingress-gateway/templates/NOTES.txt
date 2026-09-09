@@ -17,6 +17,27 @@ Gateways (Gateway + ConfigMap):
 {{- end }}
 {{- end }}
 
+{{- $certs := list -}}
+{{- range $gIndex, $gw := .Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gw) "true" }}
+{{- range $lIndex, $listener := $gw.listeners }}
+{{- $protocol := upper ($listener.protocol | default "" | toString) }}
+{{- if and (or (eq $protocol "HTTPS") (eq $protocol "TLS")) (eq ($listener.tlsMode | default "Passthrough") "Terminate") (not $listener.certificateRefs) }}
+{{- $selected := fromJson (include "ingress-gateway.helpers.app.listenerCertificate" (dict "gateway" $gw "listener" $listener "gIndex" $gIndex "lIndex" $lIndex "context" $)) }}
+{{- $certs = append $certs (printf "%s %s -> %s (%s)" $gw.name $listener.name $selected.secretName $selected.mode) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $certs }}
+
+Certificates (mode: auto = issued by the platform issuer, vault = read from the
+store, existing = a Secret the order already had):
+{{- range $certs }}
+  - {{ . }}
+{{- end }}
+{{- end }}
+
 {{- $routes := false -}}
 {{- range .Values.xroutes }}{{ if eq (include "ingress-gateway.helpers.app.enabled" .) "true" }}{{ $routes = true }}{{ end }}{{ end -}}
 {{- if $routes }}
