@@ -76,12 +76,12 @@
   "defaults": {
     "/identity/instance": "ed",
     "/identity/cluster": "dev",
-    "/identity/project": "nbox",
+    "/identity/project": "{{.Team}}",
     "/namespace/role": "other",
     "/namespace/creator": "console",
     "/waypoint/identity/instance": "ed",
     "/waypoint/identity/cluster": "dev",
-    "/waypoint/identity/project": "nbox"
+    "/waypoint/identity/project": "{{.Team}}"
   },
   "actions": [
     {
