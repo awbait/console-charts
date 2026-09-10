@@ -39,12 +39,12 @@ Returns the value in lower-case.
 
 {{/*
 Short DNS tag validation (identity.project, name). Params: .label, .value and
-the optional bounds .min (default 2) and .max (default 6).
+the optional bounds .min (default 2) and .max (default 9).
 Returns the value in lower-case.
 */}}
 {{- define "egress-gateway.helpers.shortToken" -}}
 {{- $min := .min | default 2 | int -}}
-{{- $max := .max | default 6 | int -}}
+{{- $max := .max | default 9 | int -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
 {{- if or (lt (len $value) $min) (gt (len $value) $max) -}}
 {{- fail (printf "%s must be %d..%d characters, got %q" .label $min $max $value) -}}
@@ -59,9 +59,11 @@ Returns the value in lower-case.
 Full resource name by convention:
   without parent: {instance}-{cluster}-{kindShort}-{project}-{name}
   with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
-Params: .context, .kindShort (egw|veg|np|ap), .name (2..6 characters),
-        .parent (optional, parent Gateway name, 2..6 characters; for the
+Params: .context, .kindShort (egw|veg|np|ap), .name (2..9 characters),
+        .parent (optional, parent Gateway name, 2..9 characters; for the
         NetworkPolicies, of which one gateway has two).
+The longest name the parts can make is 40 characters, well inside the 63 the
+truncation below guards: 2 + 3 + 3 + 9 + 9 + 9 plus five dashes.
 */}}
 {{- define "egress-gateway.helpers.app.fullname" -}}
 {{- $identity := .context.Values.identity | default dict -}}
