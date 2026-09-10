@@ -88,7 +88,8 @@
           "ui:view": {
             "exclude": [
               "instance",
-              "cluster"
+              "cluster",
+              "project"
             ]
           }
         },
@@ -159,6 +160,7 @@
   ],
   "defaults": {
     "/identity/cluster": "dev",
-    "/identity/instance": "id"
+    "/identity/instance": "id",
+    "/identity/project": "{{.Team}}"
   }
 }
