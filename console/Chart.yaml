@@ -12,7 +12,7 @@ maintainers:
 # `helm dependency build` before packaging (charts/ and Chart.lock are gitignored).
 dependencies:
   - name: ingress-gateway
-    version: "8.1.0"
+    version: "9.0.0"
     repository: "file://../ingress-gateway"
     alias: ingressGateway
     condition: ingressGateway.enabled
