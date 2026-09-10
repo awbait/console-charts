@@ -1,0 +1,161 @@
+{
+  "tabs": [
+    {
+      "id": "Внешние сервисы",
+      "form": "serviceEntries",
+      "items": "/serviceEntries",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя"
+        },
+        {
+          "path": "hostname",
+          "label": "Домен"
+        },
+        {
+          "path": "namespace",
+          "label": "Неймспейс бэкенда"
+        }
+      ]
+    },
+    {
+      "id": "Шлюз исходящего трафика",
+      "form": "VEG",
+      "items": "/vpcEgressGateway",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя выхода"
+        },
+        {
+          "path": "externalIPs",
+          "label": "Внешние IP для выхода"
+        }
+      ]
+    },
+    {
+      "id": "Сетевые политики",
+      "form": "networkPolicies",
+      "items": "/networkPolicy/endpoints",
+      "ui:table": [
+        {
+          "path": "address",
+          "label": "IP-адрес"
+        },
+        {
+          "path": "port",
+          "label": "Порт"
+        }
+      ]
+    }
+  ],
+  "views": {
+    "VEG": {},
+    "hpa": {
+      "include": [
+        "egressGateway"
+      ],
+      "$comment": "Правка автомасштабирования шлюза (egressGateway.hpa) из карточки заказа. Вид обязан сузиться до одного поля: пустой вид показал бы всю форму заказа целиком, а пункт меню называет одно.",
+      "overrides": {
+        "egressGateway": {
+          "ui:view": {
+            "include": [
+              "hpa"
+            ]
+          }
+        }
+      }
+    },
+    "order": {
+      "include": [
+        "identity",
+        "egressGateway",
+        "serviceEntries",
+        "vpcEgressGateway",
+        "networkPolicy",
+        "authorizationPolicy"
+      ],
+      "identity": "/egressGateway/name",
+      "overrides": {
+        "identity": {
+          "ui:view": {
+            "exclude": [
+              "instance",
+              "cluster"
+            ]
+          }
+        },
+        "egressGateway": {
+          "ui:view": {
+            "exclude": [
+              "hpa"
+            ],
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        },
+        "authorizationPolicy": {
+          "title": "Авторизационные политики"
+        }
+      }
+    },
+    "resources": {
+      "include": [
+        "egressGateway"
+      ],
+      "$comment": "Правка ресурсов шлюза (egressGateway.resources) из карточки заказа. Поле скрыто схемой чарта, поэтому здесь его нужно раскрыть явно: без ui:widget edit пункт меню открыл бы форму, в которой ресурсов нет вовсе.",
+      "overrides": {
+        "egressGateway": {
+          "ui:view": {
+            "include": [
+              "resources"
+            ],
+            "overrides": {
+              "resources": {
+                "ui:widget": "edit"
+              }
+            }
+          }
+        }
+      }
+    },
+    "serviceEntries": {
+      "overrides": {
+        "name": {
+          "ui:readOnly": true
+        }
+      }
+    },
+    "networkPolicies": {},
+    "authorizationPolicies": {
+      "include": [
+        "authorizationPolicy"
+      ]
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "hpa",
+      "label": "Редактировать HPA"
+    },
+    {
+      "in": "info",
+      "view": "resources",
+      "label": "Редактировать ресурсы"
+    },
+    {
+      "in": "tab:Сетевые политики",
+      "view": "authorizationPolicies",
+      "label": "Вкл/выкл авторизационные политики"
+    }
+  ],
+  "defaults": {
+    "/identity/cluster": "dev",
+    "/identity/instance": "id"
+  }
+}
