@@ -321,12 +321,12 @@
       ],
       "properties": {
         "requests": {
-          "title": "Запрошено",
+          "title": "Запрошено (requests)",
           "description": "Сколько гейтвей резервирует за собой. Процессор здесь нужен, если включено автомасштабирование: по нему считается загрузка.",
           "$ref": "#/definitions/resourceQuantityMap"
         },
         "limits": {
-          "title": "Предел",
+          "title": "Предел (limits)",
           "description": "Выше этого гейтвей не поднимется.",
           "$ref": "#/definitions/resourceQuantityMap"
         }
