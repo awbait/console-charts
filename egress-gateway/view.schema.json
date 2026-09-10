@@ -75,24 +75,15 @@
     },
     "order": {
       "include": [
-        "identity",
         "egressGateway",
         "serviceEntries",
         "vpcEgressGateway",
         "networkPolicy",
         "authorizationPolicy"
       ],
+      "$comment": "Секции identity в форме нет вовсе: все три тега проставляет портал блоком defaults, а раздел, у которого исключены все поля, оставил бы в форме заголовок без содержимого.",
       "identity": "/egressGateway/name",
       "overrides": {
-        "identity": {
-          "ui:view": {
-            "exclude": [
-              "instance",
-              "cluster",
-              "project"
-            ]
-          }
-        },
         "egressGateway": {
           "ui:view": {
             "exclude": [
