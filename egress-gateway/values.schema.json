@@ -252,8 +252,8 @@
           "$ref": "#/definitions/gatewayHpa"
         },
         "resources": {
-          "title": "Gateway resources",
-          "description": "Resources for the istio-proxy container in the automatically created Deployment. Rendered into ConfigMap.data.deployment. Hidden in the new order form: created with a default value, edited later from the product card.",
+          "title": "Ресурсы гейтвея",
+          "description": "Сколько процессора и памяти отводится гейтвею. В форме заказа поле скрыто: заказ получает значения по умолчанию, а поменять их можно потом, из карточки сервиса.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/containerResources",
           "default": {
@@ -321,13 +321,13 @@
       ],
       "properties": {
         "requests": {
-          "title": "requests",
-          "description": "Requested resources of the istio-proxy container. For CPU-based HPA it is mandatory to set requests.cpu.",
+          "title": "Запрошено",
+          "description": "Сколько гейтвей резервирует за собой. Процессор здесь нужен, если включено автомасштабирование: по нему считается загрузка.",
           "$ref": "#/definitions/resourceQuantityMap"
         },
         "limits": {
-          "title": "limits",
-          "description": "Resource limits of the istio-proxy container.",
+          "title": "Предел",
+          "description": "Выше этого гейтвей не поднимется.",
           "$ref": "#/definitions/resourceQuantityMap"
         }
       }
@@ -337,14 +337,14 @@
       "additionalProperties": false,
       "properties": {
         "cpu": {
-          "title": "cpu",
-          "description": "Amount of CPU, for example 100m, 500m, 1.",
+          "title": "Процессор",
+          "description": "Например, 100m, 500m или 1.",
           "type": "string",
           "minLength": 1
         },
         "memory": {
-          "title": "memory",
-          "description": "Amount of memory, for example 128Mi, 512Mi, 1Gi.",
+          "title": "Память",
+          "description": "Например, 128Mi, 512Mi или 1Gi.",
           "type": "string",
           "minLength": 1
         }

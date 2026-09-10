@@ -1,9 +1,11 @@
 {
   "tabs": [
     {
-      "id": "Внешние сервисы",
+      "id": "serviceEntries",
       "form": "serviceEntries",
       "items": "/serviceEntries",
+      "title": "Внешние сервисы",
+      "addLabel": "Добавить внешний сервис",
       "ui:table": [
         {
           "path": "name",
@@ -15,14 +17,16 @@
         },
         {
           "path": "namespace",
-          "label": "Неймспейс бэкенда"
+          "label": "Namespace вашего сервиса"
         }
       ]
     },
     {
-      "id": "Шлюз исходящего трафика",
-      "form": "VEG",
+      "id": "egresses",
+      "form": "egresses",
       "items": "/vpcEgressGateway",
+      "title": "Выходы наружу",
+      "addLabel": "Добавить выход",
       "ui:table": [
         {
           "path": "name",
@@ -30,18 +34,20 @@
         },
         {
           "path": "externalIPs",
-          "label": "Внешние IP для выхода"
+          "label": "Внешние адреса"
         }
       ]
     },
     {
-      "id": "Сетевые политики",
+      "id": "networkRules",
       "form": "networkPolicies",
       "items": "/networkPolicy/endpoints",
+      "title": "Внешние адреса и порты",
+      "addLabel": "Добавить адрес",
       "ui:table": [
         {
           "path": "address",
-          "label": "IP-адрес"
+          "label": "Адрес"
         },
         {
           "path": "port",
@@ -51,7 +57,7 @@
     }
   ],
   "views": {
-    "VEG": {},
+    "egresses": {},
     "hpa": {
       "include": [
         "egressGateway"
@@ -97,9 +103,6 @@
               }
             }
           }
-        },
-        "authorizationPolicy": {
-          "title": "Авторизационные политики"
         }
       }
     },
@@ -141,7 +144,7 @@
     {
       "in": "info",
       "view": "hpa",
-      "label": "Редактировать HPA"
+      "label": "Редактировать автомасштабирование"
     },
     {
       "in": "info",
@@ -149,9 +152,9 @@
       "label": "Редактировать ресурсы"
     },
     {
-      "in": "tab:Сетевые политики",
+      "in": "tab:networkRules",
       "view": "authorizationPolicies",
-      "label": "Вкл/выкл авторизационные политики"
+      "label": "Настроить доступ к гейтвею"
     }
   ],
   "defaults": {
