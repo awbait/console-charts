@@ -2,22 +2,22 @@
 VpcEgressGateway (kube-ovn) - one per vpcEgressGateway list item.
 
 Hardcoded in the template (not configurable via values):
-  vpc, externalSubnet (egress-vip), trafficPolicy, nodeSelector.
+  vpc, externalSubnet (egress-vip), nodeSelector.
 nodeSelector pins the gateways to the control-plane nodes: the ingress gateway
 of the service runs on the workers, and the two must not share a node.
 
 Derived (not configurable):
   - namespace     the release namespace;
   - replicas      = number of externalIPs;
-  - selectors     namespaceSelector + podSelector point at the Istio egress
-                  gateway created from .Values.egressGateway: the release
-                  namespace and the pods of that Gateway
-                  (label gateway.networking.k8s.io/gateway-name);
-  - policies      SNAT for every subnet named in the item.
+  - selectors     one entry with namespaceSelector AND podSelector (kube-ovn
+                  ORs entries and ANDs the fields of one entry), pointing at
+                  the Istio egress gateway created from .Values.egressGateway:
+                  the pods of that Gateway (label
+                  gateway.networking.k8s.io/gateway-name) inside the release
+                  namespace.
 
-policies[].subnets holds kube-ovn Subnet resource names, not CIDRs, so only the
-order knows them: subnets of a namespace are named after their own purpose, and
-a namespace may hold several of them.
+No policies and no trafficPolicy: the selectors alone decide whose traffic
+leaves through the gateway, so SNAT rules per subnet are not needed.
 
 A VpcEgressGateway only makes sense together with the egress Gateway it points
 at, so egressGateway must be enabled and named when this section is used.
@@ -30,10 +30,6 @@ at, so egressGateway must be enabled and named when this section is used.
 {{- range $index, $veg := .Values.vpcEgressGateway }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $veg) "true" }}
 {{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $veg.externalIPs }}
-{{- $subnets := $veg.subnets | default list }}
-{{- if not $subnets }}
-{{- fail (printf "vpcEgressGateway[%d].subnets is required: name the subnets of your namespace whose traffic leaves through this exit, for example nbox-dev-subnet-app" $index) }}
-{{- end }}
 ---
 apiVersion: kubeovn.io/v1
 kind: VpcEgressGateway
@@ -55,14 +51,9 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $root.Release.Namespace | quote }}
-    - podSelector:
+      podSelector:
         matchLabels:
           {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 10 }}
-  policies:
-    - snat: true
-      subnets:
-        {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $subnets "context" $root) | nindent 8 }}
-  trafficPolicy: Cluster
 {{- end }}
 {{- end }}
 {{- end }}
