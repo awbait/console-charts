@@ -1,33 +1,105 @@
 # egress-gateway - дефолтные значения (минимум, чтобы рендер проходил).
-# Пустые дефолты: ничего не создаётся. Чарт автоматически подгружает этот файл
-# при каждом `helm template`, поэтому в нём НЕ должно быть примера
-# egressGateway/serviceEntries/vpcEgressGateway (иначе они домержатся в каждый
-# заказ, который опускает эти ключи). Заказ передаёт свои значения; блок identity
-# обязателен (валидируется через values.schema.json).
-# Полный reference параметров - values.full.yaml; рабочий пример - values.minimal.yaml.
+# Чарт автоматически подгружает этот файл при каждом `helm template`, поэтому
+# здесь НЕТ примера отправителей, внешних сервисов и адресов: их передаёт заказ.
+# Теги окружения (global.identity) заказ тоже передаёт сам: без них рендер
+# останавливается, а не подставляет чужие теги молча.
+# Полный reference параметров - values.full.yaml; рабочие примеры -
+# values.minimal.yaml (режим mesh) и values.direct.yaml (режим direct).
 
-# Теги окружения и проекта: попадают в имя каждого ресурса и в labels
-# ecpk/instance, ecpk/cluster, ecpk/project. Допустимые значения - в README.md.
-identity:
-  instance: ed         # тег инстанса окружения
-  cluster: dev         # тег кластера окружения
-  project: nbox        # тег проекта, до 9 символов
+# global - то, что видят и этот чарт, и оба сабчарта namespace, и waypoint
+# под одним из них. identity заказ передаёт сюда, а не в корень.
+global:
+  # Назначение namespace waypoint'а: {project}-{cluster}-ns-<значение>.
+  # Читается сабчартом waypointNamespace и waypoint'ом в нём.
+  namespacePurpose: egw-eg
 
 generic:
   labels: {}
   annotations: {}
 
-# egressGateway (одиночный объект) намеренно НЕ задан здесь - его передаёт заказ.
-# Аннотированный reference - в values.full.yaml.
+# Режим: mesh (отправители в ambient, наружу через выход уходят только домены
+# из serviceEntries) или direct (отправители вне сетки, через выход уходит весь
+# внешний трафик их подсети).
+mode: mesh
 
-serviceEntries: []
+# Отправители: один существующий namespace на релиз. Заполняет заказ.
+senders:
+  namespace: ""
+  subnet: ""           # только direct со scope namespace: имя Subnet отправителей
 
-# Политики выключены по умолчанию: их включает заказ. У networkPolicy при
-# enabled: true обязателен список endpoints, поэтому молча включать её нельзя.
+serviceEntries: []     # только mesh; заполняет заказ
+
+# Выход с известного адреса: ОДИН на релиз. externalIPs заполняет заказ.
+vpcEgressGateway:
+  name: vip
+  externalIPs: []
+  scope: namespace     # только direct: namespace (вся подсеть) | label (поды с меткой)
+  label: ecpk/egress   # только direct со scope label: ключ метки на подах
+
+# Политики выключены по умолчанию: их включает заказ (только режим mesh).
+# У networkPolicy при enabled: true обязателен список endpoints.
 networkPolicy:
   enabled: false
+  senders: true        # правило в namespace отправителей: выход к гейтвею на 15008
 
 authorizationPolicy:
   enabled: false
 
-vpcEgressGateway: []
+# ----------------------------------------------------------------------------
+# Сабчарты namespace: неймспейс waypoint'а (только mesh) и неймспейс
+# VpcEgressGateway (всегда). Ниже - фиксированные дефолты платформы; заказ
+# добавляет сам waypoint (waypointNamespace.waypoint.waypoints) и, если
+# подсети зарезервированы, cidrBlock с subnet.enable: true.
+# ----------------------------------------------------------------------------
+waypointNamespace:
+  enabled: true        # в режиме direct поставьте false
+  namespace:
+    displayName: "Egress waypoint"
+    role: egress
+    podSecurity: baseline
+  serviceMesh:
+    enabled: true
+    never: false
+    waypoint: true
+  resourceQuotas:
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+    podsAmount: 20
+  subnet:
+    enable: false
+    subnets:
+      - mask: 28
+        cidrBlock: ""
+        reservedIps: 0
+        allowSubnets: []
+        private: false
+        natOutgoing: false
+  waypoint:
+    waypoints: []      # заказ описывает ровно один waypoint, см. values.minimal.yaml
+
+vegNamespace:
+  enabled: true
+  namespace:
+    name: veg-vip      # назначение: {project}-{cluster}-ns-veg-vip
+    displayName: "Egress VIP"
+    role: egress
+    podSecurity: privileged
+  serviceMesh:
+    enabled: false
+    never: true        # VpcEgressGateway ломается от перехвата ambient
+    waypoint: false
+  resourceQuotas:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+    podsAmount: 10
+  subnet:
+    enable: false
+    subnets:
+      - mask: 29
+        cidrBlock: ""
+        reservedIps: 0
+        allowSubnets: []
+        private: false
+        natOutgoing: false

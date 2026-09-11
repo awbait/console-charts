@@ -1,40 +1,51 @@
 {{/*
-Two NetworkPolicies for the gateway workload, created together when
-networkPolicy.enabled. Both select the pods the Istio Gateway controller makes
-for the Gateway (label gateway.networking.k8s.io/gateway-name).
+NetworkPolicies of the egress gateway, created together when
+networkPolicy.enabled. Mode mesh only: they guard the waypoint, which mode
+direct does not have (a namespace outside the mesh gets no policies at all).
 
+In the waypoint namespace, on the pods the Istio Gateway controller makes for
+the Gateway (label gateway.networking.k8s.io/gateway-name):
   {name}-out - what the gateway may reach. istiod (istio-system:15012) and
                CoreDNS (kube-system:1053, TCP and UDP) are fixed; the external
                endpoints come from networkPolicy.endpoints, which is required
                when the section is on.
-  {name}-in  - who may reach the gateway: the namespaces of the senders of this
-               release, on the HBONE listener port 15008 (ztunnel tunnels the
-               sender traffic into the waypoint on that port).
+  {name}-in  - who may reach the gateway: the senders namespace, on the HBONE
+               listener port 15008 (ztunnel tunnels the sender traffic into the
+               waypoint on that port).
 
-Skipped when the gateway is disabled.
+In the senders namespace, on every pod, when networkPolicy.senders (default
+true):
+  {name}-senders - egress to the waypoint namespace on 15008. A namespace in
+               the mesh runs under the default policies of the platform
+               (annotation networking.k8s.io/enable-netpol), and without this
+               rule ztunnel cannot open the HBONE tunnel out of it. Switch it
+               off only for a senders namespace that has no default policies:
+               there it would isolate the pods instead.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- include "egress-gateway.helpers.validate" . -}}
 {{- $root := . }}
 {{- $networkPolicy := $root.Values.networkPolicy | default dict }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true" }}
-{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
-{{- $gwName := $root.Values.egressGateway.name }}
+{{- if and (eq (include "egress-gateway.helpers.mode" $root) "mesh") (eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true") }}
+{{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
+{{- $gwNamespace := include "egress-gateway.helpers.waypointNamespace" $root }}
+{{- $senders := include "egress-gateway.helpers.sendersNamespace" $root }}
+{{- $waypoint := include "egress-gateway.helpers.waypoint" $root | fromJson }}
 {{- $endpoints := $networkPolicy.endpoints | default list }}
 {{- if not $endpoints }}
 {{- fail "networkPolicy.endpoints is required when networkPolicy.enabled=true: name the address and the port of every external endpoint the gateway has to reach" }}
 {{- end }}
-{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" $root | fromJsonArray }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gwName "name" "out" "context" $root) }}
-  namespace: {{ $root.Release.Namespace | quote }}
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "out" "context" $root) }}
+  namespace: {{ $gwNamespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
+      {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
   policyTypes:
     - Egress
   egress:
@@ -66,24 +77,43 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gwName "name" "in" "context" $root) }}
-  namespace: {{ $root.Release.Namespace | quote }}
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "in" "context" $root) }}
+  namespace: {{ $gwNamespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
+      {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
     - from:
-        {{- range $namespace := $namespaces }}
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ $namespace | quote }}
-        {{- end }}
+              kubernetes.io/metadata.name: {{ $senders | quote }}
       ports:
         - port: 15008
           protocol: TCP
+{{- if or (not (hasKey $networkPolicy "senders")) (eq (toString $networkPolicy.senders | lower) "true") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "senders" "context" $root) }}
+  namespace: {{ $senders | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $gwNamespace | quote }}
+      ports:
+        - port: 15008
+          protocol: TCP
+{{- end }}
 {{- end }}
 {{- end }}

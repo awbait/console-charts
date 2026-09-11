@@ -14,27 +14,6 @@
         {
           "path": "hostname",
           "label": "Домен"
-        },
-        {
-          "path": "namespace",
-          "label": "Namespace вашего сервиса"
-        }
-      ]
-    },
-    {
-      "id": "egresses",
-      "form": "egresses",
-      "items": "/vpcEgressGateway",
-      "title": "Выходы наружу",
-      "addLabel": "Добавить выход",
-      "ui:table": [
-        {
-          "path": "name",
-          "label": "Имя выхода"
-        },
-        {
-          "path": "externalIPs",
-          "label": "Внешние адреса"
         }
       ]
     },
@@ -57,38 +36,40 @@
     }
   ],
   "views": {
-    "egresses": {},
-    "hpa": {
-      "include": [
-        "egressGateway"
-      ],
-      "$comment": "Правка автомасштабирования шлюза (egressGateway.hpa) из карточки заказа. Вид обязан сузиться до одного поля: пустой вид показал бы всю форму заказа целиком, а пункт меню называет одно.",
-      "overrides": {
-        "egressGateway": {
-          "ui:view": {
-            "include": [
-              "hpa"
-            ]
-          }
-        }
-      }
-    },
     "order": {
       "include": [
-        "egressGateway",
+        "mode",
+        "senders",
         "serviceEntries",
         "vpcEgressGateway",
         "networkPolicy",
-        "authorizationPolicy"
+        "authorizationPolicy",
+        "waypointNamespace/waypoint/waypoints"
       ],
-      "$comment": "Секции identity в форме нет вовсе: все три тега проставляет портал блоком defaults, а раздел, у которого исключены все поля, оставил бы в форме заголовок без содержимого.",
-      "identity": "/egressGateway/name",
+      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity, а назначение namespace гейтвея берёт дефолт схемы. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены.",
+      "identity": "/vpcEgressGateway/name",
       "overrides": {
-        "egressGateway": {
+        "vpcEgressGateway": {
           "ui:view": {
-            "exclude": [
-              "hpa"
-            ],
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        },
+        "waypointNamespace/waypoint/waypoints": {
+          "description": "Гейтвей, через который ваши сервисы ходят наружу. Ровно один. В список разрешённых namespace впишите namespace ваших сервисов."
+        }
+      }
+    },
+    "egress": {
+      "include": [
+        "vpcEgressGateway"
+      ],
+      "overrides": {
+        "vpcEgressGateway": {
+          "ui:view": {
             "overrides": {
               "name": {
                 "ui:readOnly": true
@@ -98,18 +79,18 @@
         }
       }
     },
-    "resources": {
+    "waypoint": {
+      "$comment": "Правка гейтвея (имя, разрешённые namespace, автомасштабирование, ресурсы) из карточки заказа. Ресурсы скрыты схемой сабчарта, поэтому здесь их нужно раскрыть явно.",
       "include": [
-        "egressGateway"
+        "waypointNamespace/waypoint/waypoints"
       ],
-      "$comment": "Правка ресурсов шлюза (egressGateway.resources) из карточки заказа. Поле скрыто схемой чарта, поэтому здесь его нужно раскрыть явно: без ui:widget edit пункт меню открыл бы форму, в которой ресурсов нет вовсе.",
       "overrides": {
-        "egressGateway": {
+        "waypointNamespace/waypoint/waypoints": {
           "ui:view": {
-            "include": [
-              "resources"
-            ],
             "overrides": {
+              "name": {
+                "ui:readOnly": true
+              },
               "resources": {
                 "ui:widget": "edit"
               }
@@ -135,13 +116,13 @@
   "actions": [
     {
       "in": "info",
-      "view": "hpa",
-      "label": "Редактировать автомасштабирование"
+      "view": "egress",
+      "label": "Редактировать выход"
     },
     {
       "in": "info",
-      "view": "resources",
-      "label": "Редактировать ресурсы"
+      "view": "waypoint",
+      "label": "Редактировать гейтвей"
     },
     {
       "in": "tab:networkRules",
@@ -150,8 +131,11 @@
     }
   ],
   "defaults": {
-    "/identity/cluster": "dev",
-    "/identity/instance": "id",
-    "/identity/project": "{{.Team}}"
+    "/global/identity/cluster": "dev",
+    "/global/identity/instance": "id",
+    "/global/identity/project": "{{.Team}}",
+    "/global/namespacePurpose": "egw-eg",
+    "/waypointNamespace/namespace/creator": "console",
+    "/vegNamespace/namespace/creator": "console"
   }
 }

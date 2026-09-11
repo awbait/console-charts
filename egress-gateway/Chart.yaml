@@ -2,7 +2,22 @@ apiVersion: v2
 name: egress-gateway
 description: Выпускает трафик ваших сервисов наружу через одну контролируемую точку. Нужен, когда во внешние системы можно ходить только с известного адреса.
 type: application
-version: 6.1.0
+version: 7.0.0
 appVersion: "1.0.0"
 maintainers:
   - name: core
+dependencies:
+  # Два экземпляра одного чарта под разными alias: неймспейс waypoint'а
+  # (только в режиме mesh) и неймспейс VpcEgressGateway (всегда). Values для
+  # них идут под ключами waypointNamespace и vegNamespace; global (identity,
+  # namespacePurpose) Helm раздаёт обоим сам.
+  - name: namespace
+    version: "6.1.0"
+    repository: "file://../namespace"
+    alias: waypointNamespace
+    condition: waypointNamespace.enabled
+  - name: namespace
+    version: "6.1.0"
+    repository: "file://../namespace"
+    alias: vegNamespace
+    condition: vegNamespace.enabled

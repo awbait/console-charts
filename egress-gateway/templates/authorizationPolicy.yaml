@@ -1,39 +1,36 @@
 {{/*
-AuthorizationPolicy (Istio) attached to the egress gateway of this release, created
-when authorizationPolicy.enabled. It lets the backends through to the gateway:
-ALLOW from the namespaces of the external services of this release, the release
-namespace included.
-The policy is attached through targetRefs, the way a Gateway API gateway is
-targeted, not through a workload selector.
-Shares the name of the Gateway (kindShort ap). Skipped when the gateway is
-disabled.
+AuthorizationPolicy (Istio) attached to the egress gateway of this release,
+created when authorizationPolicy.enabled. Mode mesh only: it targets the
+waypoint, which mode direct does not have.
+ALLOW from the senders namespace, nothing else: with the policy in place no
+other namespace of the cluster gets its traffic out through this gateway. The
+policy is attached through targetRefs, the way a Gateway API gateway is
+targeted, not through a workload selector, and lives in the waypoint namespace
+next to the Gateway. Named after the waypoint (kindShort ap).
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- include "egress-gateway.helpers.validate" . -}}
 {{- $root := . }}
 {{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" $authorizationPolicy) "true" }}
-{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
-{{- $gwName := $root.Values.egressGateway.name }}
-{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" $root | fromJsonArray }}
+{{- if and (eq (include "egress-gateway.helpers.mode" $root) "mesh") (eq (include "egress-gateway.helpers.app.enabled" $authorizationPolicy) "true") }}
+{{- $waypoint := include "egress-gateway.helpers.waypoint" $root | fromJson }}
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $gwName "context" $root) }}
-  namespace: {{ $root.Release.Namespace | quote }}
+  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $waypoint.name "context" $root) }}
+  namespace: {{ include "egress-gateway.helpers.waypointNamespace" $root | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ $gwFullname }}
+      name: {{ include "egress-gateway.helpers.gatewayFullname" $root }}
   action: ALLOW
   rules:
     - from:
         - source:
             namespaces:
-              {{- range $namespace := $namespaces }}
-              - {{ $namespace | quote }}
-              {{- end }}
+              - {{ include "egress-gateway.helpers.sendersNamespace" $root | quote }}
 {{- end }}
 {{- end }}
