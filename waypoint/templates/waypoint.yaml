@@ -4,26 +4,63 @@ waypoints list. Listens for mesh traffic (HBONE, port 15008). The label
 istio.io/waypoint-for sets the interception scope (service|workload|all).
 Pods/services are bound to a waypoint via the label
 istio.io/use-waypoint: <name of this Gateway>. An item is skipped when enabled: false.
+
+The Service of the waypoint stays internal (annotation
+networking.istio.io/service-type: ClusterIP): a waypoint is only ever reached
+over HBONE from ztunnel, never from outside the cluster.
+
+allowedRoutes stays on the default (Same) while every sender sits in the
+namespace of the waypoint. A sender namespace of its own goes into
+allowedNamespaces and lands in a Selector, because a cross-namespace binding
+(istio.io/use-waypoint-namespace) is only honoured when the listener admits
+that namespace.
+
+infrastructure.parametersRef points at the ConfigMap of the waypoint (see
+configmap.yaml) when the item autoscales or sets resources; the ConfigMap
+shares the name of the Gateway.
 */}}
 {{- if eq (include "waypoint.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
 {{- range $index, $waypoint := $root.Values.waypoints }}
 {{- if eq (include "waypoint.helpers.app.enabled" $waypoint) "true" }}
 {{- $waypointName := required (printf "waypoints[%d].name is required" $index) $waypoint.name }}
+{{- $fullname := include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
 {{- $for := include "waypoint.helpers.app.for" $waypoint.for }}
+{{- $allowed := include "waypoint.helpers.app.allowedNamespaces" (dict "waypoint" $waypoint "index" $index "context" $root) | fromJsonArray }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: {{ include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
+  name: {{ $fullname }}
   namespace: {{ include "waypoint.helpers.targetNamespace" $root | quote }}
-  {{- include "waypoint.helpers.app.metadata" (dict "context" $root "labels" (dict "istio.io/waypoint-for" $for)) | nindent 2 }}
+  {{- include "waypoint.helpers.app.metadata" (dict "context" $root "labels" (dict "istio.io/waypoint-for" $for) "annotations" (dict "networking.istio.io/service-type" "ClusterIP")) | nindent 2 }}
 spec:
   gatewayClassName: istio-waypoint
+  {{- if eq (include "waypoint.helpers.app.hasInfrastructure" $waypoint) "true" }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ $fullname }}
+  {{- end }}
   listeners:
     - name: mesh
       port: 15008
       protocol: HBONE
+      {{- if $allowed }}
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - {{ include "waypoint.helpers.targetNamespace" $root | quote }}
+                  {{- range $namespace := $allowed }}
+                  - {{ $namespace | quote }}
+                  {{- end }}
+      {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

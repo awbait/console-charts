@@ -1,19 +1,29 @@
+{{/*
+ResourceQuota of the Namespace. The CPU and memory limits are required: an
+empty limit used to render as a null value, which the API server rejects at
+apply time, long after the render passed. Sync wave -2, alongside the Subnet.
+*/}}
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
+{{- $quotas := .Values.resourceQuotas | default dict }}
+{{- $limits := $quotas.limits | default dict }}
+{{- $requests := $quotas.requests | default dict }}
+{{- $cpu := required "resourceQuotas.limits.cpu is required: the CPU limit of the namespace, for example \"4\"" $limits.cpu }}
+{{- $memory := required "resourceQuotas.limits.memory is required: the memory limit of the namespace, for example \"8Gi\"" $limits.memory }}
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: {{ .Values.resourceQuotas.name | default "default" }}
+  name: {{ $quotas.name | default "default" }}
   namespace: {{ include "namespace.helpers.namespaceName" . }}
-  {{- include "namespace.helpers.metadata" (dict "context" .) | nindent 2 }}
+  {{- include "namespace.helpers.metadata" (dict "context" . "annotations" (include "namespace.helpers.syncWave" "-2" | fromJson)) | nindent 2 }}
 spec:
   hard:
-    limits.cpu: {{ .Values.resourceQuotas.limits.cpu }}
-    limits.memory: {{ .Values.resourceQuotas.limits.memory }}
-    pods: {{ .Values.resourceQuotas.podsAmount }}
-    requests.cpu: {{ .Values.resourceQuotas.requests.cpu | default .Values.resourceQuotas.limits.cpu }}
-    requests.memory: {{ .Values.resourceQuotas.requests.memory | default .Values.resourceQuotas.limits.memory }}
+    limits.cpu: {{ $cpu | quote }}
+    limits.memory: {{ $memory | quote }}
+    pods: {{ $quotas.podsAmount | default 1000 }}
+    requests.cpu: {{ $requests.cpu | default $cpu | quote }}
+    requests.memory: {{ $requests.memory | default $memory | quote }}
     {{- $storageQuotas := dict }}
-    {{- range $storageClass, $quota := .Values.resourceQuotas.storage | default dict }}
+    {{- range $storageClass, $quota := $quotas.storage | default dict }}
     {{- if $quota }}
     {{- $_ := set $storageQuotas (printf "%s.storageclass.storage.k8s.io/requests.storage" $storageClass) $quota }}
     {{- end }}

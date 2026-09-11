@@ -19,10 +19,28 @@ Chart name for helm.sh/chart.
 {{- end -}}
 
 {{/*
+The identity block the release runs under, as JSON (callers fromJson it).
+
+global.identity wins over identity when a parent sets it: a parent chart hands
+its tags to every subchart through global, and the default identity this chart
+ships in values.yaml must not shadow them. With no parent, or a parent that
+says nothing, the chart's own identity is used. Parameter: the root context.
+*/}}
+{{- define "waypoint.helpers.identity" -}}
+{{- $global := (.Values.global | default dict).identity | default dict -}}
+{{- if gt (len $global) 0 -}}
+{{- $global | toJson -}}
+{{- else -}}
+{{- .Values.identity | default dict | toJson -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Base application name (for labels) = identity.project.
 */}}
 {{- define "waypoint.helpers.app.name" -}}
-{{- required "identity.project is required" (.Values.identity | default dict).project | toString | lower | trunc 63 | trimSuffix "-" -}}
+{{- $identity := include "waypoint.helpers.identity" . | fromJson -}}
+{{- required "identity.project is required" $identity.project | toString | lower | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
@@ -60,9 +78,10 @@ Resource name by convention:
   {instance}-{cluster}-{kindShort}-{project}-{name}
 Parameters: .context, .kindShort (wp), .name (2..6 characters).
 The result is truncated to 63 characters. Example: ed-dev-wp-nbox-mesh.
+The ConfigMap of a waypoint shares the name of its Gateway (one logical object).
 */}}
 {{- define "waypoint.helpers.app.resourceName" -}}
-{{- $identity := .context.Values.identity | default dict -}}
+{{- $identity := include "waypoint.helpers.identity" .context | fromJson -}}
 {{- $instance := include "waypoint.helpers.tag" (dict "label" "identity.instance" "value" $identity.instance) -}}
 {{- $cluster := include "waypoint.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
 {{- $project := include "waypoint.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
@@ -105,7 +124,7 @@ Parameter: the root context.
 {{- end -}}
 {{- $value | trunc 63 | trimSuffix "-" -}}
 {{- else if $purpose -}}
-{{- $identity := .Values.identity | default dict -}}
+{{- $identity := include "waypoint.helpers.identity" . | fromJson -}}
 {{- $project := include "waypoint.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $cluster := include "waypoint.helpers.tag" (dict "label" "identity.cluster" "value" $identity.cluster) -}}
 {{- $name := include "waypoint.helpers.shortToken" (dict "label" "namespacePurpose" "value" $purpose "max" 12) -}}
@@ -132,7 +151,7 @@ partially filled identity block never produces an empty label value. Values are
 lower-cased, exactly as they go into the resource name.
 */}}
 {{- define "waypoint.helpers.identityLabels" -}}
-{{- $identity := .Values.identity | default dict -}}
+{{- $identity := include "waypoint.helpers.identity" . | fromJson -}}
 {{- with $identity.instance }}
 ecpk/instance: {{ . | toString | lower | quote }}
 {{- end }}
@@ -225,6 +244,40 @@ Allowed: service (default) | workload | all.
 {{- fail (printf "waypoints[].for must be one of service|workload|all, got %q" $value) -}}
 {{- end -}}
 {{- $value -}}
+{{- end -}}
+
+{{/*
+Namespaces a waypoint admits besides its own, as a JSON array. Every entry is
+checked to be a namespace name; the waypoint's own namespace is dropped from
+the list, because the listener admits it anyway. Parameters: .waypoint (the
+list item), .index, .context.
+*/}}
+{{- define "waypoint.helpers.app.allowedNamespaces" -}}
+{{- $own := include "waypoint.helpers.targetNamespace" .context -}}
+{{- $result := list -}}
+{{- range $namespace := (.waypoint.allowedNamespaces | default list) -}}
+{{- $value := $namespace | toString | trim | lower -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "waypoints[%d].allowedNamespaces must hold namespace names in DNS format, got %q" $.index $value) -}}
+{{- end -}}
+{{- if and (ne $value $own) (not (has $value $result)) -}}
+{{- $result = append $result $value -}}
+{{- end -}}
+{{- end -}}
+{{- $result | toJson -}}
+{{- end -}}
+
+{{/*
+Whether a waypoint needs an infrastructure ConfigMap: when it autoscales
+(hpa.enabled) or sets the resources of its proxy container. Returns "true" or
+"" (for if-tests). Parameter: the list item.
+*/}}
+{{- define "waypoint.helpers.app.hasInfrastructure" -}}
+{{- $hpa := .hpa | default dict -}}
+{{- $hpaEnabled := eq (toString ($hpa.enabled | default false) | lower) "true" -}}
+{{- if or $hpaEnabled .resources -}}
+true
+{{- end -}}
 {{- end -}}
 
 {{/*

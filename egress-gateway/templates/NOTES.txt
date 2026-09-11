@@ -1,71 +1,73 @@
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
-egress-gateway ({{ .Chart.Version }}) развёрнут в namespace {{ .Release.Namespace | quote }}.
+{{- include "egress-gateway.helpers.validate" . -}}
+{{- $mode := include "egress-gateway.helpers.mode" . }}
+{{- $senders := include "egress-gateway.helpers.sendersNamespace" . }}
+{{- $vegNamespace := include "egress-gateway.helpers.vegNamespace" . }}
+{{- $vegFullname := include "egress-gateway.helpers.vegFullname" . }}
+{{- $veg := .Values.vpcEgressGateway | default dict }}
+egress-gateway ({{ .Chart.Version }}), режим {{ $mode }}.
 Конвенция имён: {instance}-{cluster}-{kindShort}-{project}-{name}
 Теги на каждом ресурсе: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
-{{- $gw := .Values.egressGateway | default dict }}
-{{- if and $gw (eq (include "egress-gateway.helpers.app.enabled" $gw) "true") }}
-{{- $gwFullname := include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" $gw.name "context" $) }}
-{{- $namespaces := include "egress-gateway.helpers.app.backendNamespaces" . | fromJsonArray }}
+Отправители: namespace {{ $senders }} (существует до заказа, создаётся отдельным заказом namespace).
+{{- if eq $mode "mesh" }}
+{{- $gwNamespace := include "egress-gateway.helpers.waypointNamespace" . }}
+{{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" . }}
+{{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson }}
 
-Гейтвей: {{ $gwFullname }} (Gateway класса istio-waypoint + ConfigMap), принимает трафик отправителей по HBONE на порту 15008.
-{{- if gt (len $namespaces) 1 }}
-Отправители лежат в namespace: {{ join ", " $namespaces }}. Чужие namespace допущены к waypoint через allowedRoutes его listener'а.
-{{- else }}
-Все отправители лежат в namespace релиза.
-{{- end }}
-{{- $hpa := $gw.hpa | default dict }}
+Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом, в сетке).
+Гейтвей: {{ $gwFullname }} (Gateway класса istio-waypoint, принимает трафик отправителей по HBONE на порту 15008; рендерит сабчарт waypoint).
+{{- $hpa := $waypoint.hpa | default dict }}
 {{- if $hpa.enabled }}
 Автомасштабирование включено: от {{ $hpa.minReplicas | default 2 }} до {{ $hpa.maxReplicas | default 5 }} экземпляров при загрузке CPU выше {{ $hpa.averageUtilization | default 80 }}%.
 {{- else }}
 Автомасштабирование выключено.
 {{- end }}
 
+Внешние сервисы (ServiceEntry в namespace {{ $senders }}, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
+{{- range .Values.serviceEntries }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
+  * {{ .hostname }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
+{{- end }}
+{{- end }}
+Через выход с известного адреса уходят только эти домены; остальной трафик отправителей идёт как прежде.
+
 {{- $np := .Values.networkPolicy | default dict }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $np) "true" }}
-Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "out" "context" $) }} (куда шлюзу можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $gw.name "name" "in" "context" $) }} (кто ходит к шлюзу на 15008).
+Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "out" "context" $) }} (куда гейтвею можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "in" "context" $) }} (кто ходит к гейтвею на 15008) в namespace {{ $gwNamespace }}.
+{{- if or (not (hasKey $np "senders")) (eq (toString $np.senders | lower) "true") }}
+В namespace отправителей добавлено правило {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "senders" "context" $) }}: выход к гейтвею на 15008.
+{{- end }}
 {{- else }}
 Сетевые правила не созданы (networkPolicy.enabled=false).
 {{- end }}
 {{- $ap := .Values.authorizationPolicy | default dict }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $ap) "true" }}
-Правило доступа: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $gw.name "context" $) }} - пускает к шлюзу namespace ваших сервисов.
+Правило доступа: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $waypoint.name "context" $) }} - пускает к гейтвею только namespace отправителей.
 {{- else }}
 Правило доступа не создано (authorizationPolicy.enabled=false).
 {{- end }}
 
-{{- with .Values.serviceEntries }}
-
-Внешние сервисы (ServiceEntry, привязанный к waypoint лейблом istio.io/use-waypoint):
-{{- range . }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
-{{- $namespace := include "egress-gateway.helpers.app.serviceEntryNamespace" (dict "entry" . "context" $) }}
-  * {{ .hostname }} в namespace {{ $namespace }}
-      SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
-{{- end }}
-{{- end }}
-
-Трафик к этим доменам ztunnel сам заворачивает в waypoint, маршруты не нужны.
-Namespace отправителей должны быть в ambient (istio.io/dataplane-mode=ambient).
-{{- end }}
+Выход с известного адреса: {{ $vegFullname }} в namespace {{ $vegNamespace }} (создан этим релизом, вне сетки навсегда).
+Внешних адресов: {{ len $veg.externalIPs }}, столько же экземпляров. Захватывает поды гейтвея выше.
 {{- else }}
+{{- $scope := include "egress-gateway.helpers.scope" . }}
 
-Гейтвей выключен (egressGateway.enabled=false), ресурсы не созданы.
+Waypoint не создаётся: отправители вне сетки.
+Выход с известного адреса: {{ $vegFullname }} в namespace {{ $vegNamespace }} (создан этим релизом, вне сетки навсегда).
+Внешних адресов: {{ len $veg.externalIPs }}, столько же экземпляров.
+{{- if eq $scope "namespace" }}
+Наружу с этих адресов уходит весь внешний трафик подсети {{ include "egress-gateway.helpers.sendersSubnet" . }}.
+{{- else }}
+Наружу с этих адресов уходят поды namespace {{ $senders }} с меткой {{ include "egress-gateway.helpers.egressLabel" . }}={{ $vegFullname }}.
 {{- end }}
-
-{{- with .Values.vpcEgressGateway }}
-
-Выход с известного адреса (VpcEgressGateway) в namespace {{ $.Release.Namespace }} - нацелен
-на поды гейтвея выше:
-{{- range . }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
-  * {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" .name "context" $) }} (внешних адресов: {{ len .externalIPs }}, столько же экземпляров)
-{{- end }}
-{{- end }}
+Куда именно можно ходить, решает внешний межсетевой экран; сетевых правил и правил доступа в этом режиме нет.
 {{- end }}
 
 На всех ресурсах релиза стоят labels app={{ .Chart.Name }} и
-app.kubernetes.io/instance={{ .Release.Name }}.
+app.kubernetes.io/instance={{ .Release.Name }}. Ресурсы сабчартов namespace и waypoint
+несут свои labels и те же теги окружения.
 {{- else }}
-Ресурсы не созданы: enabled=false.
+Ресурсы не созданы: enabled=false. Сабчарты namespace выключаются отдельно:
+waypointNamespace.enabled и vegNamespace.enabled.
 {{- end }}

@@ -1,0 +1,31 @@
+# Пример, режим direct: отправители вне сетки, наружу с известного адреса
+# уходит весь внешний трафик их подсети. Waypoint и его namespace не создаются.
+#
+# Что создаётся (теги ниже):
+# - Namespace   nbox-dev-ns-veg-vip  (сабчарт vegNamespace, вне сетки)
+#   VpcEgressGateway ed-dev-veg-nbox-vip с SNAT на подсеть nbox-dev-subnet-app
+
+global:
+  identity:
+    instance: ed
+    cluster: dev
+    project: nbox
+  namespacePurpose: egw-eg   # не используется в direct, но обязателен для сабчарта
+
+mode: direct
+
+senders:
+  namespace: nbox-dev-ns-app
+  # Имя Subnet отправителей: {проект}-{кластер}-subnet-{назначение}.
+  subnet: nbox-dev-subnet-app
+
+vpcEgressGateway:
+  name: vip
+  externalIPs:
+    - 10.193.101.10
+  scope: namespace
+  # scope: label   - через выход пойдут только поды отправителей с меткой
+  # label: ecpk/egress   ecpk/egress=ed-dev-veg-nbox-vip, а не вся подсеть
+
+waypointNamespace:
+  enabled: false

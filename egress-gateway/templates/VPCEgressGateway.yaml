@@ -1,60 +1,72 @@
 {{/*
-VpcEgressGateway (kube-ovn) - one per vpcEgressGateway list item.
+VpcEgressGateway (kube-ovn) - one per release, in the namespace the vegNamespace
+subchart creates (never in the mesh: ambient interception breaks a transit
+pod). Several externalIPs give several replicas of one gateway, not several
+gateways.
 
 Hardcoded in the template (not configurable via values):
-  vpc, externalSubnet (egress-vip), nodeSelector.
-nodeSelector pins the gateways to the control-plane nodes: the ingress gateway
-of the service runs on the workers, and the two must not share a node.
+  vpc, externalSubnet (egress-vip), nodeSelector. nodeSelector pins the gateway
+  to the control-plane nodes: the ingress gateway of the service runs on the
+  workers, and the two must not share a node. trafficPolicy is not written: it
+  only acts with BFD, which is not enabled.
 
-Derived (not configurable):
-  - namespace     the release namespace;
-  - replicas      = number of externalIPs;
-  - selectors     one entry with namespaceSelector AND podSelector (kube-ovn
-                  ORs entries and ANDs the fields of one entry), pointing at
-                  the Istio egress gateway created from .Values.egressGateway:
-                  the pods of that Gateway (label
-                  gateway.networking.k8s.io/gateway-name) inside the release
-                  namespace.
-
-No policies and no trafficPolicy: the selectors alone decide whose traffic
-leaves through the gateway, so SNAT rules per subnet are not needed.
-
-A VpcEgressGateway only makes sense together with the egress Gateway it points
-at, so egressGateway must be enabled and named when this section is used.
+What the gateway captures depends on the mode:
+  mesh            selectors: the pods of the egress Gateway in the waypoint
+                  namespace (namespaceSelector + podSelector in ONE item, they
+                  are ANDed inside an item and ORed between items). SNAT for
+                  selected pods is done by the init script of the gateway pod,
+                  so no policies are written: a policy on the senders subnet
+                  would capture the application pods too, including the
+                  answers to their kubelet probes.
+  direct, scope namespace
+                  policies: SNAT for the whole Subnet of the senders.
+  direct, scope label
+                  selectors: the pods of the senders namespace carrying the
+                  label vpcEgressGateway.label with the name of this gateway.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
-{{- if .Values.vpcEgressGateway }}
+{{- include "egress-gateway.helpers.validate" . -}}
 {{- $root := . }}
-{{- $gwFullname := include "egress-gateway.helpers.app.gatewayFullname" $root }}
-{{- $namespace := $root.Release.Namespace }}
-{{- range $index, $veg := .Values.vpcEgressGateway }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" $veg) "true" }}
-{{- $externalIPs := required (printf "vpcEgressGateway[%d].externalIPs is required" $index) $veg.externalIPs }}
+{{- $mode := include "egress-gateway.helpers.mode" $root }}
+{{- $veg := .Values.vpcEgressGateway | default dict }}
+{{- $vegFullname := include "egress-gateway.helpers.vegFullname" $root }}
 ---
 apiVersion: kubeovn.io/v1
 kind: VpcEgressGateway
 metadata:
-  name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "veg" "name" (required (printf "vpcEgressGateway[%d].name is required" $index) $veg.name) "context" $root) }}
-  namespace: {{ $namespace | quote }}
+  name: {{ $vegFullname }}
+  namespace: {{ include "egress-gateway.helpers.vegNamespace" $root | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   vpc: ovn-cluster
-  replicas: {{ len $externalIPs }}
+  replicas: {{ len $veg.externalIPs }}
   externalSubnet: egress-vip
   externalIPs:
-    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $externalIPs "context" $root) | nindent 4 }}
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $veg.externalIPs "context" $root) | nindent 4 }}
   nodeSelector:
     - matchExpressions:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
+  {{- if eq $mode "mesh" }}
   selectors:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: {{ $root.Release.Namespace | quote }}
+          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.waypointNamespace" $root | quote }}
       podSelector:
         matchLabels:
-          {{- include "egress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gwFullname) | nindent 10 }}
-{{- end }}
-{{- end }}
-{{- end }}
+          {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" (include "egress-gateway.helpers.gatewayFullname" $root)) | nindent 10 }}
+  {{- else if eq (include "egress-gateway.helpers.scope" $root) "label" }}
+  selectors:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.sendersNamespace" $root | quote }}
+      podSelector:
+        matchLabels:
+          {{ include "egress-gateway.helpers.egressLabel" $root }}: {{ $vegFullname | quote }}
+  {{- else }}
+  policies:
+    - snat: true
+      subnets:
+        - {{ include "egress-gateway.helpers.sendersSubnet" $root | quote }}
+  {{- end }}
 {{- end }}

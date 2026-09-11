@@ -6,7 +6,8 @@ enabled: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
 # ecpk/project на всех ресурсах, а project и cluster - ещё и в имена ресурсов.
-# Допустимые значения - в README.md.
+# Допустимые значения - в README.md. Когда чарт подключён сабчартом и родитель
+# задал global.identity, читается global.identity, а этот блок не учитывается.
 identity:
   instance: ed         # тег инстанса окружения
   cluster: dev         # тег кластера окружения
@@ -27,9 +28,11 @@ namespace:
   displayName: "Managed namespace"
   role: other
   creator: lk
+  podSecurity: ""      # "" | restricted | baseline | privileged
 
 serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  never: false         # true - неймспейс никогда не в сетке, в любом кластере
   waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
 
 # Значения сабчарта waypoint. Неймспейс он берёт из global.namespacePurpose,
@@ -40,10 +43,11 @@ waypoint:
       enabled: true
       for: service
 
+# Лимиты обязательны: без них рендер останавливается.
 resourceQuotas:
   limits:
-    cpu: ""
-    memory: ""
+    cpu: "4"
+    memory: "8Gi"
   requests:
     cpu: ""
     memory: ""
@@ -61,3 +65,5 @@ subnet:
       cidrBlock: ""    # заполняет платформа: диапазон с маской mask из Netbox
       reservedIps: 0   # сколько адресов не выдавать подам, кроме адреса шлюза
       allowSubnets: []
+      private: true    # изолированная подсеть: связность только с allowSubnets
+      natOutgoing: false
