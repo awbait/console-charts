@@ -56,13 +56,13 @@
     },
     "waypoint": {
       "title": "Waypoint subchart",
-      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. The namespace it deploys into comes from global.namespacePurpose; a waypoint.* override that disagrees with the namespace this chart builds stops the render.",
+      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. The namespace it deploys into comes from global.namespacePurpose or waypoint.namespacePurpose; a waypoint.* value that resolves to another namespace than the one this chart builds stops the render.",
       "type": "object",
       "ui:widget": "hidden"
     },
     "global": {
       "title": "Неймспейс",
-      "description": "Значения, которые видят и чарт, и его сабчарты.",
+      "description": "Значения, которые видят и чарт, и его сабчарты. Родительский чарт кладёт сюда ещё identity: тогда теги берутся из global.identity, а не из identity.",
       "type": "object",
       "propertyOrder": [
         "namespacePurpose"
@@ -187,6 +187,7 @@
         "name",
         "displayName",
         "role",
+        "podSecurity",
         "creator"
       ],
       "properties": {
@@ -216,6 +217,25 @@
             "Обычные сервисы (other)"
           ],
           "default": "other",
+          "ui:widget": "hidden"
+        },
+        "podSecurity": {
+          "title": "Уровень Pod Security",
+          "description": "Ставит на неймспейс метки pod-security.kubernetes.io (enforce, audit, warn) с этим уровнем. Пусто - уровень определяет платформа. В форме скрыто.",
+          "type": "string",
+          "enum": [
+            "",
+            "restricted",
+            "baseline",
+            "privileged"
+          ],
+          "enumNames": [
+            "Определяет платформа",
+            "Строгий (restricted)",
+            "Базовый (baseline)",
+            "Без ограничений (privileged)"
+          ],
+          "default": "",
           "ui:widget": "hidden"
         },
         "creator": {
@@ -334,6 +354,7 @@
         "subnets",
         "enable"
       ],
+      "$comment": "private and natOutgoing of each subnet are hidden in the form: they are set by charts that build on this one (egress-gateway), not by an ordinary order.",
       "properties": {
         "enable": {
           "title": "enable",
@@ -413,6 +434,20 @@
             "title": "Диапазон адресов",
             "type": "string"
           }
+        },
+        "private": {
+          "title": "Изолированная подсеть",
+          "description": "Трафик ходит только в разрешённые подсети. Снимайте, если поды сами ходят на внешние адреса. В форме скрыто.",
+          "type": "boolean",
+          "default": true,
+          "ui:widget": "hidden"
+        },
+        "natOutgoing": {
+          "title": "NAT исходящего трафика",
+          "description": "NAT средствами kube-ovn. Обычно выключен: наружу трафик выходит через выход с известного адреса. В форме скрыто.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
         }
       },
       "required": [
@@ -444,12 +479,20 @@
       "additionalProperties": false,
       "propertyOrder": [
         "enabled",
+        "never",
         "waypoint"
       ],
       "properties": {
         "enabled": {
           "title": "Сервисная сетка",
           "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
+        },
+        "never": {
+          "title": "Никогда не в сетке",
+          "description": "Неймспейс не попадает в сетку ни в одном кластере: на нём ставится istio.io/dataplane-mode=none. Для транзитных шлюзов, которые ломаются от перехвата. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"

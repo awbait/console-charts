@@ -1,11 +1,23 @@
+{{/*
+The Namespace itself. Mesh labels follow serviceMeshEnabled: ambient when the
+mesh is on, an explicit istio.io/dataplane-mode: none when serviceMesh.never
+keeps the namespace out of the mesh for good (the label says so to Istio and to
+the cluster policies alike), nothing at all when the mesh is merely off.
+Pod Security Standards labels (enforce, audit, warn) are set together from
+namespace.podSecurity and left alone when it is empty.
+Sync wave -3: the Namespace has to exist before anything is put inside it.
+*/}}
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
-{{- $identity := .Values.identity | default dict }}
+{{- $identity := include "namespace.helpers.identity" . | fromJson }}
 {{- $mesh := eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
+{{- $never := eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
+{{- $podSecurity := include "namespace.helpers.podSecurity" . }}
 {{- include "namespace.helpers.checkWaypoint" . }}
 apiVersion: v1
 kind: Namespace
 metadata:
   annotations:
+    argocd.argoproj.io/sync-wave: "-3"
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
     cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
     cpaas.io/project-inner-namespace: {{ $identity.project }}
@@ -23,8 +35,14 @@ metadata:
     {{- if $mesh }}
     istio-discovery: enabled
     istio.io/dataplane-mode: ambient
+    {{- else if $never }}
+    istio.io/dataplane-mode: none
+    {{- end }}
+    {{- if $podSecurity }}
+    pod-security.kubernetes.io/enforce: {{ $podSecurity }}
+    pod-security.kubernetes.io/audit: {{ $podSecurity }}
+    pod-security.kubernetes.io/warn: {{ $podSecurity }}
     {{- end }}
     {{- include "namespace.helpers.labels" . | nindent 4 }}
   name: {{ include "namespace.helpers.namespaceName" . }}
-#spec: []
 {{- end -}}

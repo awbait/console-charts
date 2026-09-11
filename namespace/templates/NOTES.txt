@@ -2,15 +2,23 @@
 Identity labels on every resource: {{ include "namespace.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
+{{- $podSecurity := include "namespace.helpers.podSecurity" . }}
 Created:
   Namespace:     {{ include "namespace.helpers.namespaceName" . }}
-                 (role {{ .Values.namespace.role | default "other" }})
+                 (role {{ .Values.namespace.role | default "other" }}{{ if $podSecurity }}, pod security {{ $podSecurity }}{{ end }})
+{{- if eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
+                 service mesh: never (istio.io/dataplane-mode=none in every cluster)
+{{- else if eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
+                 service mesh: ambient
+{{- else }}
+                 service mesh: off
+{{- end }}
   ResourceQuota: {{ .Values.resourceQuotas.name | default "default" }}
 {{- if and .Values.subnet.enable .Values.subnet.subnets }}
   Subnet(s):
 {{- $root := . }}
 {{- range .Values.subnet.subnets }}
-    - {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default (include "namespace.helpers.namespacePurpose" $root))) }} ({{ .cidrBlock }})
+    - {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default (include "namespace.helpers.namespacePurpose" $root))) }} ({{ .cidrBlock }}{{ if and (hasKey . "private") (not .private) }}, not private{{ end }}{{ if .natOutgoing }}, NAT outgoing{{ end }})
       addresses kept away from pods: {{ include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps) | replace "," ", " }}
 {{- end }}
 {{- else }}
