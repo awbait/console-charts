@@ -170,32 +170,24 @@ authorizationPolicy:
 # vpcEgressGateway - VpcEgressGateway (kube-ovn), список
 # ============================================================================
 # Захардкожено в шаблоне (НЕ настраивается здесь): vpc, externalSubnet
-# (egress-vip), trafficPolicy, nodeSelector. Менять - в
+# (egress-vip), nodeSelector. Менять - в
 # templates/VPCEgressGateway.yaml. Шлюзы прибиты к мастер-узлам: ingress-шлюз
 # сервиса живёт на воркерах, и делить узел с ним они не должны.
 # Выводится автоматически (НЕ настраивается здесь):
 #   namespace = namespace релиза;
 #   replicas  = число externalIPs;
-#   selectors = namespaceSelector + podSelector, указывающие на Gateway выше
-#               (namespace релиза + под'ы этого шлюза).
+#   selectors = один элемент с namespaceSelector И podSelector, указывающий
+#               на под'ы Gateway выше в namespace релиза. Наружу через выход
+#               идёт только их трафик, правила SNAT по подсетям не нужны.
 # Пользователь задаёт:
 #   name        - обязателен, 2..9 символов; {name} в имени ресурса (veg)
 #   enabled     - по умолчанию true
 #   externalIPs - обязателен, внешние IP (replicas = len(externalIPs))
-#   subnets     - обязателен, подсети, чей трафик выходит через этот выход.
-#                 В policies[].subnets у kube-ovn идут ИМЕНА ресурсов Subnet,
-#                 а не CIDR. Подсети вашего пространства называются
-#                 {проект}-{кластер}-subnet-{назначение}, например
-#                 nbox-dev-subnet-app; их создаёт чарт namespace, и в одном
-#                 пространстве их может быть несколько. На каждую подсеть из
-#                 списка чарт заводит правило SNAT.
 vpcEgressGateway:
   - name: core
     externalIPs:
       - 10.193.101.10
       - 10.193.101.11
-    subnets:
-      - nbox-dev-subnet-app
 
   - name: core2
     # Служебное поле, в форме портала скрыто. По умолчанию true.
@@ -204,10 +196,6 @@ vpcEgressGateway:
       - 10.193.101.12
       - 10.193.101.13
       - 10.193.101.14
-    # Через один выход может ходить несколько подсетей.
-    subnets:
-      - nbox-dev-subnet-back
-      - nbox-dev-subnet-data
 
 # ----------------------------------------------------------------------------
 # Служебные поля
