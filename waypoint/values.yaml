@@ -4,6 +4,8 @@
 
 # Теги окружения и проекта: попадают в имя каждого ресурса и в labels
 # ecpk/instance, ecpk/cluster, ecpk/project. Допустимые значения - в README.md.
+# Когда чарт подключён сабчартом и родитель задал global.identity, читается
+# global.identity, а этот блок не учитывается.
 identity:
   instance: ed         # тег инстанса окружения
   cluster: dev         # тег кластера окружения
