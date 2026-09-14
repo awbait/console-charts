@@ -40,15 +40,28 @@
       "include": [
         "mode",
         "senders",
+        "global/namespacePurpose",
+        "vegNamespace/namespace/name",
         "serviceEntries",
         "vpcEgressGateway",
         "networkPolicy",
         "authorizationPolicy",
         "waypointNamespace/waypoint/waypoints"
       ],
-      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity, а назначение namespace гейтвея берёт дефолт схемы. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены.",
+      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity. Назначения двух служебных namespace (\"global/namespacePurpose\" для гейтвея и \"vegNamespace/namespace/name\" для выхода) в форме есть, с предзаполнением из блока initial: два заказа одной команды в одном кластере иначе получили бы одни и те же namespace. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены.",
       "identity": "/vpcEgressGateway/name",
+      "required": [
+        "vegNamespace/namespace/name"
+      ],
       "overrides": {
+        "global/namespacePurpose": {
+          "description": "Одно слово, из которого соберётся имя namespace гейтвея: {проект}-{кластер}-ns-egw-eg. Второму гейтвею той же команды в том же кластере дайте другое назначение. В режиме direct гейтвей не создаётся, но поле всё равно нужно чарту."
+        },
+        "vegNamespace/namespace/name": {
+          "title": "Назначение namespace выхода",
+          "description": "Одно слово, из которого соберётся имя namespace выхода: {проект}-{кластер}-ns-veg-vip. Не может совпадать с назначением namespace гейтвея. Второму выходу той же команды в том же кластере дайте другое назначение.",
+          "ui:widget": "edit"
+        },
         "vpcEgressGateway": {
           "ui:view": {
             "overrides": {
@@ -134,8 +147,11 @@
     "/global/identity/cluster": "dev",
     "/global/identity/instance": "id",
     "/global/identity/project": "{{.Team}}",
-    "/global/namespacePurpose": "egw-eg",
     "/waypointNamespace/namespace/creator": "console",
     "/vegNamespace/namespace/creator": "console"
+  },
+  "initial": {
+    "/global/namespacePurpose": "egw-eg",
+    "/vegNamespace/namespace/name": "veg-vip"
   }
 }
