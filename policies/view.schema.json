@@ -5,6 +5,7 @@
       "form": "ingress",
       "items": "/policies/0/ingress",
       "title": "Входящие",
+      "addLabel": "Добавить входящее правило",
       "ui:table": [
         {
           "path": "from/*/namespace",
@@ -29,6 +30,7 @@
       "form": "egress",
       "items": "/policies/0/egress",
       "title": "Исходящие",
+      "addLabel": "Добавить исходящее правило",
       "ui:table": [
         {
           "path": "to/*/namespace",
@@ -47,6 +49,56 @@
           "label": "Протокол"
         }
       ]
+    },
+    {
+      "id": "netpol",
+      "form": "netpol",
+      "items": "/netpol",
+      "title": "Сетевой уровень",
+      "addLabel": "Добавить правило сетевого уровня",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя"
+        },
+        {
+          "path": "selector/*key",
+          "label": "Метки подов"
+        },
+        {
+          "path": "ingress/*/from/*/namespace",
+          "label": "Входящие из"
+        },
+        {
+          "path": "egress/*/to/*/namespace",
+          "label": "Исходящие в"
+        }
+      ]
+    },
+    {
+      "id": "authzpol",
+      "form": "authzpol",
+      "items": "/authzpol",
+      "title": "Сервисная сеть",
+      "addLabel": "Добавить правило сервисной сети",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя"
+        },
+        {
+          "path": "action",
+          "label": "Решение"
+        },
+        {
+          "path": "rules/*/from/namespaces/*",
+          "label": "Неймспейсы"
+        },
+        {
+          "path": "rules/*/ports/*/port",
+          "label": "Порты"
+        }
+      ]
     }
   ],
   "graph": {
@@ -54,8 +106,10 @@
   },
   "views": {
     "base": {
+      "$comment": "Пункт «Настройки» на карточке: под каким аккаунтом работает сервис, по каким меткам он находится и какой протокол подставлять портам без протокола.",
       "include": [
-        "policies"
+        "policies",
+        "defaults"
       ],
       "overrides": {
         "policies": {
@@ -74,8 +128,8 @@
       }
     },
     "order": {
+      "$comment": "Заказ: одно правило доступа с входящими и исходящими. Теги окружения и проекта проставляет блок defaults, проект берётся из команды заказа. Правила сетевого уровня и сервисной сети в заказе не спрашиваются: их заводят потом на своих вкладках.",
       "include": [
-        "identity",
         "policies"
       ],
       "identity": "/policies/0/name",
@@ -131,6 +185,34 @@
           "ui:widget": "single"
         }
       }
+    },
+    "netpol": {
+      "$comment": "Форма правила сетевого уровня: берут, когда правило нужно только на сетевом уровне или по диапазону адресов. Описывает элемент списка netpol.",
+      "overrides": {
+        "ingress": {
+          "ui:view": {
+            "overrides": {
+              "from": {
+                "title": "Источники",
+                "ui:widget": "single"
+              }
+            }
+          }
+        },
+        "egress": {
+          "ui:view": {
+            "overrides": {
+              "to": {
+                "title": "Получатели",
+                "ui:widget": "single"
+              }
+            }
+          }
+        }
+      }
+    },
+    "authzpol": {
+      "$comment": "Форма правила сервисной сети: берут, когда сетевые правила заданы другим способом. Описывает элемент списка authzpol."
     }
   },
   "actions": [
@@ -139,5 +221,10 @@
       "view": "base",
       "label": "Настройки"
     }
-  ]
+  ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}"
+  }
 }

@@ -1,0 +1,90 @@
+{
+  "views": {
+    "order": {
+      "$comment": "Заказ: имя и описание проекта, кластеры с квотами. Теги окружения и создателя проставляет блок defaults, тег проекта берётся из команды заказа. Project - ресурс уровня кластера, namespace ему не нужен, поэтому в заказе он фиксированный и поля в форме нет.",
+      "include": [
+        "project",
+        "clusters"
+      ],
+      "identity": "/project/name",
+      "namespace": {
+        "source": "fixed",
+        "value": "default"
+      },
+      "overrides": {
+        "project": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        },
+        "clusters": {
+          "description": "Где команда сможет разворачивать сервисы и сколько ресурсов ей там доступно. Нужен хотя бы один кластер, остальные можно добавить потом."
+        }
+      }
+    },
+    "about": {
+      "$comment": "Правка карточки проекта: отображаемое имя и описание. Имя проекта после создания не меняется - под ним Project живёт в кластере.",
+      "include": [
+        "project"
+      ],
+      "overrides": {
+        "project": {
+          "title": "Описание проекта",
+          "ui:view": {
+            "include": [
+              "displayName",
+              "description"
+            ]
+          }
+        }
+      }
+    },
+    "cluster": {
+      "$comment": "Форма одного кластера на вкладке: имя кластера и его квоты. Описывает элемент списка clusters, а не корень values."
+    }
+  },
+  "tabs": [
+    {
+      "id": "clusters",
+      "title": "Кластеры",
+      "items": "/clusters",
+      "form": "cluster",
+      "addLabel": "Добавить кластер",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Кластер"
+        },
+        {
+          "path": "quota/limits.cpu",
+          "label": "Лимит CPU"
+        },
+        {
+          "path": "quota/limits.memory",
+          "label": "Лимит памяти"
+        },
+        {
+          "path": "quota/requests.storage",
+          "label": "Лимит хранилища"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "in": "info",
+      "view": "about",
+      "label": "Изменить описание"
+    }
+  ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}",
+    "/project/creator": "console"
+  }
+}

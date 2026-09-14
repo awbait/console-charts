@@ -74,12 +74,12 @@
     }
   },
   "defaults": {
-    "/identity/instance": "ed",
+    "/identity/instance": "id",
     "/identity/cluster": "dev",
     "/identity/project": "{{.Team}}",
     "/namespace/role": "other",
     "/namespace/creator": "console",
-    "/waypoint/identity/instance": "ed",
+    "/waypoint/identity/instance": "id",
     "/waypoint/identity/cluster": "dev",
     "/waypoint/identity/project": "{{.Team}}"
   },
