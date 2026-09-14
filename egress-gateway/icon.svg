@@ -1,9 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none">
   <title>Egress Gateway</title>
-  <rect width="64" height="64" rx="16" fill="#E0F5F0"/>
-  <g transform="scale(2.666666667)" stroke="#126557" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M10 8V5.5A1.5 1.5 0 0 1 11.5 4h8A1.5 1.5 0 0 1 21 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-8a1.5 1.5 0 0 1-1.5-1.5V16"/>
-    <path d="M15.5 12H3m3.5-3.5L3 12l3.5 3.5"/>
-
+  <g stroke="#2D9180" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9.5 6.5v-3A1.5 1.5 0 0 1 11 2h10a1.5 1.5 0 0 1 1.5 1.5v17A1.5 1.5 0 0 1 21 22H11a1.5 1.5 0 0 1-1.5-1.5v-3"/>
+    <path d="M16.5 12h-15m3-3-3 3 3 3"/>
   </g>
 </svg>
