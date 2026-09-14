@@ -155,3 +155,4 @@ namespace в `allowedNamespaces`: чарт переведёт `allowedRoutes` н
 | `values.minimal.yaml` | Короткий рабочий пример: один waypoint                           |
 | `values.full.yaml`    | Полный справочник: все параметры с пояснениями                   |
 | `values.schema.json`  | Схема значений: проверка при установке и форма заказа в портале  |
+| `view.schema.json`    | Как форма заказа выглядит в портале                              |
