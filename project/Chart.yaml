@@ -7,6 +7,7 @@ description: Заводит проект команды сразу в неско
 type: application
 
 version: "3.0.1"
+icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KICA8dGl0bGU+UHJvamVjdDwvdGl0bGU+CiAgPGcgc3Ryb2tlPSIjOTU3MEM5IiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICAgIDxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+CiAgICA8ZWxsaXBzZSBjeD0iMTIiIGN5PSIxMiIgcng9IjQuNSIgcnk9IjEwIi8+CiAgICA8cGF0aCBkPSJNMiAxMmgyMCIvPgogIDwvZz4KPC9zdmc+Cg==
 
 maintainers:
   - name: core

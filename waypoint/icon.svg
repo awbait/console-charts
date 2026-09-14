@@ -1,9 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none">
   <title>Waypoint</title>
-  <rect width="64" height="64" rx="16" fill="#F1EAFA"/>
-  <g transform="scale(2.666666667)" stroke="#6840A5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M7 8V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5V8M7 16v2.5A1.5 1.5 0 0 0 8.5 20h7a1.5 1.5 0 0 0 1.5-1.5V16"/>
-    <path d="M2 12h7M15 12h7m-3.5-3.5L22 12l-3.5 3.5"/>
+  <g stroke="#9570C9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 6V3.5A1.5 1.5 0 0 1 8.5 2h7A1.5 1.5 0 0 1 17 3.5V6M7 18v2.5A1.5 1.5 0 0 0 8.5 22h7a1.5 1.5 0 0 0 1.5-1.5V18"/>
+    <path d="M1.5 12H6m12 0h4.5m-3-3 3 3-3 3"/>
     <circle cx="12" cy="12" r="3"/>
   </g>
 </svg>
