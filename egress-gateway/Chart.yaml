@@ -2,7 +2,7 @@ apiVersion: v2
 name: egress-gateway
 description: Выпускает трафик ваших сервисов наружу через одну контролируемую точку. Нужен, когда во внешние системы можно ходить только с известного адреса.
 type: application
-version: 8.0.1
+version: 8.0.0
 appVersion: "1.0.0"
 icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSJub25lIj4KICA8dGl0bGU+RWdyZXNzIEdhdGV3YXk8L3RpdGxlPgogIDxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE2IiBmaWxsPSIjRTBGNUYwIi8+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgyLjY2NjY2NjY2NykiIHN0cm9rZT0iIzEyNjU1NyIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+CiAgICA8cGF0aCBkPSJNMTAgOFY1LjVBMS41IDEuNSAwIDAgMSAxMS41IDRoOEExLjUgMS41IDAgMCAxIDIxIDUuNXYxM2ExLjUgMS41IDAgMCAxLTEuNSAxLjVoLThhMS41IDEuNSAwIDAgMS0xLjUtMS41VjE2Ii8+CiAgICA8cGF0aCBkPSJNMTUuNSAxMkgzbTMuNS0zLjVMMyAxMmwzLjUgMy41Ii8+CgogIDwvZz4KPC9zdmc+Cg==
 maintainers:
@@ -13,12 +13,12 @@ dependencies:
   # них идут под ключами waypointNamespace и vegNamespace; global (identity,
   # namespacePurpose) Helm раздаёт обоим сам.
   - name: namespace
-    version: "6.1.1"
+    version: "6.1.0"
     repository: "file://../namespace"
     alias: waypointNamespace
     condition: waypointNamespace.enabled
   - name: namespace
-    version: "6.1.1"
+    version: "6.1.0"
     repository: "file://../namespace"
     alias: vegNamespace
     condition: vegNamespace.enabled
