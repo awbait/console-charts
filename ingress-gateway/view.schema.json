@@ -4,6 +4,7 @@
       "id": "listeners",
       "form": "listeners",
       "items": "/gateways/0/listeners",
+      "ui:uniqueBy": "name",
       "title": "Слушатели",
       "ui:table": [
         {
@@ -35,6 +36,7 @@
         }
       ],
       "items": "/xroutes",
+      "ui:uniqueBy": "name",
       "title": "Маршруты",
       "ui:table": [
         {

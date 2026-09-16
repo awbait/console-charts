@@ -54,6 +54,7 @@
       "id": "netpol",
       "form": "netpol",
       "items": "/netpol",
+      "ui:uniqueBy": "name",
       "title": "Сетевой уровень",
       "addLabel": "Добавить правило сетевого уровня",
       "ui:table": [
@@ -79,6 +80,7 @@
       "id": "authzpol",
       "form": "authzpol",
       "items": "/authzpol",
+      "ui:uniqueBy": "name",
       "title": "Сервисная сеть",
       "addLabel": "Добавить правило сервисной сети",
       "ui:table": [

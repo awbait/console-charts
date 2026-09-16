@@ -4,6 +4,7 @@
       "id": "serviceEntries",
       "form": "serviceEntries",
       "items": "/serviceEntries",
+      "ui:uniqueBy": "name",
       "title": "Внешние сервисы",
       "addLabel": "Добавить внешний сервис",
       "ui:table": [

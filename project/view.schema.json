@@ -52,6 +52,7 @@
       "id": "clusters",
       "title": "Кластеры",
       "items": "/clusters",
+      "ui:uniqueBy": "name",
       "form": "cluster",
       "addLabel": "Добавить кластер",
       "ui:table": [
