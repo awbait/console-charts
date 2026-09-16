@@ -23,6 +23,55 @@
     "senders",
     "vpcEgressGateway"
   ],
+  "$comment": "allOf связывает режим с namespace гейтвея. Шаблоны и так останавливают выпуск, если они разошлись (mode mesh needs the waypoint namespace / mode direct has no waypoint), но там это выясняется в кластере, через несколько минут после заказа. В схеме то же правило отвечает сразу: форма портала проверяет values схемой чарта до отправки.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "mesh"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "waypointNamespace": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "direct"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "waypointNamespace": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "global": {
       "title": "Окружение",
