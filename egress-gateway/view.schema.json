@@ -39,6 +39,7 @@
     "order": {
       "include": [
         "mode",
+        "waypointNamespace/enabled",
         "senders",
         "global/namespacePurpose",
         "vegNamespace/namespace/name",
@@ -48,12 +49,17 @@
         "authorizationPolicy",
         "waypointNamespace/waypoint/waypoints"
       ],
-      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity. Назначения двух служебных namespace (\"global/namespacePurpose\" для гейтвея и \"vegNamespace/namespace/name\" для выхода) в форме есть, с предзаполнением из блока initial: два заказа одной команды в одном кластере иначе получили бы одни и те же namespace. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены.",
+      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity. Назначения двух служебных namespace (\"global/namespacePurpose\" для гейтвея и \"vegNamespace/namespace/name\" для выхода) в форме есть, с предзаполнением из блока initial: два заказа одной команды в одном кластере иначе получили бы одни и те же namespace. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены. Поле \"waypointNamespace/enabled\" стоит сразу за режимом, потому что от режима и зависит: в mesh оно true, в direct - false, и без него режим direct нельзя было заказать формой вовсе. Выводить его вычислением из mode нельзя: это condition сабчарта в Chart.yaml, а Helm считает condition по values до рендера шаблонов.",
       "identity": "/vpcEgressGateway/name",
       "required": [
         "vegNamespace/namespace/name"
       ],
       "overrides": {
+        "waypointNamespace/enabled": {
+          "title": "Создавать namespace гейтвея",
+          "description": "Оставьте включённым в режиме «Сервисы в сетке» (mesh). В режиме «Сервисы без сетки» (direct) гейтвея нет, и его namespace не нужен: выключите.",
+          "ui:widget": "edit"
+        },
         "global/namespacePurpose": {
           "description": "Одно слово, из которого соберётся имя namespace гейтвея: {проект}-{кластер}-ns-egw-eg. Второму гейтвею той же команды в том же кластере дайте другое назначение. В режиме direct гейтвей не создаётся, но поле всё равно нужно чарту."
         },
