@@ -1,8 +1,10 @@
 {{/*
-The Namespace itself. Mesh labels follow serviceMeshEnabled: ambient when the
-mesh is on, an explicit istio.io/dataplane-mode: none when serviceMesh.never
-keeps the namespace out of the mesh for good (the label says so to Istio and to
-the cluster policies alike), nothing at all when the mesh is merely off.
+The Namespace itself. Mesh labels: an explicit istio.io/dataplane-mode: none
+when serviceMesh.never keeps the namespace out of the mesh for good (the label
+says so to Istio and to the cluster policies alike), istio-discovery alone when
+serviceMesh.discovery only lets Istio see the namespace (its pods stay out of
+the ambient dataplane, in every cluster), istio-discovery plus ambient when the
+mesh is on, nothing at all when the mesh is merely off.
 Pod Security Standards labels (enforce, audit, warn) are set together from
 namespace.podSecurity and left alone when it is empty.
 Sync wave -3: the Namespace has to exist before anything is put inside it.
@@ -11,6 +13,7 @@ Sync wave -3: the Namespace has to exist before anything is put inside it.
 {{- $identity := include "namespace.helpers.identity" . | fromJson }}
 {{- $mesh := eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
 {{- $never := eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
+{{- $discovery := eq (include "namespace.helpers.serviceMeshDiscovery" .) "true" }}
 {{- $podSecurity := include "namespace.helpers.podSecurity" . }}
 {{- include "namespace.helpers.checkWaypoint" . }}
 apiVersion: v1
@@ -32,11 +35,13 @@ metadata:
     cpaas.io/project: {{ $identity.project }}
     namespace-role: {{ .Values.namespace.role | default "other" }}
     kubernetes.io/metadata.name: {{ include "namespace.helpers.namespaceName" . }}
-    {{- if $mesh }}
+    {{- if $never }}
+    istio.io/dataplane-mode: none
+    {{- else if $discovery }}
+    istio-discovery: enabled
+    {{- else if $mesh }}
     istio-discovery: enabled
     istio.io/dataplane-mode: ambient
-    {{- else if $never }}
-    istio.io/dataplane-mode: none
     {{- end }}
     {{- if $podSecurity }}
     pod-security.kubernetes.io/enforce: {{ $podSecurity }}

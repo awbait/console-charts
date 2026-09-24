@@ -32,6 +32,7 @@ namespace:
 
 serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  discovery: false     # true - только метка istio-discovery=enabled, без ambient, в любом кластере
   never: false         # true - неймспейс никогда не в сетке, в любом кластере
   waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
 

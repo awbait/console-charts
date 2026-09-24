@@ -234,6 +234,22 @@ true
 {{- end -}}
 
 {{/*
+Whether the namespace is only discovered by the mesh: serviceMesh.discovery.
+Returns "true" or "" (for if-tests).
+
+Such a namespace gets istio-discovery: enabled, so Istio sees it and its
+services resolve inside the mesh, and nothing else: no ambient label, so its
+pods stay out of the ambient dataplane and nothing intercepts their traffic.
+It is asked for explicitly and holds in every cluster, also where the platform
+switches the mesh on: that rule decides between ambient and nothing, and this
+is the third answer. serviceMesh.never still outranks it.
+*/}}
+{{- define "namespace.helpers.serviceMeshDiscovery" -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- ternary "true" "" (eq (toString ($mesh.discovery | default false) | lower) "true") -}}
+{{- end -}}
+
+{{/*
 Pod Security Standards level of the namespace: namespace.podSecurity, one of
 restricted|baseline|privileged, or empty when the namespace is left to the
 platform. Returns the validated value (lower-case) or "".
@@ -265,6 +281,9 @@ instead.
 {{- end -}}
 {{- if ne (include "namespace.helpers.serviceMeshEnabled" .) "true" -}}
 {{- fail "serviceMesh.waypoint needs the service mesh: set serviceMesh.enabled to true or drop the waypoint" -}}
+{{- end -}}
+{{- if eq (include "namespace.helpers.serviceMeshDiscovery" .) "true" -}}
+{{- fail "serviceMesh.waypoint and serviceMesh.discovery contradict each other: a waypoint serves pods in the ambient dataplane, drop one of them" -}}
 {{- end -}}
 {{- $wanted := include "namespace.helpers.namespaceName" . -}}
 {{- $global := .Values.global | default dict -}}

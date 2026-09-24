@@ -479,6 +479,7 @@
       "additionalProperties": false,
       "propertyOrder": [
         "enabled",
+        "discovery",
         "never",
         "waypoint"
       ],
@@ -486,6 +487,13 @@
         "enabled": {
           "title": "Сервисная сетка",
           "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
+          "type": "boolean",
+          "default": false,
+          "ui:widget": "hidden"
+        },
+        "discovery": {
+          "title": "Видимость без перехвата",
+          "description": "Сетка видит сервисы неймспейса, но не перехватывает трафик его подов. Действует даже там, где сетка включена платформой всегда. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
