@@ -32,6 +32,7 @@ namespace:
 
 serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  ambient: true        # false - сетка видит неймспейс, но поды вне ambient: без метки dataplane-mode
   never: false         # true - неймспейс никогда не в сетке, в любом кластере
   waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
 

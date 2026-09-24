@@ -1,8 +1,11 @@
 {{/*
-The Namespace itself. Mesh labels follow serviceMeshEnabled: ambient when the
-mesh is on, an explicit istio.io/dataplane-mode: none when serviceMesh.never
-keeps the namespace out of the mesh for good (the label says so to Istio and to
-the cluster policies alike), nothing at all when the mesh is merely off.
+The Namespace itself. Mesh labels follow serviceMeshEnabled: istio-discovery
+when the mesh is on, plus istio.io/dataplane-mode: ambient unless
+serviceMesh.ambient keeps the pods out of the ambient dataplane (Istio still
+sees the namespace, nothing intercepts its traffic), an explicit
+istio.io/dataplane-mode: none when serviceMesh.never keeps the namespace out of
+the mesh for good (the label says so to Istio and to the cluster policies
+alike), nothing at all when the mesh is merely off.
 Pod Security Standards labels (enforce, audit, warn) are set together from
 namespace.podSecurity and left alone when it is empty.
 Sync wave -3: the Namespace has to exist before anything is put inside it.
@@ -11,6 +14,7 @@ Sync wave -3: the Namespace has to exist before anything is put inside it.
 {{- $identity := include "namespace.helpers.identity" . | fromJson }}
 {{- $mesh := eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
 {{- $never := eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
+{{- $ambient := eq (include "namespace.helpers.serviceMeshAmbient" .) "true" }}
 {{- $podSecurity := include "namespace.helpers.podSecurity" . }}
 {{- include "namespace.helpers.checkWaypoint" . }}
 apiVersion: v1
@@ -34,7 +38,9 @@ metadata:
     kubernetes.io/metadata.name: {{ include "namespace.helpers.namespaceName" . }}
     {{- if $mesh }}
     istio-discovery: enabled
+    {{- if $ambient }}
     istio.io/dataplane-mode: ambient
+    {{- end }}
     {{- else if $never }}
     istio.io/dataplane-mode: none
     {{- end }}

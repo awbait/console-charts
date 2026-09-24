@@ -479,6 +479,7 @@
       "additionalProperties": false,
       "propertyOrder": [
         "enabled",
+        "ambient",
         "never",
         "waypoint"
       ],
@@ -488,6 +489,13 @@
           "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
           "type": "boolean",
           "default": false,
+          "ui:widget": "hidden"
+        },
+        "ambient": {
+          "title": "Перехват трафика сеткой",
+          "description": "Включает перехват трафика подов сервисной сеткой. При false сетка видит сервисы неймспейса, но не перехватывает трафик его подов. В форме скрыто.",
+          "type": "boolean",
+          "default": true,
           "ui:widget": "hidden"
         },
         "never": {

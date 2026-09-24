@@ -223,10 +223,17 @@ dev сетка включена всегда» на него не действу
 ломаются от перехвата ambient: так чарт `egress-gateway` заказывает namespace
 для `VpcEgressGateway`. Вместе с waypoint не сочетается.
 
+`serviceMesh.ambient: false` оставляет namespace в сетке, но выводит его поды
+из ambient: метка `istio-discovery: enabled` ставится, а
+`istio.io/dataplane-mode: ambient` нет. Сетка видит сервисы namespace, а трафик
+его подов никто не перехватывает. Без сетки значение не учитывается, вместе с
+waypoint не сочетается.
+
 ## Когда рендер останавливается
 
 - не заданы теги `identity` или их значения вне допустимых;
-- `serviceMesh.waypoint` включён, а сетки нет или стоит `serviceMesh.never`;
+- `serviceMesh.waypoint` включён, а сетки нет, стоит `serviceMesh.never` или
+  `serviceMesh.ambient: false`;
 - `serviceMesh.waypoint` включён, а сабчарт `waypoint` пришёл бы в другой
   namespace: назначение задано в `namespace.name` и не повторено в
   `waypoint.namespacePurpose`, либо значения `waypoint.*` указывают не туда;

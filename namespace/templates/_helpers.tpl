@@ -234,6 +234,27 @@ true
 {{- end -}}
 
 {{/*
+Whether the pods of a namespace in the mesh run in the ambient dataplane:
+serviceMesh.ambient, true unless set to false. Returns "true" or "" (for
+if-tests).
+
+A namespace can need Istio to see it (istio-discovery: enabled, so its services
+resolve inside the mesh) while its own pods stay out of the ambient dataplane:
+nothing intercepts their traffic. Only the ambient label is dropped then, the
+namespace is still in the mesh in every other respect. Meaningless without the
+mesh: with serviceMesh.never or the mesh off there is no dataplane label to
+drop.
+*/}}
+{{- define "namespace.helpers.serviceMeshAmbient" -}}
+{{- $mesh := .Values.serviceMesh | default dict -}}
+{{- if hasKey $mesh "ambient" -}}
+{{- ternary "true" "" (eq (toString $mesh.ambient | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Pod Security Standards level of the namespace: namespace.podSecurity, one of
 restricted|baseline|privileged, or empty when the namespace is left to the
 platform. Returns the validated value (lower-case) or "".
@@ -265,6 +286,9 @@ instead.
 {{- end -}}
 {{- if ne (include "namespace.helpers.serviceMeshEnabled" .) "true" -}}
 {{- fail "serviceMesh.waypoint needs the service mesh: set serviceMesh.enabled to true or drop the waypoint" -}}
+{{- end -}}
+{{- if ne (include "namespace.helpers.serviceMeshAmbient" .) "true" -}}
+{{- fail "serviceMesh.waypoint needs the ambient dataplane: a waypoint serves pods in ambient mode, set serviceMesh.ambient to true or drop the waypoint" -}}
 {{- end -}}
 {{- $wanted := include "namespace.helpers.namespaceName" . -}}
 {{- $global := .Values.global | default dict -}}

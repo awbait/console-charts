@@ -87,6 +87,14 @@ namespace:
 serviceMesh:
   enabled: true
 
+  # false - сетка видит namespace (istio-discovery=enabled остаётся), но его
+  # поды не попадают в ambient: метка istio.io/dataplane-mode=ambient не
+  # ставится, и трафик подов никто не перехватывает. Нужно неймспейсу, чьи
+  # сервисы должны быть видны из сетки, а сами поды работают вне неё. Без
+  # сетки не учитывается. Вместе с waypoint не сочетается: рендер
+  # останавливается.
+  ambient: true
+
   # true - namespace никогда не попадает в сетку, в любом кластере: enabled и
   # правило платформы не учитываются, на namespace ставится
   # istio.io/dataplane-mode=none. Нужно неймспейсу транзитного шлюза
