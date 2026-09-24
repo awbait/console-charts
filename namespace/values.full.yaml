@@ -66,6 +66,15 @@ namespace:
   # Скрыто в форме портала; при заказе из консоли подставляется "console".
   creator: lk
 
+  # Имена кластера и проекта так, как их знает консоль платформы (Alauda):
+  # label cpaas.io/cluster, label cpaas.io/project и annotation
+  # cpaas.io/project-inner-namespace. Пустые значения - в метки уходят теги
+  # identity.cluster и identity.project. Нужны, когда в Alauda кластер или
+  # проект называются иначе, чем теги окружения.
+  cpaas:
+    cluster: ""        # например ecpk-dev
+    project: ""        # например ecpk-datamart
+
   # Роль namespace -> label namespace-role. Допустимо: ingress | egress | other.
   # По умолчанию other; в форме заказа поле скрыто.
   role: other

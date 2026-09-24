@@ -29,6 +29,12 @@ namespace:
   role: other
   creator: lk
   podSecurity: ""      # "" | restricted | baseline | privileged
+  # Имена кластера и проекта в консоли платформы (Alauda): метки cpaas.io/cluster
+  # и cpaas.io/project, annotation cpaas.io/project-inner-namespace. Пустые -
+  # берутся теги identity.cluster и identity.project.
+  cpaas:
+    cluster: ""
+    project: ""
 
 serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда

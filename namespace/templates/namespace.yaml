@@ -7,10 +7,17 @@ the ambient dataplane, in every cluster), istio-discovery plus ambient when the
 mesh is on, nothing at all when the mesh is merely off.
 Pod Security Standards labels (enforce, audit, warn) are set together from
 namespace.podSecurity and left alone when it is empty.
+The cpaas.io fields name the cluster and the project the way the platform
+console (Alauda) knows them. They default to the identity tags, which is what
+they were always set from; namespace.cpaas overrides them where the platform
+calls the cluster or the project something else.
 Sync wave -3: the Namespace has to exist before anything is put inside it.
 */}}
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 {{- $identity := include "namespace.helpers.identity" . | fromJson }}
+{{- $cpaas := .Values.namespace.cpaas | default dict }}
+{{- $cpaasCluster := $cpaas.cluster | default $identity.cluster }}
+{{- $cpaasProject := $cpaas.project | default $identity.project }}
 {{- $mesh := eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
 {{- $never := eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
 {{- $discovery := eq (include "namespace.helpers.serviceMeshDiscovery" .) "true" }}
@@ -23,7 +30,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "-3"
     cpaas.io/display-name: {{ .Values.namespace.displayName | default "" | quote }}
     cpaas.io/creator: {{ .Values.namespace.creator | default "lk" }}
-    cpaas.io/project-inner-namespace: {{ $identity.project }}
+    cpaas.io/project-inner-namespace: {{ $cpaasProject }}
     {{- if $mesh }}
     networking.k8s.io/enable-netpol: "true"
     {{- end }}
@@ -31,8 +38,8 @@ metadata:
     {{ $k }}: {{ tpl (toString $v) $ | quote }}
     {{- end }}
   labels:
-    cpaas.io/cluster: {{ $identity.cluster }}
-    cpaas.io/project: {{ $identity.project }}
+    cpaas.io/cluster: {{ $cpaasCluster }}
+    cpaas.io/project: {{ $cpaasProject }}
     namespace-role: {{ .Values.namespace.role | default "other" }}
     kubernetes.io/metadata.name: {{ include "namespace.helpers.namespaceName" . }}
     {{- if $never }}
