@@ -188,7 +188,8 @@
         "displayName",
         "role",
         "podSecurity",
-        "creator"
+        "creator",
+        "cpaas"
       ],
       "properties": {
         "name": {
@@ -244,6 +245,30 @@
           "type": "string",
           "default": "lk",
           "ui:widget": "hidden"
+        },
+        "cpaas": {
+          "title": "Имена в консоли платформы",
+          "description": "Как кластер и проект называются в консоли платформы (Alauda). Уходят в метки cpaas.io/cluster и cpaas.io/project. Пусто - берутся теги окружения.",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "cluster",
+            "project"
+          ],
+          "properties": {
+            "cluster": {
+              "title": "Кластер в консоли платформы",
+              "description": "Метка cpaas.io/cluster. Пусто - тег identity.cluster.",
+              "type": "string",
+              "default": ""
+            },
+            "project": {
+              "title": "Проект в консоли платформы",
+              "description": "Метка cpaas.io/project и annotation cpaas.io/project-inner-namespace. Пусто - тег identity.project.",
+              "type": "string",
+              "default": ""
+            }
+          }
         }
       }
     },

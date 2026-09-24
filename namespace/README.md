@@ -66,10 +66,12 @@
 | `identity.cluster`  | Тег кластера окружения. Обязателен, значение из таблицы ниже                    |
 | `identity.project`  | Тег проекта. Обязателен, до 9 символов: строчные латинские буквы, цифры и дефис |
 
-Эти же теги уходят в cpaas-поля неймспейса: `identity.project` - в label
-`cpaas.io/project` и annotation `cpaas.io/project-inner-namespace`,
-`identity.cluster` - в label `cpaas.io/cluster`. Отдельных `projectName` и
-`clusterName` у чарта больше нет.
+Эти же теги по умолчанию уходят в cpaas-поля неймспейса: `identity.project` -
+в label `cpaas.io/project` и annotation `cpaas.io/project-inner-namespace`,
+`identity.cluster` - в label `cpaas.io/cluster`. Если в консоли платформы
+(Alauda) кластер или проект называются иначе, чем теги окружения, их имена
+задаются в `namespace.cpaas.cluster` и `namespace.cpaas.project`: тогда в
+cpaas-поля уходят они, а теги `ecpk/*` и имена ресурсов остаются прежними.
 
 Пара тегов окружения:
 
@@ -104,8 +106,9 @@
 | `ecpk/project`                 | `identity.project`, если тег задан                         |
 
 У `Namespace` вдобавок есть cpaas-labels `cpaas.io/cluster` и `cpaas.io/project`
-из `identity` и `namespace-role` из `namespace.role`. Роль в форме заказа скрыта:
-без явного значения ставится `other`.
+из `namespace.cpaas`, а без них из `identity`, и `namespace-role` из
+`namespace.role`. Роль в форме заказа скрыта: без явного значения ставится
+`other`.
 
 `namespace.podSecurity` ставит на `Namespace` три метки Pod Security Standards
 (`enforce`, `audit`, `warn`) с одним уровнем: `restricted`, `baseline` или
@@ -129,6 +132,8 @@
 | `namespace.displayName`   | нет           | Отображаемое имя namespace                                      |
 | `namespace.role`          | нет           | Роль namespace: `ingress`, `egress` или `other`, по умолчанию `other` |
 | `namespace.podSecurity`   | нет           | Уровень Pod Security: `restricted`, `baseline` или `privileged`  |
+| `namespace.cpaas.cluster` | нет           | Имя кластера в консоли платформы для `cpaas.io/cluster`, по умолчанию `identity.cluster` |
+| `namespace.cpaas.project` | нет           | Имя проекта в консоли платформы для `cpaas.io/project`, по умолчанию `identity.project` |
 | `resourceQuotas.limits`   | да            | Лимиты CPU и памяти, например `cpu: "4"` и `memory: "8Gi"`. Без них рендер останавливается |
 | `resourceQuotas.requests` | нет           | Запросы CPU и памяти, по умолчанию берутся из лимитов           |
 | `resourceQuotas.storage`  | нет           | Объём по классам хранилища, см. ниже                            |
