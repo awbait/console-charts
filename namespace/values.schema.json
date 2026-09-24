@@ -479,7 +479,7 @@
       "additionalProperties": false,
       "propertyOrder": [
         "enabled",
-        "ambient",
+        "discovery",
         "never",
         "waypoint"
       ],
@@ -491,11 +491,11 @@
           "default": false,
           "ui:widget": "hidden"
         },
-        "ambient": {
-          "title": "Перехват трафика сеткой",
-          "description": "Включает перехват трафика подов сервисной сеткой. При false сетка видит сервисы неймспейса, но не перехватывает трафик его подов. В форме скрыто.",
+        "discovery": {
+          "title": "Видимость без перехвата",
+          "description": "Сетка видит сервисы неймспейса, но не перехватывает трафик его подов. Действует даже там, где сетка включена платформой всегда. В форме скрыто.",
           "type": "boolean",
-          "default": true,
+          "default": false,
           "ui:widget": "hidden"
         },
         "never": {

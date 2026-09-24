@@ -8,12 +8,10 @@ Created:
                  (role {{ .Values.namespace.role | default "other" }}{{ if $podSecurity }}, pod security {{ $podSecurity }}{{ end }})
 {{- if eq (include "namespace.helpers.serviceMeshNever" .) "true" }}
                  service mesh: never (istio.io/dataplane-mode=none in every cluster)
-{{- else if eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
-{{- if eq (include "namespace.helpers.serviceMeshAmbient" .) "true" }}
-                 service mesh: ambient
-{{- else }}
+{{- else if eq (include "namespace.helpers.serviceMeshDiscovery" .) "true" }}
                  service mesh: discovery only (istio-discovery=enabled, pods outside the ambient dataplane)
-{{- end }}
+{{- else if eq (include "namespace.helpers.serviceMeshEnabled" .) "true" }}
+                 service mesh: ambient
 {{- else }}
                  service mesh: off
 {{- end }}
