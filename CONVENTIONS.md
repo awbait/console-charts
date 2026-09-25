@@ -150,6 +150,7 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | `tr`      | `TLSRoute`               | ingress-gateway            |
 | `tcr`     | `TCPRoute`               | ingress-gateway            |
 | `ur`      | `UDPRoute`               | ingress-gateway            |
+| `rg`      | `ReferenceGrant`         | ingress-gateway            |
 | `secret`  | `Secret` (TLS)           | ingress-gateway            |
 | `es`      | `ExternalSecret`         | ingress-gateway            |
 | `cert`    | `Certificate` (cert-manager) | ingress-gateway        |
