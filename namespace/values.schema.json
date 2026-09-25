@@ -23,54 +23,54 @@
   "properties": {
     "identity": {
       "title": "Окружение и проект",
-      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ. В форме скрыто: значения подставляет портал.",
+      "description": "Окружение для размещения заказа и проект, которому он принадлежит. Значения общие для всего заказа. В форме скрыто: их подставляет портал.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/identity"
     },
     "namespace": {
       "title": "Неймспейс",
-      "description": "Как неймспейс будет называться и где он появится.",
+      "description": "Укажите, как будет называться неймспейс и где его создать.",
       "$ref": "#/definitions/namespaceSpec"
     },
     "resourceQuotas": {
       "title": "Квоты ресурсов",
-      "description": "Сколько ресурсов смогут занять сервисы этого неймспейса вместе.",
+      "description": "Укажите, сколько ресурсов смогут занять все сервисы неймспейса вместе.",
       "$ref": "#/definitions/resourceQuotas"
     },
     "subnet": {
       "title": "Подсети неймспейса",
-      "description": "Выделенная подсеть для подов. Нужна, только если диапазон адресов уже забронирован.",
+      "description": "Выделенная подсеть для подов. Используйте её, только если диапазон адресов уже забронирован.",
       "$ref": "#/definitions/subnet"
     },
     "generic": {
-      "title": "Generic settings",
-      "description": "Common labels/annotations applied to all chart resources (Namespace, ResourceQuota, Subnet).",
+      "title": "Общие метки и аннотации",
+      "description": "Метки и аннотации для всех создаваемых ресурсов: Namespace, ResourceQuota и Subnet. В форме скрыто.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
     },
     "serviceMesh": {
-      "title": "Service Mesh",
-      "description": "Istio ambient integration, switched on at the environment level. When enabled the Namespace gets the istio-discovery and istio.io/dataplane-mode labels and the networking.k8s.io/enable-netpol annotation.",
+      "title": "Сервисная сетка",
+      "description": "Подключение к Istio в режиме ambient включается для окружения. При подключении неймспейс получает метки istio-discovery и istio.io/dataplane-mode, а также аннотацию networking.k8s.io/enable-netpol. В форме скрыто.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/serviceMesh"
     },
     "waypoint": {
-      "title": "Waypoint subchart",
-      "description": "Values of the waypoint subchart, rendered only when serviceMesh.waypoint is on. The namespace it deploys into comes from global.namespacePurpose or waypoint.namespacePurpose; a waypoint.* value that resolves to another namespace than the one this chart builds stops the render.",
+      "title": "Настройки прокси для правил доступа",
+      "description": "Настройки прокси применяются, только если включён serviceMesh.waypoint. Неймспейс для прокси определяется по global.namespacePurpose или waypoint.namespacePurpose. Если значения waypoint.* указывают на другой неймспейс, создание ресурсов остановится. В форме скрыто.",
       "type": "object",
       "ui:widget": "hidden"
     },
     "global": {
-      "title": "Неймспейс",
-      "description": "Значения, которые видят и чарт, и его сабчарты. Родительский чарт кладёт сюда ещё identity: тогда теги берутся из global.identity, а не из identity.",
+      "title": "Общие настройки неймспейса",
+      "description": "Настройки для неймспейса и связанных с ним ресурсов. Если неймспейс создаётся в составе другого сервиса, тот может передать окружение и проект через global.identity. Тогда используются значения из global.identity вместо identity.",
       "type": "object",
       "propertyOrder": [
         "namespacePurpose"
       ],
       "properties": {
         "namespacePurpose": {
-          "title": "Назначение",
-          "description": "Одно слово о том, что будет жить в неймспейсе: app, api, monitoring. Остальное имя платформа соберёт сама, получится nbox-dev-ns-app.",
+          "title": "Назначение неймспейса",
+          "description": "Опишите назначение неймспейса одним словом, например app, api или monitoring. Остальные части имени платформа добавит сама. Например, получится nbox-dev-ns-app.",
           "$ref": "#/definitions/purposeToken"
         }
       },
@@ -79,8 +79,8 @@
       ]
     },
     "enabled": {
-      "title": "Enabled",
-      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "title": "Создавать ресурсы",
+      "description": "Включает создание ресурсов. Отключите, если неймспейс подключён в составе другого сервиса, но создавать его ресурсы не нужно. В форме скрыто.",
       "type": "boolean",
       "default": true,
       "ui:widget": "hidden"
@@ -123,8 +123,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "Инстанс",
-          "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
+          "title": "Инстанс платформы",
+          "description": "Выберите инстанс вместе с кластером. Эта пара определяет окружение заказа.",
           "type": "string",
           "enum": [
             "in",
@@ -135,13 +135,13 @@
           "enumNames": [
             "Infra-dev-ecpk (in)",
             "dev-ecpk (id)",
-            "techsec-dev, dev-common, test-common (ed)",
-            "global, observability, techsec, int-common, ML, ext-common (pr)"
+            "techsec-dev, dev-common и test-common (ed)",
+            "global, observability, techsec, int-common, ML и ext-common (pr)"
           ]
         },
         "cluster": {
           "title": "Кластер",
-          "description": "Кластер, куда встанет сам заказ. Выбирайте вместе с инстансом.",
+          "description": "Выберите кластер, в котором будет размещён заказ. Выбирайте его вместе с инстансом.",
           "type": "string",
           "enum": [
             "inf",
@@ -169,8 +169,8 @@
           ]
         },
         "project": {
-          "title": "Проект",
-          "description": "Короткий код проекта. Попадает в метки, по которым ресурсы находят в кластере.",
+          "title": "Код проекта",
+          "description": "Укажите короткий код проекта. Он добавляется в метки, по которым можно найти ресурсы в кластере.",
           "$ref": "#/definitions/projectToken"
         }
       },
@@ -193,19 +193,19 @@
       ],
       "properties": {
         "name": {
-          "title": "Назначение неймспейса",
-          "description": "Переопределяет global.namespacePurpose для самого неймспейса. Служебное поле: обычно назначение задаётся один раз в global, чтобы его видели и сабчарты.",
+          "title": "Отдельное назначение неймспейса",
+          "description": "Заменяет global.namespacePurpose только для самого неймспейса. Обычно назначение задают один раз в global.namespacePurpose, чтобы его использовали и связанные ресурсы. Служебное поле, в форме скрыто.",
           "$ref": "#/definitions/purposeToken",
           "ui:widget": "hidden"
         },
         "displayName": {
           "title": "Отображаемое имя",
-          "description": "То же имя обычными словами. Видно в консоли платформы.",
+          "description": "Укажите понятное имя неймспейса. Оно будет видно в консоли платформы.",
           "type": "string"
         },
         "role": {
           "title": "Роль неймспейса",
-          "description": "Что будет жить в этом неймспейсе. В форме скрыто: обычным сервисам подходит other.",
+          "description": "Укажите, для каких сервисов предназначен неймспейс. По умолчанию выбрана роль для обычных сервисов. В форме скрыто.",
           "type": "string",
           "enum": [
             "ingress",
@@ -221,8 +221,8 @@
           "ui:widget": "hidden"
         },
         "podSecurity": {
-          "title": "Уровень Pod Security",
-          "description": "Ставит на неймспейс метки pod-security.kubernetes.io (enforce, audit, warn) с этим уровнем. Пусто - уровень определяет платформа. В форме скрыто.",
+          "title": "Уровень безопасности подов",
+          "description": "Выберите уровень безопасности подов. Он задаётся в метках неймспейса pod-security.kubernetes.io/enforce, pod-security.kubernetes.io/audit и pod-security.kubernetes.io/warn. Оставьте поле пустым, чтобы уровень определила платформа. В форме скрыто.",
           "type": "string",
           "enum": [
             "",
@@ -240,15 +240,15 @@
           "ui:widget": "hidden"
         },
         "creator": {
-          "title": "creator",
-          "description": "Namespace creator (annotation cpaas.io/creator). The portal stamps \"console\" on an order.",
+          "title": "Создатель неймспейса",
+          "description": "Создатель неймспейса записывается в аннотацию cpaas.io/creator. По умолчанию используется lk. При заказе через портал он подставляет console. В форме скрыто.",
           "type": "string",
           "default": "lk",
           "ui:widget": "hidden"
         },
         "cpaas": {
           "title": "Имена в консоли платформы",
-          "description": "Как кластер и проект называются в консоли платформы (Alauda). Уходят в метки cpaas.io/cluster и cpaas.io/project. Пусто - берутся теги окружения.",
+          "description": "Имена кластера и проекта в консоли Alauda записываются в метки cpaas.io/cluster и cpaas.io/project. Если поля пустые, используются коды из настроек окружения.",
           "type": "object",
           "additionalProperties": false,
           "propertyOrder": [
@@ -258,13 +258,13 @@
           "properties": {
             "cluster": {
               "title": "Кластер в консоли платформы",
-              "description": "Метка cpaas.io/cluster. Пусто - тег identity.cluster.",
+              "description": "Имя кластера записывается в метку cpaas.io/cluster. Если поле пустое, используется identity.cluster. При сохранении заказа портал заменяет значение на global. Заполняйте вручную только при установке без портала.",
               "type": "string",
               "default": ""
             },
             "project": {
               "title": "Проект в консоли платформы",
-              "description": "Метка cpaas.io/project и annotation cpaas.io/project-inner-namespace. Пусто - тег identity.project.",
+              "description": "Имя проекта записывается в метку cpaas.io/project и аннотацию cpaas.io/project-inner-namespace. Если поле пустое, используется identity.project. При сохранении заказа портал заменяет значение на dev. Заполняйте вручную только при установке без портала.",
               "type": "string",
               "default": ""
             }
@@ -284,8 +284,8 @@
       ],
       "properties": {
         "limits": {
-          "title": "Лимиты",
-          "description": "Верхняя граница на все сервисы неймспейса вместе.",
+          "title": "Лимиты ресурсов",
+          "description": "Укажите общий предел ресурсов для всех сервисов неймспейса.",
           "type": "object",
           "additionalProperties": false,
           "propertyOrder": [
@@ -294,13 +294,13 @@
           ],
           "properties": {
             "cpu": {
-              "title": "Лимит CPU",
-              "description": "Сколько ядер суммарно. Например 4 или 500m.",
+              "title": "Лимит процессора",
+              "description": "Укажите суммарное количество ядер для сервисов неймспейса, например 4 или 500m.",
               "$ref": "#/definitions/quantity"
             },
             "memory": {
               "title": "Лимит памяти",
-              "description": "Например 8Gi или 512Mi.",
+              "description": "Укажите общий объём памяти для сервисов неймспейса, например 8Gi или 512Mi.",
               "$ref": "#/definitions/quantity"
             }
           },
@@ -310,8 +310,8 @@
           ]
         },
         "requests": {
-          "title": "Запросы",
-          "description": "Сколько выделяется сервисам гарантированно.",
+          "title": "Запросы ресурсов",
+          "description": "Укажите, сколько ресурсов нужно гарантированно выделить сервисам.",
           "type": "object",
           "additionalProperties": false,
           "propertyOrder": [
@@ -320,20 +320,20 @@
           ],
           "properties": {
             "cpu": {
-              "title": "Запрос CPU",
-              "description": "Пустое поле - берётся лимит CPU.",
+              "title": "Запрос процессора",
+              "description": "Укажите количество ядер, которое нужно гарантированно выделить сервисам. Если поле пустое, используется лимит процессора.",
               "$ref": "#/definitions/quantity"
             },
             "memory": {
               "title": "Запрос памяти",
-              "description": "Пустое поле - берётся лимит памяти.",
+              "description": "Укажите объём памяти, который нужно гарантированно выделить сервисам. Если поле пустое, используется лимит памяти.",
               "$ref": "#/definitions/quantity"
             }
           }
         },
         "storage": {
           "title": "Квоты на хранилище",
-          "description": "Сколько места на дисках смогут занять сервисы этого неймспейса. Оставьте поле пустым, если такой диск не нужен.",
+          "description": "Укажите, сколько места на дисках смогут занять сервисы неймспейса. Оставьте поле пустым, если диск этого типа не нужен.",
           "type": "object",
           "additionalProperties": false,
           "propertyOrder": [
@@ -343,26 +343,26 @@
           "properties": {
             "topolvm-mu": {
               "title": "Быстрый диск для частой записи (topolvm-mu)",
-              "description": "Данные лежат на диске того сервера, где работает сервис. Берите его, когда сервис пишет постоянно: очереди сообщений, журналы, аналитические базы. Копии на других серверах нет, поэтому сервис должен уметь восстановиться сам. Например 100Gi.",
+              "description": "Выбирайте для сервисов с постоянной записью: очередей сообщений, журналов и аналитических баз. Данные хранятся на диске сервера, где работает сервис. Копии на других серверах нет, поэтому сервис должен уметь восстанавливаться самостоятельно. Укажите объём, например 100Gi.",
               "$ref": "#/definitions/quantity"
             },
             "topolvm-ri": {
               "title": "Экономичный диск для частого чтения (topolvm-ri)",
-              "description": "Тот же диск сервера, дешевле и медленнее на запись. Берите его для кешей, поисковых индексов и данных, которые всегда можно загрузить заново. Копии на других серверах нет. Например 200Gi.",
+              "description": "Выбирайте для кешей, поисковых индексов и данных, которые можно загрузить заново. Данные хранятся на диске сервера, где работает сервис. Этот диск дешевле и медленнее на запись, чем topolvm-mu. Копии на других серверах нет. Укажите объём, например 200Gi.",
               "$ref": "#/definitions/quantity"
             }
           }
         },
         "podsAmount": {
-          "title": "podsAmount",
-          "description": "Maximum number of pods in the Namespace. Bounded by the subnet mask.",
+          "title": "Максимальное число подов",
+          "description": "Укажите максимальное число подов в неймспейсе. Доступное количество ограничено маской подсети. По умолчанию используется 1000. В форме скрыто.",
           "type": "integer",
           "default": 1000,
           "ui:widget": "hidden"
         },
         "name": {
-          "title": "name",
-          "description": "Name of the ResourceQuota resource. Defaults to \"default\".",
+          "title": "Имя квоты",
+          "description": "Имя ресурса ResourceQuota. По умолчанию используется default. В форме скрыто.",
           "type": "string",
           "default": "default",
           "ui:widget": "hidden"
@@ -382,15 +382,15 @@
       "$comment": "private and natOutgoing of each subnet are hidden in the form: they are set by charts that build on this one (egress-gateway), not by an ordinary order.",
       "properties": {
         "enable": {
-          "title": "enable",
-          "description": "Service switch for the Subnet resource. Turn it on only when the CIDR block is already reserved in Netbox.",
+          "title": "Создавать подсеть",
+          "description": "Включает создание ресурса Subnet. Включайте, только если диапазон CIDR уже забронирован в Netbox. Служебное поле, в форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
         },
         "subnets": {
           "title": "Подсети",
-          "description": "Обычно нужна одна подсеть, но их может быть несколько.",
+          "description": "Добавьте подсети для неймспейса. Обычно достаточно одной, но можно указать несколько.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -412,12 +412,12 @@
       "properties": {
         "name": {
           "title": "Назначение подсети",
-          "description": "Одно слово, как и у неймспейса. Оставьте пустым, если подсеть одна: она возьмёт назначение неймспейса и будет называться nbox-dev-subnet-app.",
+          "description": "Опишите назначение подсети одним словом, как у неймспейса. Если подсеть одна, оставьте поле пустым. Тогда используется назначение неймспейса, а имя получится, например, nbox-dev-subnet-app.",
           "$ref": "#/definitions/purposeToken"
         },
         "mask": {
           "title": "Маска подсети",
-          "description": "Размер подсети: сколько подов в ней поместится. Диапазон с этой маской платформа бронирует в Netbox.",
+          "description": "Выберите размер подсети по нужному числу подов. Платформа забронирует диапазон с этой маской в Netbox.",
           "type": "integer",
           "enum": [
             29,
@@ -428,48 +428,48 @@
             24
           ],
           "enumNames": [
-            "/29: 5 подов",
-            "/28: 13 подов",
-            "/27: 29 подов",
-            "/26: 61 под",
-            "/25: 125 подов",
-            "/24: 253 пода"
+            "5 подов (/29)",
+            "13 подов (/28)",
+            "29 подов (/27)",
+            "61 под (/26)",
+            "125 подов (/25)",
+            "253 пода (/24)"
           ],
           "default": 26
         },
         "reservedIps": {
-          "title": "Сколько адресов зарезервировать",
-          "description": "Адреса, которые не достанутся сервисам: их можно занять чем-то своим, например точкой входа с постоянным адресом. Сами адреса выдаст платформа, вы увидите их в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно указывать его не нужно.",
+          "title": "Количество резервируемых адресов",
+          "description": "Укажите, сколько адресов оставить для своих задач, например для точки входа с постоянным адресом. Эти адреса не будут выдаваться сервисам. Платформа выделит их и покажет в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно учитывать его не нужно.",
           "type": "integer",
           "minimum": 0,
           "maximum": 16,
           "default": 0
         },
         "cidrBlock": {
-          "title": "Диапазон адресов",
-          "description": "Забронированный в Netbox диапазон вместе с маской, например 10.24.8.0/24. Служебное поле, его заполняет платформа.",
+          "title": "Диапазон адресов подсети",
+          "description": "Диапазон, забронированный в Netbox, вместе с маской, например 10.24.8.0/24. Служебное поле заполняет платформа. В форме скрыто.",
           "type": "string",
           "ui:widget": "hidden"
         },
         "allowSubnets": {
           "title": "Разрешённые подсети",
-          "description": "Диапазоны, с которыми этой подсети нужна сетевая связность.",
+          "description": "Укажите диапазоны адресов подсетей, с которыми нужен сетевой обмен.",
           "type": "array",
           "items": {
-            "title": "Диапазон адресов",
+            "title": "Диапазон адресов подсети",
             "type": "string"
           }
         },
         "private": {
-          "title": "Изолированная подсеть",
-          "description": "Трафик ходит только в разрешённые подсети. Снимайте, если поды сами ходят на внешние адреса. В форме скрыто.",
+          "title": "Изолировать подсеть",
+          "description": "Разрешает трафик только в указанные разрешённые подсети. Отключите, если поды сами обращаются к внешним адресам. В форме скрыто.",
           "type": "boolean",
           "default": true,
           "ui:widget": "hidden"
         },
         "natOutgoing": {
           "title": "NAT исходящего трафика",
-          "description": "NAT средствами kube-ovn. Обычно выключен: наружу трафик выходит через выход с известного адреса. В форме скрыто.",
+          "description": "Включает NAT средствами kube-ovn. Обычно выключен: внешний трафик проходит через шлюз с известным адресом. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
@@ -488,13 +488,13 @@
       ],
       "properties": {
         "labels": {
-          "title": "Common labels",
-          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "title": "Общие метки",
+          "description": "Укажите метки для всех создаваемых ресурсов. Они добавляются в metadata.labels.",
           "$ref": "#/definitions/stringMap"
         },
         "annotations": {
-          "title": "Common annotations",
-          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "title": "Общие аннотации",
+          "description": "Укажите аннотации для всех создаваемых ресурсов. Они добавляются в metadata.annotations.",
           "$ref": "#/definitions/stringMap"
         }
       }
@@ -510,29 +510,29 @@
       ],
       "properties": {
         "enabled": {
-          "title": "Сервисная сетка",
-          "description": "Правила доступа между сервисами и шифрование обмена. Выбор есть только в dev, в остальных окружениях сетка включена всегда.",
+          "title": "Подключить сервисную сетку",
+          "description": "Включает правила доступа между сервисами и шифрование обмена. Выбрать подключение можно только в dev. В остальных окружениях сетка включена всегда. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
         },
         "discovery": {
-          "title": "Видимость без перехвата",
-          "description": "Сетка видит сервисы неймспейса, но не перехватывает трафик его подов. Действует даже там, где сетка включена платформой всегда. В форме скрыто.",
+          "title": "Показывать сервисы без перехвата трафика",
+          "description": "Сервисы неймспейса видны сервисной сетке, но трафик его подов не перехватывается. Настройка действует и в окружениях, где сетка всегда включена платформой. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
         },
         "never": {
-          "title": "Никогда не в сетке",
-          "description": "Неймспейс не попадает в сетку ни в одном кластере: на нём ставится istio.io/dataplane-mode=none. Для транзитных шлюзов, которые ломаются от перехвата. В форме скрыто.",
+          "title": "Исключить из сервисной сетки",
+          "description": "Исключает неймспейс из сервисной сетки во всех кластерах. На неймспейс добавляется метка istio.io/dataplane-mode=none. Используйте для транзитных шлюзов, работу которых нарушает перехват трафика. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
         },
         "waypoint": {
-          "title": "Прокси для правил доступа",
-          "description": "Нужен, когда правила доступа разбирают не только адрес, но и сам запрос. Без сетки не работает.",
+          "title": "Подключить прокси для правил доступа",
+          "description": "Включите, если правила доступа должны учитывать содержимое запроса, а не только адрес. Прокси работает только при включённой сервисной сетке. В форме скрыто.",
           "type": "boolean",
           "default": false,
           "ui:widget": "hidden"
