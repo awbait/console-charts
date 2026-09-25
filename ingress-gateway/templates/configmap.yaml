@@ -3,7 +3,10 @@ Infrastructure ConfigMap for the Istio Gateway controller: one per element
 of the gateways list. It has the same name as the Gateway (kindShort cm); the
 Gateway references it via parametersRef (see gateway.yaml).
 data.deployment - a patch for the auto-created Deployment (securityContext, resources
-of the istio-proxy container). data.service - a patch for the Service (LoadBalancer, disabling
+of the istio-proxy container, and the scheduling of the pod: nodeSelector,
+tolerations and affinity, each taken as-is from the gateway when set - which
+nodes announce the VIP is decided by where this pod lands, so the order has to
+be able to say where). data.service - a patch for the Service (LoadBalancer, disabling
 NodePort, single-stack IPv4, removing port 15021; when ipAddress is set - a MetalLB annotation).
 data.horizontalPodAutoscaler - added when hpa.enabled.
 The element is skipped when enabled: false.
@@ -50,6 +53,18 @@ data:
           securityContext:
             seccompProfile:
               type: RuntimeDefault
+          {{- with $gateway.nodeSelector }}
+          nodeSelector:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
+          {{- with $gateway.tolerations }}
+          tolerations:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
+          {{- with $gateway.affinity }}
+          affinity:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
           {{- if $resources }}
           containers:
             - name: istio-proxy
