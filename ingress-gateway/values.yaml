@@ -60,24 +60,16 @@ tls:
   certificates: []
 
 # Размещение подов точек входа по нодам: умолчание для каждого элемента
-# gateways[]. Внешний адрес точки входа объявляется в сеть с той ноды, где
-# стоит её под, а с части нод такого объявления нет: они исключены здесь, и
-# какие именно - решает платформа. Элемент gateways[], у которого задано своё поле nodeSelector,
+# gateways[]. Здесь пусто: правила задаёт платформа в значениях своей
+# установки чарта, например чтобы исключить ноды, с которых внешний адрес
+# точки входа не объявляется в сеть. Элемент gateways[], у которого задано своё поле nodeSelector,
 # tolerations или affinity, заменяет соответствующее умолчание целиком, а пустое
 # значение в элементе (affinity: {}) отключает его. Формат - спецификация пода
 # Kubernetes. В форме заказа не показывается.
 gatewayScheduling:
   nodeSelector: {}
   tolerations: []
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: node-group
-                operator: NotIn
-                values:
-                  - gpu
+  affinity: {}
 
 # gateways / xroutes намеренно не заданы: их приносит заказ.
 # Пример со всеми параметрами - в values.full.yaml.
