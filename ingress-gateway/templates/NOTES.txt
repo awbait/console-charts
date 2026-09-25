@@ -50,6 +50,17 @@ Routes:
 {{- end }}
 {{- end }}
 
+{{- $grants := include "ingress-gateway.helpers.app.referenceGrants" . | fromJson -}}
+{{- if $grants }}
+
+ReferenceGrants for routes:
+Created in service namespaces to allow routes to reference the listed services.
+Network access and Istio policies are configured separately.
+{{- range $key, $grant := $grants }}
+  - {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ReferenceGrant" "name" "routes" "parent" $grant.gateway "context" $) }} in {{ $grant.namespace }}
+{{- end }}
+{{- end }}
+
 {{- if ($.Values.oidcAuth).enabled }}
 
 OIDC: enabled (oauth2-proxy + Keycloak). Check the issuer and oauth2-proxy availability.

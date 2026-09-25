@@ -13,12 +13,42 @@
     "gateways",
     "xroutes",
     "tls",
-    "oidcAuth"
+    "oidcAuth",
+    "gatewayScheduling"
   ],
   "required": [
     "identity"
   ],
   "properties": {
+    "gatewayScheduling": {
+      "title": "Размещение точек входа",
+      "description": "Платформа заполняет значения по умолчанию для всех точек входа заказа. Если у отдельной точки входа задано своё поле, оно целиком заменяет соответствующее значение по умолчанию без слияния.",
+      "ui:widget": "hidden",
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "nodeSelector",
+        "tolerations",
+        "affinity"
+      ],
+      "properties": {
+        "nodeSelector": {
+          "title": "Метки узлов размещения",
+          "description": "Метки узлов, на которых можно разместить под точки входа. Пустое поле не ограничивает выбор узла по меткам. Заполняет платформа.",
+          "$ref": "#/definitions/stringMap"
+        },
+        "tolerations": {
+          "title": "Допуски к ограничениям узлов",
+          "description": "Разрешают размещать под точки входа на узлах с указанными ограничениями. Задаются в формате Kubernetes. Заполняет платформа.",
+          "$ref": "#/definitions/podTolerations"
+        },
+        "affinity": {
+          "title": "Правила размещения пода",
+          "description": "Правила привязки подов точек входа к нодам. Их задаёт платформа, например чтобы исключить ноды, с которых внешний адрес точки входа не объявляется в сеть.",
+          "$ref": "#/definitions/podAffinity"
+        }
+      }
+    },
     "identity": {
       "title": "Окружение и проект",
       "description": "Где будет работать сервис и к какому проекту он относится. Задаётся один раз на весь заказ.",
@@ -418,6 +448,55 @@
         "type": "string"
       }
     },
+    "podTolerations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "Equal",
+              "Exists"
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "NoSchedule",
+              "PreferNoSchedule",
+              "NoExecute"
+            ]
+          },
+          "tolerationSeconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "podAffinity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodeAffinity": {
+          "type": "object"
+        },
+        "podAffinity": {
+          "type": "object"
+        },
+        "podAntiAffinity": {
+          "type": "object"
+        }
+      }
+    },
     "tplStringMap": {
       "type": "object",
       "additionalProperties": {
@@ -762,7 +841,7 @@
         },
         "nodeSelector": {
           "title": "Метки узлов размещения",
-          "description": "Метки узлов, на которых можно разместить под точки входа. Пустое поле не ограничивает выбор узла по меткам. Заполняет платформа.",
+          "description": "Укажите метки нод, на которых можно разместить под этой точки входа. Значение целиком заменяет метки, заданные по умолчанию.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/stringMap"
         },
@@ -770,56 +849,13 @@
           "title": "Допуски к ограничениям узлов",
           "description": "Разрешают размещать под точки входа на узлах с указанными ограничениями. Задаются в формате Kubernetes. Заполняет платформа.",
           "ui:widget": "hidden",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "key": {
-                "type": "string"
-              },
-              "operator": {
-                "type": "string",
-                "enum": [
-                  "Equal",
-                  "Exists"
-                ]
-              },
-              "value": {
-                "type": "string"
-              },
-              "effect": {
-                "type": "string",
-                "enum": [
-                  "NoSchedule",
-                  "PreferNoSchedule",
-                  "NoExecute"
-                ]
-              },
-              "tolerationSeconds": {
-                "type": "integer",
-                "minimum": 0
-              }
-            }
-          }
+          "$ref": "#/definitions/podTolerations"
         },
         "affinity": {
           "title": "Правила размещения пода",
-          "description": "Задают выбор узлов и размещение пода точки входа рядом с другими подами или отдельно от них. Используется формат Kubernetes для привязки к узлам, совместного и раздельного размещения подов. Заполняет платформа.",
+          "description": "Укажите правила размещения пода этой точки входа, которые целиком заменят правила по умолчанию. Пустое значение отключает правила по умолчанию для этой точки входа.",
           "ui:widget": "hidden",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "nodeAffinity": {
-              "type": "object"
-            },
-            "podAffinity": {
-              "type": "object"
-            },
-            "podAntiAffinity": {
-              "type": "object"
-            }
-          }
+          "$ref": "#/definitions/podAffinity"
         }
       },
       "required": [
@@ -1979,6 +2015,7 @@
       "propertyOrder": [
         "name",
         "namespace",
+        "referenceGrant",
         "port",
         "weight"
       ],
@@ -1992,6 +2029,12 @@
           "title": "Неймспейс сервиса",
           "description": "Если оставить пустым, используется неймспейс точки входа.",
           "$ref": "#/definitions/k8sName"
+        },
+        "referenceGrant": {
+          "title": "Создавать разрешение автоматически",
+          "description": "По умолчанию чарт создаёт разрешение ReferenceGrant в namespace сервиса, если он отличается от namespace точки входа. Выключите, если у вас нет прав создавать объекты в том namespace и разрешение создадут его владельцы.",
+          "type": "boolean",
+          "default": true
         },
         "port": {
           "title": "Порт сервиса",

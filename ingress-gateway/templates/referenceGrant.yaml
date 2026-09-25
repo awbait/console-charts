@@ -1,0 +1,41 @@
+{{/*
+ReferenceGrant in every namespace a route sends traffic to, when that namespace
+is not the namespace of the release. A backendRef that crosses a namespace
+boundary is refused by the Gateway API until the target namespace grants it,
+and the person ordering the route has no other way to put that grant there:
+the route is theirs, the namespace of the service is not.
+One grant per gateway and target namespace, named after the gateway the way
+the routes are (kindShort rg, name "routes"): two releases of one project
+sending to one namespace under different gateways do not fight over a single
+object. The grant lists every route kind of that gateway that references the
+namespace and every Service the routes name there, nothing wider.
+Which grants exist is decided by ingress-gateway.helpers.app.referenceGrants:
+a backendRef without a namespace needs none, one with referenceGrant: false
+asks for none, and routes with enabled: false are skipped.
+*/}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- $grants := include "ingress-gateway.helpers.app.referenceGrants" $root | fromJson }}
+{{- range $key, $grant := $grants }}
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ReferenceGrant" "name" "routes" "parent" $grant.gateway "context" $root) }}
+  namespace: {{ $grant.namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  from:
+    {{- range $kind, $_ := $grant.kinds }}
+    - group: gateway.networking.k8s.io
+      kind: {{ $kind }}
+      namespace: {{ $root.Release.Namespace | quote }}
+    {{- end }}
+  to:
+    {{- range $service, $_ := $grant.services }}
+    - group: ""
+      kind: Service
+      name: {{ $service | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}
