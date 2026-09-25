@@ -115,6 +115,29 @@ networkPolicy:
 
 
 # ============================================================================
+# gatewayScheduling - размещение подов точек входа по нодам, умолчание для
+# каждого элемента gateways[]
+# ============================================================================
+# Внешний адрес точки входа объявляется в сеть с той ноды, где стоит её под,
+# а с части нод такого объявления нет: их чарт по умолчанию исключает через
+# affinity, какие именно - решает платформа. Элемент gateways[] со своим полем
+# nodeSelector, tolerations или affinity заменяет одноимённое умолчание
+# целиком. Формат - спецификация пода Kubernetes. В форме заказа не
+# показывается.
+gatewayScheduling:
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-group
+                operator: NotIn
+                values:
+                  - gpu
+
+# ============================================================================
 # gateways - список Gateway (на элемент создаётся Gateway и ConfigMap)
 # ============================================================================
 #   name        - обязательно, 2..9 символов; подставляется в {name} имени
@@ -124,10 +147,10 @@ networkPolicy:
 #   hpa         - HorizontalPodAutoscaler для создаваемого Deployment
 #   resources   - ресурсы контейнера istio-proxy (ConfigMap.data.deployment)
 #   nodeSelector, tolerations, affinity - где планировать под шлюза, в формате
-#                 спецификации пода Kubernetes. Адрес шлюза объявляется в сеть
-#                 с той ноды, где стоит под, поэтому ноды без такого анонса
-#                 (например, GPU-ноды) отсюда исключают. Пусто - решает
-#                 планировщик. В форме заказа скрыты, задаются в values
+#                 спецификации пода Kubernetes. Заданное здесь поле заменяет
+#                 целиком одноимённое умолчание из gatewayScheduling (см. ниже),
+#                 а пустое значение (affinity: {}) отключает умолчание. В форме
+#                 заказа скрыты, задаются в values
 #   listeners[] - список listener'ов:
 #     name          - имя listener'а (sectionName в parentRefs), 2..9 символов;
 #                     подставляется в имя автовыпущенного сертификата
@@ -163,8 +186,8 @@ gateways:
         cpu: 500m
         memory: 512Mi
 
-    # Под шлюза только на нодах группы ingress и ни в коем случае не на
-    # GPU-нодах: с них адрес шлюза в сеть не объявляется.
+    # Эта точка входа живёт только на нодах группы ingress. Поля ниже заменяют
+    # умолчания из gatewayScheduling для неё одной.
     nodeSelector:
       node-group: ingress
     tolerations:
@@ -328,7 +351,13 @@ gateways:
 #   parentRefs[] - gateway (= gateways[].name) и sectionName (= listener.name)
 #   hostnames[]  - для HTTP, GRPC и TLS (у TLS это SNI)
 #   rules[]      - matches и filters только для HTTP и GRPC; backendRefs обязателен
-#                  (name и port; namespace и weight - по желанию)
+#                  (name и port; namespace и weight - по желанию). Если namespace
+#                  указан и отличается от namespace релиза, чарт создаёт в нём
+#                  ReferenceGrant (один на точку входа и namespace, имя
+#                  {instance}-{cluster}-rg-{gateway}-{project}-routes), иначе
+#                  Gateway API не пропустит ссылку через границу namespace.
+#                  referenceGrant: false у ссылки отключает это: например, когда
+#                  прав на тот namespace нет и grant создают его владельцы.
 #
 # Если включённый Gateway один, часть полей можно не писать (в этом примере их
 # два, поэтому gateway указан явно):
@@ -369,6 +398,22 @@ xroutes:
           - name: api
             port: 8080
             weight: 100
+      # Сервис в другом namespace: чарт создаст там ReferenceGrant
+      # id-dev-rg-main-nbox-routes (по identity этого примера) для HTTPRoute
+      # точки входа main. Второй сервис ссылку получает без grant: его создают
+      # владельцы того namespace сами.
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /reports
+        backendRefs:
+          - name: reports
+            port: 8080
+            namespace: nbox-reports
+          - name: legacy-reports
+            port: 8080
+            namespace: nbox-legacy
+            referenceGrant: false
 
   - name: ugrpc
     enabled: true

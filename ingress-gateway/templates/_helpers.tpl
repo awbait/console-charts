@@ -76,9 +76,54 @@ Unknown kind -> fail.
 {{- else if eq $kind "tlsroute" -}}tr
 {{- else if eq $kind "tcproute" -}}tcr
 {{- else if eq $kind "udproute" -}}ur
+{{- else if eq $kind "referencegrant" -}}rg
 {{- else if eq $kind "secret" -}}secret
 {{- else -}}{{- fail (printf "unsupported kind for resourceName: %q" $kind) -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+ReferenceGrants the routes need, as JSON: a map keyed "gateway|namespace" of
+{gateway, namespace, kinds: {RouteKind: true}, services: {name: true}}.
+One entry per gateway and target namespace, collected from every enabled route
+whose backendRefs name a namespace other than the one of the release. A
+backendRef with referenceGrant: false is left out: the person ordering may
+have no rights in that namespace, and then the grant is somebody else's to
+create. Shared by referenceGrant.yaml (renders them) and NOTES.txt (lists
+them), so the two cannot disagree.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.referenceGrants" -}}
+{{- $root := . -}}
+{{- $grants := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- $routeName := $route.name | default "" | toString -}}
+{{- $routeKind := include "ingress-gateway.helpers.app.xRouteKind" (dict "kind" ($route.kind | default "HTTPRoute") "name" $routeName) -}}
+{{- $parent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) -}}
+{{- range $rule := $route.rules | default list -}}
+{{- range $backend := $rule.backendRefs | default list -}}
+{{- $namespace := $backend.namespace | default "" | toString -}}
+{{- /* Not `default true`: to a template false is empty, and the default would swallow the very value that opts out. */ -}}
+{{- $wanted := true -}}
+{{- if hasKey $backend "referenceGrant" -}}{{- $wanted = ne (toString $backend.referenceGrant) "false" -}}{{- end -}}
+{{- if and $namespace (ne $namespace $root.Release.Namespace) $wanted -}}
+{{- $key := printf "%s|%s" $parent $namespace -}}
+{{- $grant := index $grants $key -}}
+{{- if not $grant -}}
+{{- $grant = dict "gateway" $parent "namespace" $namespace "kinds" (dict) "services" (dict) -}}
+{{- $_ := set $grants $key $grant -}}
+{{- end -}}
+{{- $_ := set (index $grant "kinds") $routeKind true -}}
+{{- with $backend.name -}}
+{{- $_ := set (index $grant "services") (toString .) true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $grants | toJson -}}
 {{- end -}}
 
 {{/*
