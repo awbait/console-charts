@@ -64,7 +64,7 @@
       ],
       "overrides": {
         "gateways": {
-          "title": "Gateway",
+          "title": "Точка входа",
           "ui:view": {
             "include": [
               "hpa"
@@ -88,7 +88,7 @@
       "identity": "/gateways/0/name",
       "overrides": {
         "gateways": {
-          "title": "Gateway",
+          "title": "Точка входа",
           "ui:view": {
             "exclude": [
               "hpa"
@@ -125,7 +125,7 @@
       ],
       "overrides": {
         "gateways": {
-          "title": "Gateway",
+          "title": "Точка входа",
           "ui:view": {
             "include": [
               "ipAddress"
@@ -156,7 +156,7 @@
       "$comment": "Правка ресурсов istio-proxy у Gateway (gateways[0].resources) из карточки заказа. Скрытое в форме заказа поле resources здесь раскрывается.",
       "overrides": {
         "gateways": {
-          "title": "Gateway",
+          "title": "Точка входа",
           "ui:view": {
             "include": [
               "resources"

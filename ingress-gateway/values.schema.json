@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/ingress-gateway/values.schema.json",
-  "title": "ingress-gateway Helm chart values",
-  "description": "Editor-oriented schema for Gateway API Helm chart values. Gateways and xRoutes are configured as lists.",
+  "title": "Настройки точки входа",
+  "description": "Настройте приём внешнего трафика и его передачу в сервисы команды. Точки входа и маршруты задаются списками.",
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
@@ -21,30 +21,30 @@
   "properties": {
     "identity": {
       "title": "Окружение и проект",
-      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
+      "description": "Где будет работать сервис и к какому проекту он относится. Задаётся один раз на весь заказ.",
       "$ref": "#/definitions/identity"
     },
     "generic": {
-      "title": "Generic settings",
-      "description": "Common labels/annotations applied to all chart resources.",
+      "title": "Общие настройки",
+      "description": "Метки и аннотации для всех ресурсов заказа.",
       "$ref": "#/definitions/generic",
       "ui:widget": "hidden"
     },
     "authorizationPolicy": {
-      "title": "AuthorizationPolicy",
-      "description": "Settings for generating an Istio AuthorizationPolicy for the Gateway workload.",
+      "title": "Политика доступа",
+      "description": "Настройки AuthorizationPolicy в Istio для доступа к точкам входа.",
       "$ref": "#/definitions/authorizationPolicy",
       "ui:widget": "hidden"
     },
     "networkPolicy": {
-      "title": "NetworkPolicy",
-      "description": "Settings for generating a Kubernetes NetworkPolicy for the Gateway workload.",
+      "title": "Сетевая политика",
+      "description": "Настройки NetworkPolicy для входящего и исходящего трафика точек входа.",
       "$ref": "#/definitions/networkPolicy",
       "ui:widget": "hidden"
     },
     "gateways": {
-      "title": "Гейтвеи",
-      "description": "Точки, на которые приходит внешний трафик. Нужен хотя бы один.",
+      "title": "Точки входа",
+      "description": "Принимают внешний трафик. Нужна хотя бы одна точка входа.",
       "type": "array",
       "minItems": 1,
       "items": {
@@ -82,7 +82,7 @@
     },
     "xroutes": {
       "title": "Маршруты",
-      "description": "Куда направлять запросы, пришедшие на гейтвей. Можно оставить пустым: гейтвей поднимется и без маршрутов.",
+      "description": "Куда направлять запросы, пришедшие на точку входа. Можно оставить пустым: точка входа создастся и без маршрутов.",
       "type": "array",
       "minItems": 0,
       "items": {
@@ -129,8 +129,8 @@
       ]
     },
     "oidcAuth": {
-      "title": "OIDC Auth",
-      "description": "OIDC authentication settings via oauth2-proxy, Keycloak and Istio AuthorizationPolicy.",
+      "title": "Единая учётная запись",
+      "description": "Настройки входа по единой учётной записи через OIDC. Используются Keycloak, oauth2-proxy и AuthorizationPolicy в Istio.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/oidcAuth"
     },
@@ -140,14 +140,14 @@
       "$ref": "#/definitions/tls"
     },
     "global": {
-      "title": "Global values",
-      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "title": "Общие параметры Helm",
+      "description": "Helm подставляет эти параметры автоматически, когда чарт используется в составе другого чарта. На работу точки входа они не влияют.",
       "type": "object",
       "ui:widget": "hidden"
     },
     "enabled": {
-      "title": "Enabled",
-      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "title": "Включено",
+      "description": "Включает создание ресурсов заказа. Выключите, если чарт используется в составе другого чарта и его ресурсы пока не нужны.",
       "type": "boolean",
       "default": true,
       "ui:widget": "hidden"
@@ -190,41 +190,41 @@
         },
         "issuer": {
           "ui:widget": "hidden",
-          "title": "issuer",
-          "description": "Platform issuer that signs the certificates the order does not bring itself. Set when the chart is built, not by the customer. Hidden.",
+          "title": "Издатель сертификатов",
+          "description": "Выпускает сертификаты для доменов, для которых вы не указали свой сертификат. Заполняет платформа.",
           "$ref": "#/definitions/tlsIssuer"
         },
         "store": {
           "ui:widget": "hidden",
-          "title": "store",
-          "description": "Name of the SecretStore the certificates are read from when an entry does not name its own. Lives in the namespace of the release. Hidden.",
+          "title": "Хранилище сертификатов",
+          "description": "Имя SecretStore в неймспейсе заказа. Используется для сертификатов, у которых не указано отдельное хранилище.",
           "$ref": "#/definitions/storeName"
         },
         "refreshInterval": {
           "ui:widget": "hidden",
-          "title": "refreshInterval",
-          "description": "How often the ExternalSecret re-reads the certificate (Go duration, e.g. 1h). Hidden.",
+          "title": "Интервал обновления сертификатов",
+          "description": "Как часто ExternalSecret перечитывает сертификат из хранилища. Укажите длительность в формате Go, например 1h.",
           "type": "string",
           "minLength": 1
         },
         "crtProperty": {
           "ui:widget": "hidden",
-          "title": "crtProperty",
-          "description": "Key of the certificate inside the stored entry. Hidden.",
+          "title": "Ключ сертификата в записи",
+          "description": "Имя поля записи в хранилище, в котором находится сертификат.",
           "type": "string",
           "minLength": 1
         },
         "keyProperty": {
           "ui:widget": "hidden",
-          "title": "keyProperty",
-          "description": "Key of the private key inside the stored entry. Hidden.",
+          "title": "Поле закрытого ключа",
+          "description": "Имя поля записи в хранилище, в котором находится закрытый ключ сертификата.",
           "type": "string",
           "minLength": 1
         },
         "apiVersion": {
           "ui:widget": "hidden",
-          "title": "apiVersion",
-          "description": "apiVersion of the ExternalSecret resource, for a cluster with an older External Secrets Operator. Hidden.",
+          "title": "Версия API ExternalSecret",
+          "description": "Версия API ресурса ExternalSecret. Укажите совместимую версию, если в кластере установлен старый External Secrets Operator.",
           "type": "string",
           "minLength": 1
         }
@@ -244,7 +244,7 @@
     },
     "tlsCertificateVault": {
       "title": "Из хранилища",
-      "description": "Сертификат лежит в Vault. Портал заведёт секрет в вашем namespace и будет держать его в актуальном состоянии.",
+      "description": "Сертификат лежит в Vault. Портал создаст секрет в вашем неймспейсе и будет поддерживать его в актуальном состоянии.",
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
@@ -263,15 +263,15 @@
           "$ref": "#/definitions/shortToken"
         },
         "domain": {
-          "title": "Домен",
+          "title": "Домен сертификата",
           "description": "Домен, который покрывает сертификат. Звёздочка заменяет один уровень: «*.example.ru» подходит для «app.example.ru».",
           "type": "string",
           "minLength": 1
         },
         "source": {
           "ui:widget": "hidden",
-          "title": "source",
-          "description": "Discriminator of the variant. An entry without it is a store entry too, which is how the orders made before the field existed keep working. Hidden.",
+          "title": "Источник сертификата",
+          "description": "Указывает, что сертификат нужно взять из хранилища. Если поле не задано, также используется хранилище, поэтому прежние заказы продолжают работать.",
           "const": "vault"
         },
         "path": {
@@ -281,21 +281,21 @@
           "minLength": 1
         },
         "store": {
-          "title": "Хранилище",
-          "description": "Имя SecretStore, из которого читать этот сертификат. Оставьте пустым, если это хранилище вашего namespace по умолчанию.",
+          "title": "Хранилище сертификата",
+          "description": "Имя SecretStore, из которого читать этот сертификат. Оставьте пустым, чтобы использовать общее хранилище сертификатов заказа в вашем неймспейсе.",
           "$ref": "#/definitions/storeName"
         },
         "crtProperty": {
           "ui:widget": "hidden",
-          "title": "crtProperty",
-          "description": "Key of the certificate inside this entry, when it is not the default. Hidden.",
+          "title": "Ключ сертификата в записи",
+          "description": "Имя поля записи, в котором находится сертификат. Укажите, если оно отличается от общего значения для сертификатов заказа.",
           "type": "string",
           "minLength": 1
         },
         "keyProperty": {
           "ui:widget": "hidden",
-          "title": "keyProperty",
-          "description": "Key of the private key inside this entry, when it is not the default. Hidden.",
+          "title": "Поле закрытого ключа",
+          "description": "Имя поля записи, в котором находится закрытый ключ сертификата. Укажите, если оно отличается от общего значения для сертификатов заказа.",
           "type": "string",
           "minLength": 1
         }
@@ -308,7 +308,7 @@
     },
     "tlsCertificateExisting": {
       "title": "Готовый секрет",
-      "description": "Сертификат уже лежит в вашем namespace секретом. Портал ничего не создаёт и только сошлётся на него.",
+      "description": "Сертификат уже хранится в секрете в вашем неймспейсе. Портал использует этот секрет без создания нового.",
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
@@ -318,20 +318,20 @@
       ],
       "properties": {
         "domain": {
-          "title": "Домен",
+          "title": "Домен сертификата",
           "description": "Домен, который покрывает сертификат. Звёздочка заменяет один уровень: «*.example.ru» подходит для «app.example.ru».",
           "type": "string",
           "minLength": 1
         },
         "source": {
           "ui:widget": "hidden",
-          "title": "source",
-          "description": "Discriminator of the variant. Hidden.",
+          "title": "Источник сертификата",
+          "description": "Указывает, что сертификат нужно взять из готового секрета в кластере.",
           "const": "existing"
         },
         "secretName": {
           "title": "Имя секрета",
-          "description": "Секрет типа kubernetes.io/tls в вашем namespace.",
+          "description": "Секрет типа kubernetes.io/tls в вашем неймспейсе.",
           "$ref": "#/definitions/k8sName"
         }
       },
@@ -355,19 +355,19 @@
       ],
       "properties": {
         "enabled": {
-          "title": "enabled",
-          "description": "Issue a certificate for a hostname no entry of certificates covers. false = such a hostname stops the render instead. Hidden.",
+          "title": "Автоматический выпуск",
+          "description": "Включает выпуск сертификатов для доменов, для которых вы не указали свой сертификат. Если выключить, такой домен остановит применение настроек с ошибкой. Заполняет платформа.",
           "type": "boolean",
           "default": true
         },
         "name": {
-          "title": "name",
-          "description": "Name of the cert-manager issuer in the cluster. Hidden.",
+          "title": "Имя издателя",
+          "description": "Имя издателя cert-manager в кластере. Заполняет платформа.",
           "$ref": "#/definitions/k8sName"
         },
         "kind": {
-          "title": "kind",
-          "description": "ClusterIssuer (default) or an Issuer in the namespace of the release. Hidden.",
+          "title": "Тип издателя",
+          "description": "По умолчанию используется ClusterIssuer, общий для кластера. Можно указать Issuer в неймспейсе заказа. Заполняет платформа.",
           "type": "string",
           "enum": [
             "ClusterIssuer",
@@ -375,14 +375,14 @@
           ]
         },
         "group": {
-          "title": "group",
-          "description": "API group of the issuer, for an external issuer. Hidden.",
+          "title": "Группа API издателя",
+          "description": "Группа API, к которой относится издатель сертификатов. Меняется для внешнего издателя. Заполняет платформа.",
           "type": "string",
           "minLength": 1
         },
         "domains": {
-          "title": "domains",
-          "description": "Domain suffixes the issuer is allowed to sign. A hostname outside them stops the render instead of leaving a Certificate stuck in Pending. Empty = do not check. Hidden.",
+          "title": "Разрешённые домены",
+          "description": "Домены и все их поддомены, для которых издатель может выпускать сертификаты. Домен вне списка остановит применение настроек с ошибкой, а пустой список отключит проверку. Заполняет платформа.",
           "type": "array",
           "items": {
             "type": "string",
@@ -390,14 +390,14 @@
           }
         },
         "duration": {
-          "title": "duration",
-          "description": "Requested certificate lifetime (Go duration, e.g. 2160h). The PKI role caps it. Hidden.",
+          "title": "Срок действия сертификата",
+          "description": "Запрашиваемый срок действия в формате длительности Go, например 2160h. Фактический срок ограничен настройками роли Vault PKI. Заполняет платформа.",
           "type": "string",
           "minLength": 1
         },
         "renewBefore": {
-          "title": "renewBefore",
-          "description": "How long before expiry to renew (Go duration, e.g. 720h). Hidden.",
+          "title": "Запас до истечения",
+          "description": "За сколько до окончания срока действия перевыпустить сертификат. Укажите длительность в формате Go, например 720h. Заполняет платформа.",
           "type": "string",
           "minLength": 1
         }
@@ -434,7 +434,7 @@
       ],
       "properties": {
         "instance": {
-          "title": "Инстанс",
+          "title": "Инстанс окружения",
           "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
           "type": "string",
           "enum": [
@@ -444,14 +444,14 @@
             "pr"
           ],
           "enumNames": [
-            "Infra-dev-ecpk (in)",
-            "dev-ecpk (id)",
-            "techsec-dev, dev-common, test-common (ed)",
-            "global, observability, techsec, int-common, ML, ext-common (pr)"
+            "Окружение Infra-dev-ecpk (in)",
+            "Окружение dev-ecpk (id)",
+            "Окружения techsec-dev, dev-common, test-common (ed)",
+            "Окружения global, observability, techsec, int-common, ML, ext-common (pr)"
           ]
         },
         "cluster": {
-          "title": "Кластер",
+          "title": "Кластер сервиса",
           "description": "Кластер, в котором будет работать сервис. Выбирайте вместе с инстансом.",
           "type": "string",
           "enum": [
@@ -467,21 +467,21 @@
             "cme"
           ],
           "enumNames": [
-            "Infra-dev-ecpk (inf)",
-            "dev-ecpk и dev-common (dev)",
-            "techsec-dev (tco)",
-            "test-common (tst)",
-            "global (gl)",
-            "observability (obs)",
-            "techsec (tcc)",
-            "int-common (cmi)",
-            "ML (ml)",
-            "ext-common (cme)"
+            "Окружение Infra-dev-ecpk (inf)",
+            "Окружения dev-ecpk и dev-common (dev)",
+            "Окружение techsec-dev (tco)",
+            "Окружение test-common (tst)",
+            "Окружение global (gl)",
+            "Окружение observability (obs)",
+            "Окружение techsec (tcc)",
+            "Окружение int-common (cmi)",
+            "Окружение ML (ml)",
+            "Окружение ext-common (cme)"
           ]
         },
         "project": {
-          "title": "Проект",
-          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
+          "title": "Код проекта",
+          "description": "Короткий код проекта в именах и метках ресурсов. Заполняет платформа по команде, от имени которой сделан заказ.",
           "$ref": "#/definitions/projectToken"
         }
       },
@@ -524,13 +524,13 @@
       ],
       "properties": {
         "labels": {
-          "title": "Common labels",
-          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "title": "Общие метки",
+          "description": "Метки, которые будут добавлены ко всем ресурсам заказа.",
           "$ref": "#/definitions/tplStringMap"
         },
         "annotations": {
-          "title": "Common annotations",
-          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "title": "Общие аннотации",
+          "description": "Аннотации, которые будут добавлены ко всем ресурсам заказа.",
           "$ref": "#/definitions/tplStringMap"
         }
       }
@@ -540,8 +540,8 @@
       "additionalProperties": false,
       "properties": {
         "enabled": {
-          "title": "Enabled",
-          "description": "true = create AuthorizationPolicy; false = do not create.",
+          "title": "Включено",
+          "description": "Включает создание AuthorizationPolicy для каждой включённой точки входа. Если выключить, эта политика не создаётся.",
           "type": "boolean",
           "default": true
         }
@@ -552,14 +552,14 @@
       "additionalProperties": false,
       "properties": {
         "enabled": {
-          "title": "Enabled",
-          "description": "true = create NetworkPolicy; false = do not create.",
+          "title": "Включено",
+          "description": "Включает создание NetworkPolicy для каждой включённой точки входа. Если выключить, эта политика не создаётся.",
           "type": "boolean",
           "default": true
         },
         "egress": {
-          "title": "Egress rules",
-          "description": "List of allowed egress traffic rules. Result: spec.egress of the NetworkPolicy.",
+          "title": "Правила исходящего трафика",
+          "description": "Разрешают точке входа отправлять трафик в указанные назначения. Заполните, если сетевая политика включена.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/networkPolicyEgressRule"
@@ -596,8 +596,8 @@
       "additionalProperties": false,
       "properties": {
         "to": {
-          "title": "To peers",
-          "description": "List of egress traffic destinations.",
+          "title": "Разрешённые назначения",
+          "description": "Куда точке входа разрешено отправлять трафик по этому правилу.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -605,8 +605,8 @@
           }
         },
         "ports": {
-          "title": "Port",
-          "description": "A single destination port and protocol for the egress rule.",
+          "title": "Порты назначения",
+          "description": "Укажите порт и протокол для каждого разрешённого подключения по этому правилу.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -624,18 +624,18 @@
       "additionalProperties": false,
       "properties": {
         "podSelector": {
-          "title": "podSelector",
-          "description": "Selection of pods by labels.",
+          "title": "Выбор подов",
+          "description": "Метки подов, к которым разрешено отправлять трафик.",
           "$ref": "#/definitions/labelSelector"
         },
         "namespaceSelector": {
-          "title": "namespaceSelector",
-          "description": "Selection of namespaces by labels.",
+          "title": "Выбор неймспейсов",
+          "description": "Метки неймспейсов, в которые разрешено отправлять трафик.",
           "$ref": "#/definitions/labelSelector"
         },
         "ipBlock": {
-          "title": "ipBlock",
-          "description": "CIDR block for NetworkPolicy. Hidden in the editor UI.",
+          "title": "Диапазон адресов",
+          "description": "Диапазон адресов назначения для NetworkPolicy. Укажите его в формате CIDR.",
           "ui:widget": "hidden",
           "type": "object",
           "additionalProperties": false,
@@ -644,8 +644,8 @@
               "type": "string"
             },
             "except": {
-              "title": "except",
-              "description": "Exclusions from the CIDR block. Hidden in the editor UI.",
+              "title": "Исключения из диапазона",
+              "description": "Диапазоны в формате CIDR, которые нужно исключить из разрешённого диапазона адресов.",
               "ui:widget": "hidden",
               "type": "array",
               "items": {
@@ -664,13 +664,13 @@
       "additionalProperties": false,
       "properties": {
         "port": {
-          "title": "port",
-          "description": "Destination port.",
+          "title": "Порт назначения",
+          "description": "Порт, на который разрешено отправлять трафик.",
           "$ref": "#/definitions/port"
         },
         "protocol": {
-          "title": "protocol",
-          "description": "Protocol of the destination port.",
+          "title": "Протокол подключения",
+          "description": "Протокол для подключения к порту назначения.",
           "type": "string",
           "enum": [
             "TCP",
@@ -690,8 +690,8 @@
       "additionalProperties": false,
       "properties": {
         "matchLabels": {
-          "title": "matchLabels",
-          "description": "Labels for selecting a pod or namespace.",
+          "title": "Метки для отбора",
+          "description": "Метки, по которым выбираются поды или неймспейсы.",
           "$ref": "#/definitions/stringMap"
         }
       }
@@ -705,31 +705,34 @@
         "ipAddress",
         "listeners",
         "hpa",
-        "resources"
+        "resources",
+        "nodeSelector",
+        "tolerations",
+        "affinity"
       ],
       "properties": {
         "name": {
-          "title": "Имя гейтвея",
-          "description": "Короткое имя, по которому вы отличите этот гейтвей от других.",
+          "title": "Имя точки входа",
+          "description": "Короткое имя, по которому вы отличите эту точку входа от других.",
           "$ref": "#/definitions/gatewayToken"
         },
         "enabled": {
-          "title": "enabled",
-          "description": "true = create this Gateway and its ConfigMap; false = skip.",
+          "title": "Включено",
+          "description": "Включает создание этой точки входа. Если выключить, она и её настройки не создаются.",
           "type": "boolean",
           "ui:widget": "hidden",
           "default": true
         },
         "ipAddress": {
-          "title": "ipAddress",
-          "description": "Static LoadBalancer IP address for MetalLB. If set, the template adds metallb.io/loadBalancerIPs to ConfigMap.data.service.metadata.annotations.",
+          "title": "Постоянный адрес балансировщика",
+          "description": "Постоянный IP-адрес, который MetalLB назначит балансировщику этой точки входа.",
           "type": "string",
           "minLength": 1,
           "ui:widget": "hidden"
         },
         "listeners": {
-          "title": "Точки входа",
-          "description": "На каждый порт и домен - одна точка. Нужна хотя бы одна.",
+          "title": "Слушатели",
+          "description": "Для каждого порта и домена нужен отдельный слушатель. Добавьте хотя бы один.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -737,13 +740,13 @@
           }
         },
         "hpa": {
-          "title": "Автомасштабирование",
-          "description": "Сколько экземпляров гейтвея держать под нагрузкой.",
+          "title": "Автоматическое масштабирование",
+          "description": "Сколько экземпляров точки входа поддерживать под нагрузкой.",
           "$ref": "#/definitions/gatewayHpa"
         },
         "resources": {
-          "title": "Gateway resources",
-          "description": "Resources for the istio-proxy container in the automatically created Deployment. Rendered into ConfigMap.data.deployment. Hidden in the new order form: created with a default value, edited later from the product card.",
+          "title": "Ресурсы точки входа",
+          "description": "Процессор и память для обработки трафика. При заказе используются значения по умолчанию, затем их можно изменить в карточке сервиса.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/containerResources",
           "default": {
@@ -754,6 +757,67 @@
             "limits": {
               "cpu": "2000m",
               "memory": "1024Mi"
+            }
+          }
+        },
+        "nodeSelector": {
+          "title": "Метки узлов размещения",
+          "description": "Метки узлов, на которых можно разместить под точки входа. Пустое поле не ограничивает выбор узла по меткам. Заполняет платформа.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/stringMap"
+        },
+        "tolerations": {
+          "title": "Допуски к ограничениям узлов",
+          "description": "Разрешают размещать под точки входа на узлах с указанными ограничениями. Задаются в формате Kubernetes. Заполняет платформа.",
+          "ui:widget": "hidden",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "Equal",
+                  "Exists"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string",
+                "enum": [
+                  "NoSchedule",
+                  "PreferNoSchedule",
+                  "NoExecute"
+                ]
+              },
+              "tolerationSeconds": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "affinity": {
+          "title": "Правила размещения пода",
+          "description": "Задают выбор узлов и размещение пода точки входа рядом с другими подами или отдельно от них. Используется формат Kubernetes для привязки к узлам, совместного и раздельного размещения подов. Заполняет платформа.",
+          "ui:widget": "hidden",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "nodeAffinity": {
+              "type": "object"
+            },
+            "podAffinity": {
+              "type": "object"
+            },
+            "podAntiAffinity": {
+              "type": "object"
             }
           }
         }
@@ -774,28 +838,28 @@
       ],
       "properties": {
         "enabled": {
-          "title": "Включить",
-          "description": "Гейтвей будет сам добавлять экземпляры под нагрузкой.",
+          "title": "Включено",
+          "description": "Точка входа будет автоматически добавлять экземпляры под нагрузкой.",
           "type": "boolean",
           "default": false
         },
         "minReplicas": {
           "title": "Минимум экземпляров",
-          "description": "Столько работает всегда.",
+          "description": "Столько экземпляров поддерживается даже при низкой нагрузке.",
           "type": "integer",
           "minimum": 1,
           "default": 2
         },
         "maxReplicas": {
           "title": "Максимум экземпляров",
-          "description": "Выше этого числа не поднимется.",
+          "description": "Число экземпляров не превысит это значение.",
           "type": "integer",
           "minimum": 1,
           "default": 5
         },
         "averageUtilization": {
-          "title": "Целевая загрузка CPU",
-          "description": "Процент, выше которого добавляется экземпляр.",
+          "title": "Целевая загрузка процессора",
+          "description": "Процент загрузки процессора, выше которого добавляются экземпляры.",
           "type": "integer",
           "minimum": 1,
           "maximum": 100,
@@ -808,14 +872,14 @@
       "additionalProperties": false,
       "properties": {
         "cpu": {
-          "title": "cpu",
-          "description": "Amount of CPU, for example 100m, 500m, 1.",
+          "title": "Объём процессора",
+          "description": "Укажите объём процессора, например 100m, 500m или 1.",
           "type": "string",
           "minLength": 1
         },
         "memory": {
-          "title": "memory",
-          "description": "Amount of memory, for example 128Mi, 512Mi, 1Gi.",
+          "title": "Объём памяти",
+          "description": "Укажите объём памяти, например 128Mi, 512Mi или 1Gi.",
           "type": "string",
           "minLength": 1
         }
@@ -830,13 +894,13 @@
       ],
       "properties": {
         "requests": {
-          "title": "requests",
-          "description": "Requested resources of the istio-proxy container. For CPU-based HPA it is mandatory to set requests.cpu.",
+          "title": "Запрашиваемые ресурсы",
+          "description": "Процессор и память, запрашиваемые для контейнера точки входа. Для автоматического масштабирования по загрузке процессора обязательно укажите запрашиваемый объём процессора.",
           "$ref": "#/definitions/resourceQuantityMap"
         },
         "limits": {
-          "title": "limits",
-          "description": "Resource limits of the istio-proxy container.",
+          "title": "Предельные ресурсы",
+          "description": "Максимальный объём процессора и памяти для контейнера точки входа.",
           "$ref": "#/definitions/resourceQuantityMap"
         }
       }
@@ -855,18 +919,18 @@
       ],
       "properties": {
         "name": {
-          "title": "Имя точки",
-          "description": "Короткое имя, от 2 до 9 символов. По нему маршрут выбирает, к какой точке привязаться, и по нему называется сертификат, если он выпускается автоматически.",
+          "title": "Имя слушателя",
+          "description": "Короткое имя, от 2 до 9 символов. По нему маршрут выбирает слушателя, и оно используется в имени автоматически выпущенного сертификата.",
           "$ref": "#/definitions/listenerToken"
         },
         "port": {
-          "title": "Порт",
-          "description": "Порт, на котором гейтвей принимает трафик.",
+          "title": "Порт слушателя",
+          "description": "Порт, на котором точка входа принимает трафик.",
           "$ref": "#/definitions/port"
         },
         "protocol": {
-          "title": "Протокол",
-          "description": "HTTP и HTTPS - веб-трафик, TCP и UDP - произвольный, TLS - шифрованный насквозь.",
+          "title": "Протокол слушателя",
+          "description": "HTTP и HTTPS используются для веб-трафика, TCP и UDP для произвольного трафика, TLS для передачи зашифрованного трафика до сервиса.",
           "type": "string",
           "enum": [
             "HTTP",
@@ -877,14 +941,14 @@
           ]
         },
         "hostname": {
-          "title": "Домен",
+          "title": "Домен слушателя",
           "description": "Домен, по которому к вам будут обращаться. Обязателен для HTTPS и TLS. У TCP и UDP домена нет, поле остаётся пустым.",
           "type": "string",
           "minLength": 1
         },
         "tlsMode": {
-          "title": "Что делать с TLS",
-          "description": "Гейтвею, который расшифровывает сам, нужен сертификат на этот домен. По умолчанию он выпустится автоматически. Если сертификат у вас уже есть, опишите его в разделе «Сертификаты».",
+          "title": "Режим обработки TLS",
+          "description": "Точке входа, которая расшифровывает трафик сама, нужен сертификат на этот домен. По умолчанию он выпустится автоматически. Если сертификат у вас уже есть, опишите его в разделе «Сертификаты».",
           "type": "string",
           "default": "Passthrough",
           "enum": [
@@ -892,14 +956,14 @@
             "Passthrough"
           ],
           "enumNames": [
-            "Расшифровывать на гейтвее (Terminate)",
-            "Пропускать шифрование до сервиса (Passthrough)"
+            "Расшифровывать на точке входа",
+            "Передавать зашифрованный трафик до сервиса"
           ]
         },
         "certificateRefs": {
           "ui:widget": "hidden",
-          "title": "certificateRefs",
-          "description": "Explicit Gateway certificateRefs, for a certificate that already lies in the cluster under its own name. The chart then creates no ExternalSecret for this listener.",
+          "title": "Секреты с сертификатами",
+          "description": "Ссылки на готовые секреты с сертификатами в кластере. Нужны, если слушатель расшифровывает TLS и сертификат уже хранится под своим именем. Для такого слушателя ExternalSecret не создаётся.",
           "type": "array",
           "items": {
             "type": "object",
@@ -907,8 +971,8 @@
           }
         },
         "allowedRoutes": {
-          "title": "Какие маршруты пускать",
-          "description": "Пустое поле - как решает Gateway API по умолчанию.",
+          "title": "Разрешённые маршруты",
+          "description": "Какие маршруты может принимать слушатель. Если оставить пустым, применяются правила Gateway API по умолчанию.",
           "$ref": "#/definitions/allowedRoutes"
         }
       },
@@ -1005,8 +1069,8 @@
       ],
       "properties": {
         "namespaces": {
-          "title": "namespaces",
-          "description": "From which namespaces Routes are allowed. Accepted for compatibility but not read by the chart: the template always renders from: Same, so a Route binds only from the Gateway namespace.",
+          "title": "Неймспейсы маршрутов",
+          "description": "Поле сохранено для совместимости и не влияет на доступ. Подключить можно только маршруты из неймспейса точки входа.",
           "ui:widget": "hidden",
           "default": {
             "from": "Same"
@@ -1015,8 +1079,8 @@
           "additionalProperties": false,
           "properties": {
             "from": {
-              "title": "from",
-              "description": "Same = only the Gateway namespace, All = any namespace, Selector = namespaces by selector.",
+              "title": "Область выбора неймспейсов",
+              "description": "Значение Same обозначает неймспейс точки входа, All допускает любой неймспейс, Selector задаёт отбор по меткам. В этом сервисе всегда используется неймспейс точки входа независимо от выбранного значения.",
               "type": "string",
               "default": "Same",
               "enum": [
@@ -1035,7 +1099,7 @@
         },
         "kinds": {
           "title": "Типы маршрутов",
-          "description": "Пускать только маршруты этих типов.",
+          "description": "Слушатель будет принимать только маршруты этих типов.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -1053,11 +1117,11 @@
                   "UDPRoute"
                 ],
                 "enumNames": [
-                  "HTTP (HTTPRoute)",
-                  "gRPC (GRPCRoute)",
-                  "TLS насквозь (TLSRoute)",
-                  "TCP (TCPRoute)",
-                  "UDP (UDPRoute)"
+                  "Маршрут HTTP (HTTPRoute)",
+                  "Маршрут gRPC (GRPCRoute)",
+                  "Сквозной TLS (TLSRoute)",
+                  "Маршрут TCP (TCPRoute)",
+                  "Маршрут UDP (UDPRoute)"
                 ]
               }
             },
@@ -1086,15 +1150,15 @@
           "$ref": "#/definitions/shortToken"
         },
         "enabled": {
-          "title": "enabled",
-          "description": "true = create Route; false = skip. Hidden: defaults to true, the form does not show this field (the chart creates the Route when enabled is absent).",
+          "title": "Включено",
+          "description": "Включает создание маршрута. По умолчанию включено, в том числе когда поле не задано. Если выключить, маршрут не создаётся.",
           "ui:widget": "hidden",
           "type": "boolean",
           "default": true
         },
         "kind": {
           "title": "Тип трафика",
-          "description": "Трафик, который разбирает этот маршрут.",
+          "description": "Трафик, который обрабатывает этот маршрут.",
           "type": "string",
           "enum": [
             "HTTPRoute",
@@ -1104,17 +1168,17 @@
             "UDPRoute"
           ],
           "enumNames": [
-            "HTTP (HTTPRoute)",
-            "gRPC (GRPCRoute)",
-            "TLS насквозь (TLSRoute)",
-            "TCP (TCPRoute)",
-            "UDP (UDPRoute)"
+            "Маршрут HTTP (HTTPRoute)",
+            "Маршрут gRPC (GRPCRoute)",
+            "Сквозной TLS (TLSRoute)",
+            "Маршрут TCP (TCPRoute)",
+            "Маршрут UDP (UDPRoute)"
           ],
           "default": "HTTPRoute"
         },
         "parentRefs": {
-          "title": "К какой точке входа",
-          "description": "Маршрут привяжется к точке входа с этим именем.",
+          "title": "Привязка к слушателям",
+          "description": "Точки входа и их слушатели, от которых маршрут будет получать трафик.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -1122,8 +1186,8 @@
           }
         },
         "hostnames": {
-          "title": "hostnames",
-          "description": "Route hostnames (for TLSRoute this is SNI). Hidden: with a single Gateway the chart derives them from the listeners by sectionName. Not supported for TCP/UDP.",
+          "title": "Домены маршрута",
+          "description": "Домены, для которых работает маршрут, а для TLSRoute это имена SNI. Если включена одна точка входа, незаданные домены берутся из выбранных слушателей. Для TCP и UDP поле не поддерживается.",
           "ui:widget": "hidden",
           "type": "array",
           "items": {
@@ -1131,8 +1195,8 @@
           }
         },
         "rules": {
-          "title": "Правила",
-          "description": "Как разбирать запросы и куда их отдавать.",
+          "title": "Правила маршрутизации",
+          "description": "Как обрабатывать запросы и куда их направлять.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -1217,13 +1281,13 @@
       ],
       "properties": {
         "gateway": {
-          "title": "gateway",
-          "description": "Gateway name from gateways[].name. Hidden: with a single Gateway the chart substitutes its name automatically.",
+          "title": "Имя точки входа",
+          "description": "Имя точки входа из этого заказа. Если включена только одна точка входа, её имя подставится автоматически.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/gatewayToken"
         },
         "sectionName": {
-          "title": "Имя точки входа",
+          "title": "Имя слушателя",
           "$ref": "#/definitions/k8sName"
         }
       },
@@ -1241,8 +1305,8 @@
       ],
       "properties": {
         "matches": {
-          "title": "Условия",
-          "description": "Пустой список - под правило попадает любой запрос. Работают только для HTTP и gRPC.",
+          "title": "Условия отбора",
+          "description": "Если список пуст, под правило попадает любой запрос. Условия работают только для HTTP и gRPC.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/routeMatch"
@@ -1250,7 +1314,7 @@
         },
         "filters": {
           "title": "Обработка запроса",
-          "description": "Что поменять в запросе перед отправкой. Работает только для HTTP и gRPC.",
+          "description": "Изменения запроса, перенаправления и настройки доступа из браузера. Работает только для HTTP и gRPC.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/routeFilter"
@@ -1258,7 +1322,7 @@
         },
         "backendRefs": {
           "title": "Сервисы назначения",
-          "description": "Куда гейтвей отдаст запрос.",
+          "description": "Сервисы, в которые точка входа передаст запрос.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -1271,11 +1335,11 @@
       ]
     },
     "routeMatch": {
-      "title": "Что сравниваем",
+      "title": "Предмет сравнения",
       "description": "Выберите одно: путь, заголовки, параметры адреса или метод gRPC.",
       "oneOf": [
         {
-          "title": "Path",
+          "title": "Путь запроса",
           "description": "Сравнение по пути запроса.",
           "type": "object",
           "additionalProperties": false,
@@ -1289,7 +1353,7 @@
           ]
         },
         {
-          "title": "Headers",
+          "title": "Заголовки запроса",
           "description": "Сравнение по заголовкам запроса.",
           "type": "object",
           "additionalProperties": false,
@@ -1307,7 +1371,7 @@
           ]
         },
         {
-          "title": "QueryParams",
+          "title": "Параметры адреса",
           "description": "Сравнение по параметрам в адресе.",
           "type": "object",
           "additionalProperties": false,
@@ -1325,7 +1389,7 @@
           ]
         },
         {
-          "title": "Method",
+          "title": "Метод gRPC",
           "description": "Сравнение по методу gRPC.",
           "type": "object",
           "additionalProperties": false,
@@ -1345,7 +1409,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "title": "Сравнение",
+          "title": "Способ сравнения",
           "description": "Как путь запроса сверяется со значением.",
           "type": "string",
           "enum": [
@@ -1354,15 +1418,15 @@
             "RegularExpression"
           ],
           "enumNames": [
-            "Совпадает целиком (Exact)",
-            "Начинается с этого (PathPrefix)",
-            "Подходит под выражение (RegularExpression)"
+            "Совпадает целиком",
+            "Начинается с указанного пути",
+            "Соответствует регулярному выражению"
           ],
           "default": "PathPrefix"
         },
         "value": {
-          "title": "Значение",
-          "description": "Например /api.",
+          "title": "Образец пути",
+          "description": "Укажите путь для сравнения, например /api.",
           "type": "string",
           "default": "/"
         }
@@ -1377,7 +1441,7 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "title": "Сравнение",
+          "title": "Способ сравнения",
           "description": "Как значение заголовка или параметра сверяется с образцом.",
           "type": "string",
           "enum": [
@@ -1385,19 +1449,19 @@
             "RegularExpression"
           ],
           "enumNames": [
-            "Совпадает целиком (Exact)",
-            "Подходит под выражение (RegularExpression)"
+            "Совпадает целиком",
+            "Соответствует регулярному выражению"
           ],
           "default": "Exact"
         },
         "name": {
-          "title": "Имя",
+          "title": "Имя для сравнения",
           "description": "Имя заголовка или параметра.",
           "type": "string"
         },
         "value": {
-          "title": "Значение",
-          "description": "Значение заголовка или параметра.",
+          "title": "Образец значения",
+          "description": "Значение, с которым сравнивается заголовок или параметр.",
           "type": "string"
         }
       },
@@ -1412,20 +1476,20 @@
       "properties": {
         "service": {
           "title": "Сервис gRPC",
-          "description": "Например users.UsersService.",
+          "description": "Укажите имя сервиса, например users.UsersService.",
           "type": "string"
         },
         "method": {
-          "title": "Метод",
-          "description": "Например GetUser.",
+          "title": "Метод gRPC",
+          "description": "Укажите имя метода, например GetUser.",
           "type": "string"
         }
       },
       "minProperties": 1
     },
     "routeFilter": {
-      "title": "Что сделать",
-      "description": "Выберите одно: заголовки запроса, перенаправление, подмена адреса или CORS.",
+      "title": "Способ обработки",
+      "description": "Выберите одно: изменение заголовков запроса, перенаправление, подмена адреса или доступ с других доменов.",
       "oneOf": [
         {
           "$ref": "#/definitions/requestHeaderModifierFilter"
@@ -1442,30 +1506,30 @@
       ]
     },
     "requestHeaderModifierFilter": {
-      "title": "RequestHeaderModifier",
+      "title": "Изменение заголовков",
       "description": "Меняет заголовки запроса перед отправкой в сервис.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "type": {
-          "title": "type",
+          "title": "Тип обработки",
           "type": "string",
           "const": "RequestHeaderModifier",
           "default": "RequestHeaderModifier",
           "ui:widget": "hidden"
         },
         "requestHeaderModifier": {
-          "title": "Действие",
-          "description": "Set перезаписывает заголовок, Add дописывает значение, Remove убирает заголовок.",
+          "title": "Действие с заголовками",
+          "description": "Выберите действие: перезаписать заголовок, дополнить его значение или удалить заголовок.",
           "oneOf": [
             {
-              "title": "Set",
+              "title": "Перезапись заголовков",
               "description": "Записывает заголовок поверх того, что пришло.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "set": {
-                  "title": "Заголовки",
+                  "title": "Заголовки для перезаписи",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1478,13 +1542,13 @@
               ]
             },
             {
-              "title": "Add",
+              "title": "Дополнение заголовков",
               "description": "Дописывает значение к тому, что пришло.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "add": {
-                  "title": "Заголовки",
+                  "title": "Заголовки для дополнения",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1497,13 +1561,13 @@
               ]
             },
             {
-              "title": "Remove",
+              "title": "Удаление заголовков",
               "description": "Убирает заголовок по имени.",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "remove": {
-                  "title": "Заголовки",
+                  "title": "Заголовки для удаления",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -1535,7 +1599,7 @@
           "minLength": 1
         },
         "value": {
-          "title": "Значение",
+          "title": "Значение заголовка",
           "type": "string",
           "minLength": 1
         }
@@ -1546,30 +1610,30 @@
       ]
     },
     "requestRedirectFilter": {
-      "title": "RequestRedirect",
-      "description": "Отвечает перенаправлением, не доходя до сервиса.",
+      "title": "Перенаправление запроса",
+      "description": "Точка входа отвечает перенаправлением, не отправляя запрос в сервис.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "type": {
-          "title": "type",
+          "title": "Тип обработки",
           "type": "string",
           "const": "RequestRedirect",
           "default": "RequestRedirect",
           "ui:widget": "hidden"
         },
         "requestRedirect": {
-          "title": "Что менять",
+          "title": "Параметр перенаправления",
           "description": "Выберите одно: схема, домен, путь, порт или код ответа.",
           "oneOf": [
             {
-              "title": "Scheme",
+              "title": "Схема адреса",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "scheme": {
-                  "title": "Схема",
-                  "description": "Схема адреса, на который уходит запрос.",
+                  "title": "Схема адреса",
+                  "description": "Схема адреса перенаправления: http или https.",
                   "type": "string",
                   "enum": [
                     "http",
@@ -1583,13 +1647,13 @@
               ]
             },
             {
-              "title": "Domain",
+              "title": "Домен перенаправления",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "hostname": {
-                  "title": "Домен",
-                  "description": "Куда перенаправляем.",
+                  "title": "Новый домен",
+                  "description": "Домен, на который будет перенаправлен запрос.",
                   "type": "string",
                   "minLength": 1
                 }
@@ -1599,7 +1663,7 @@
               ]
             },
             {
-              "title": "FullPath",
+              "title": "Полный путь",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1616,11 +1680,11 @@
                       "ui:widget": "hidden"
                     },
                     "replaceFullPath": {
-                      "title": "Значение",
+                      "title": "Значение пути",
                       "type": "string",
                       "pattern": "^/",
                       "default": "/",
-                      "description": "Начинается со слеша."
+                      "description": "Укажите новый путь, начиная со слеша."
                     }
                   },
                   "required": [
@@ -1634,14 +1698,14 @@
               ]
             },
             {
-              "title": "Port",
+              "title": "Порт перенаправления",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "port": {
-                  "title": "Порт",
+                  "title": "Новый порт",
                   "$ref": "#/definitions/port",
-                  "description": "Порт, на который перенаправляем."
+                  "description": "Порт, на который будет перенаправлен запрос."
                 }
               },
               "required": [
@@ -1649,7 +1713,7 @@
               ]
             },
             {
-              "title": "StatusCode",
+              "title": "Код ответа",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1665,7 +1729,7 @@
                     "Временное перенаправление (302)"
                   ],
                   "default": 301,
-                  "description": "Каким кодом гейтвей отвечает на запрос."
+                  "description": "Код, которым точка входа отвечает при перенаправлении запроса."
                 }
               },
               "required": [
@@ -1681,29 +1745,29 @@
       ]
     },
     "urlRewriteFilter": {
-      "title": "URLRewrite",
+      "title": "Подмена адреса",
       "description": "Подменяет адрес перед отправкой в сервис.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "type": {
-          "title": "type",
+          "title": "Тип обработки",
           "type": "string",
           "const": "URLRewrite",
           "default": "URLRewrite",
           "ui:widget": "hidden"
         },
         "urlRewrite": {
-          "title": "Что менять",
+          "title": "Часть адреса",
           "description": "Выберите одно: домен или путь.",
           "oneOf": [
             {
-              "title": "Domain",
+              "title": "Подмена домена",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "hostname": {
-                  "title": "Домен",
+                  "title": "Новый домен",
                   "description": "Домен, который увидит сервис.",
                   "type": "string",
                   "minLength": 1
@@ -1714,7 +1778,7 @@
               ]
             },
             {
-              "title": "FullPath",
+              "title": "Полный путь",
               "type": "object",
               "additionalProperties": false,
               "properties": {
@@ -1731,11 +1795,11 @@
                       "ui:widget": "hidden"
                     },
                     "replaceFullPath": {
-                      "title": "Значение",
+                      "title": "Значение пути",
                       "type": "string",
                       "pattern": "^/",
                       "default": "/",
-                      "description": "Начинается со слеша."
+                      "description": "Укажите новый путь, начиная со слеша."
                     }
                   },
                   "required": [
@@ -1757,7 +1821,7 @@
       ]
     },
     "corsFilter": {
-      "title": "CORS",
+      "title": "Доступ с других доменов",
       "description": "Разрешает браузеру обращаться к сервису с другого домена.",
       "type": "object",
       "additionalProperties": false,
@@ -1769,21 +1833,21 @@
           "ui:widget": "hidden"
         },
         "cors": {
-          "title": "Параметр",
-          "description": "Выберите один параметр CORS.",
+          "title": "Параметр доступа",
+          "description": "Выберите один параметр доступа с других доменов.",
           "oneOf": [
             {
-              "title": "AllowOrigins",
+              "title": "Разрешённые источники",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "allowOrigins": {
                   "title": "Разрешённые источники",
-                  "description": "Например https://example.ru или * для любого.",
+                  "description": "Укажите источник, например https://example.ru, или * для любого источника.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
-                    "title": "Значение",
+                    "title": "Адрес источника",
                     "type": "string",
                     "minLength": 1
                   }
@@ -1794,13 +1858,13 @@
               ]
             },
             {
-              "title": "AllowCredentials",
+              "title": "Передача данных авторизации",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "allowCredentials": {
-                  "title": "Разрешить куки и заголовки авторизации",
-                  "description": "Всегда включено.",
+                  "title": "Передача данных авторизации",
+                  "description": "Разрешает передавать куки и заголовки авторизации. Для этого варианта всегда включено.",
                   "type": "boolean",
                   "const": true,
                   "default": true
@@ -1811,17 +1875,17 @@
               ]
             },
             {
-              "title": "AllowMethods",
+              "title": "Разрешённые методы",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "allowMethods": {
                   "title": "Разрешённые методы",
-                  "description": "* разрешает любой метод.",
+                  "description": "Значение * разрешает любой метод.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
-                    "title": "Значение",
+                    "title": "Метод запроса",
                     "type": "string",
                     "enum": [
                       "GET",
@@ -1843,17 +1907,17 @@
               ]
             },
             {
-              "title": "AllowHeaders",
+              "title": "Разрешённые заголовки",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "allowHeaders": {
                   "title": "Разрешённые заголовки",
-                  "description": "Какие заголовки браузеру можно прислать.",
+                  "description": "Заголовки, которые браузеру разрешено отправлять в запросе.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
-                    "title": "Значение",
+                    "title": "Имя заголовка",
                     "type": "string",
                     "minLength": 1
                   }
@@ -1864,17 +1928,17 @@
               ]
             },
             {
-              "title": "ExposeHeaders",
+              "title": "Доступные странице заголовки",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "exposeHeaders": {
-                  "title": "Заголовки, видимые коду страницы",
-                  "description": "Остальные заголовки ответа браузер от кода прячет.",
+                  "title": "Доступные странице заголовки",
+                  "description": "Заголовки ответа, которые браузер позволит прочитать коду страницы.",
                   "type": "array",
                   "minItems": 1,
                   "items": {
-                    "title": "Значение",
+                    "title": "Имя заголовка",
                     "type": "string",
                     "minLength": 1
                   }
@@ -1885,13 +1949,13 @@
               ]
             },
             {
-              "title": "MaxAge",
+              "title": "Срок хранения разрешения",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "maxAge": {
-                  "title": "Сколько хранить разрешение",
-                  "description": "В секундах. Столько браузер не будет переспрашивать.",
+                  "title": "Срок хранения разрешения",
+                  "description": "Время в секундах, в течение которого браузер хранит разрешение и не запрашивает его повторно.",
                   "type": "integer",
                   "minimum": 1,
                   "default": 600
@@ -1920,24 +1984,24 @@
       ],
       "properties": {
         "name": {
-          "title": "Сервис",
+          "title": "Имя сервиса",
           "description": "Имя сервиса, каким оно есть в кластере.",
           "$ref": "#/definitions/k8sName"
         },
         "namespace": {
-          "title": "Неймспейс",
-          "description": "Пустое поле - тот же неймспейс, где стоит гейтвей.",
+          "title": "Неймспейс сервиса",
+          "description": "Если оставить пустым, используется неймспейс точки входа.",
           "$ref": "#/definitions/k8sName"
         },
         "port": {
-          "title": "Порт",
-          "description": "Порт сервиса.",
+          "title": "Порт сервиса",
+          "description": "Порт сервиса, на который нужно передавать трафик.",
           "$ref": "#/definitions/port",
           "default": 80
         },
         "weight": {
-          "title": "Вес",
-          "description": "Доля запросов, если сервисов несколько.",
+          "title": "Вес сервиса",
+          "description": "Определяет долю запросов, если сервисов несколько.",
           "type": "integer",
           "minimum": 0,
           "default": 100

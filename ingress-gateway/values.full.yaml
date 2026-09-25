@@ -123,6 +123,11 @@ networkPolicy:
 #   ipAddress   - постоянный адрес LoadBalancer (аннотация MetalLB в ConfigMap)
 #   hpa         - HorizontalPodAutoscaler для создаваемого Deployment
 #   resources   - ресурсы контейнера istio-proxy (ConfigMap.data.deployment)
+#   nodeSelector, tolerations, affinity - где планировать под шлюза, в формате
+#                 спецификации пода Kubernetes. Адрес шлюза объявляется в сеть
+#                 с той ноды, где стоит под, поэтому ноды без такого анонса
+#                 (например, GPU-ноды) отсюда исключают. Пусто - решает
+#                 планировщик. В форме заказа скрыты, задаются в values
 #   listeners[] - список listener'ов:
 #     name          - имя listener'а (sectionName в parentRefs), 2..9 символов;
 #                     подставляется в имя автовыпущенного сертификата
@@ -157,6 +162,25 @@ gateways:
       limits:
         cpu: 500m
         memory: 512Mi
+
+    # Под шлюза только на нодах группы ingress и ни в коем случае не на
+    # GPU-нодах: с них адрес шлюза в сеть не объявляется.
+    nodeSelector:
+      node-group: ingress
+    tolerations:
+      - key: node-group
+        operator: Equal
+        value: ingress
+        effect: NoSchedule
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-group
+                  operator: NotIn
+                  values:
+                    - gpu
 
     listeners:
       - name: http
