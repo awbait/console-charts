@@ -1,0 +1,117 @@
+{{/*
+The egress gateway when it stands next to the senders: mode mesh with the
+waypointNamespace subchart switched off. A Gateway of class istio-waypoint and,
+when the item autoscales or sets resources, its infrastructure ConfigMap, both
+in senders.namespace and both named the way the waypoint chart names them
+({instance}-{cluster}-wp-{project}-{name}), so every resource that points at
+the gateway (ServiceEntry labels, VpcEgressGateway selectors, NetworkPolicy,
+AuthorizationPolicy) works the same in both placements.
+
+The item comes from waypointNamespace.waypoint.waypoints, the one list that
+describes the gateway wherever it stands: with the subchart on, the waypoint
+subchart renders it in NS 2 and this file renders nothing. Mirrors
+waypoint/templates/waypoint.yaml and configmap.yaml of this repository; keep
+the two in step.
+
+The listener admits its own namespace, which is where the senders are, so
+allowedNamespaces is not needed here; namespaces still listed there (minus the
+own one) land in a Selector as the waypoint chart does. The Service of the
+waypoint stays internal (annotation networking.istio.io/service-type:
+ClusterIP): a waypoint is only ever reached over HBONE from ztunnel.
+*/}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- include "egress-gateway.helpers.validate" . -}}
+{{- if eq (include "egress-gateway.helpers.gatewayInSenders" .) "true" }}
+{{- $root := . }}
+{{- $waypoint := include "egress-gateway.helpers.waypoint" $root | fromJson }}
+{{- $fullname := include "egress-gateway.helpers.gatewayFullname" $root }}
+{{- $namespace := include "egress-gateway.helpers.sendersNamespace" $root }}
+{{- $for := $waypoint.for | default "service" | toString | lower }}
+{{- if not (has $for (list "service" "workload" "all")) }}
+{{- fail (printf "waypointNamespace.waypoint.waypoints[].for must be one of service|workload|all, got %q" $for) }}
+{{- end }}
+{{- $allowed := list }}
+{{- range $item := ($waypoint.allowedNamespaces | default list) }}
+{{- $value := $item | toString | trim | lower }}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) }}
+{{- fail (printf "waypointNamespace.waypoint.waypoints[].allowedNamespaces must hold namespace names in DNS format, got %q" $value) }}
+{{- end }}
+{{- if and (ne $value $namespace) (not (has $value $allowed)) }}
+{{- $allowed = append $allowed $value }}
+{{- end }}
+{{- end }}
+{{- $hpa := $waypoint.hpa | default dict }}
+{{- $hpaEnabled := eq (toString ($hpa.enabled | default false) | lower) "true" }}
+{{- $hasInfrastructure := or $hpaEnabled (not (empty $waypoint.resources)) }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root "labels" (dict "istio.io/waypoint-for" $for) "annotations" (dict "networking.istio.io/service-type" "ClusterIP")) | nindent 2 }}
+spec:
+  gatewayClassName: istio-waypoint
+  {{- if $hasInfrastructure }}
+  infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: {{ $fullname }}
+  {{- end }}
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: HBONE
+      {{- if $allowed }}
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - {{ $namespace | quote }}
+                  {{- range $item := $allowed }}
+                  - {{ $item | quote }}
+                  {{- end }}
+      {{- end }}
+{{- if $hasInfrastructure }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $namespace | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+data:
+  {{- if $hpaEnabled }}
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ $hpa.minReplicas | default 2 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 5 }}
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: {{ $hpa.averageUtilization | default 80 }}
+  {{- end }}
+  deployment: |
+    spec:
+      template:
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          {{- with $waypoint.resources }}
+          containers:
+            - name: istio-proxy
+              resources:
+                {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 16 }}
+          {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

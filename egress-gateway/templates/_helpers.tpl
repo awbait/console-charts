@@ -184,6 +184,39 @@ value names the namespace for all three charts. Parameter: the root context.
 {{- end -}}
 
 {{/*
+Where the egress gateway stands in mode mesh. Returns "true" (for if-tests)
+when it stands in the namespace of the senders: mode mesh with the
+waypointNamespace subchart switched off. The chart then renders the Gateway
+and its ConfigMap itself (gateway.yaml), in senders.namespace, and the
+namespace of the gateway is the namespace of the senders everywhere else
+(ServiceEntry, NetworkPolicy, AuthorizationPolicy, VpcEgressGateway). With
+the subchart on, the gateway stands in a namespace of its own (NS 2) and the
+waypoint subchart under the namespace subchart renders it. In mode direct
+there is no gateway at all. Parameter: the root context.
+*/}}
+{{- define "egress-gateway.helpers.gatewayInSenders" -}}
+{{- $mode := include "egress-gateway.helpers.mode" . -}}
+{{- $wpNs := .Values.waypointNamespace | default dict -}}
+{{- if and (eq $mode "mesh") (eq (include "egress-gateway.helpers.app.enabled" $wpNs) "") -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+The namespace the egress gateway stands in (mode mesh): the senders namespace
+when the gateway lives next to the senders, the waypoint namespace (NS 2)
+otherwise. Every resource that names the namespace of the gateway goes
+through here. Parameter: the root context.
+*/}}
+{{- define "egress-gateway.helpers.gatewayNamespace" -}}
+{{- if eq (include "egress-gateway.helpers.gatewayInSenders" .) "true" -}}
+{{- include "egress-gateway.helpers.sendersNamespace" . -}}
+{{- else -}}
+{{- include "egress-gateway.helpers.waypointNamespace" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 The VpcEgressGateway namespace (NS 3), named after vegNamespace.namespace.name.
 That field is the subchart's own override of global.namespacePurpose, which is
 why the two namespaces can share one global. Parameter: the root context.
@@ -198,9 +231,11 @@ why the two namespaces can share one global. Parameter: the root context.
 
 {{/*
 The one waypoint of the release, as JSON: the single enabled item of
-waypointNamespace.waypoint.waypoints. The waypoint subchart renders it; this
-chart only needs its name and its allowed namespaces. Parameter: the root
-context.
+waypointNamespace.waypoint.waypoints. The list describes the gateway wherever
+it stands: with the waypointNamespace subchart on, the waypoint subchart under
+it renders the item in NS 2 and this chart only needs its name and its allowed
+namespaces; with the subchart off (mode mesh), this chart renders the item
+itself in the senders namespace (gateway.yaml). Parameter: the root context.
 */}}
 {{- define "egress-gateway.helpers.waypoint" -}}
 {{- $sub := ((.Values.waypointNamespace | default dict).waypoint | default dict).waypoints | default list -}}
@@ -296,9 +331,10 @@ Parameter: the root context. Renders nothing.
 {{- $networkPolicy := .Values.networkPolicy | default dict -}}
 {{- $authorizationPolicy := .Values.authorizationPolicy | default dict -}}
 {{- if eq $mode "mesh" -}}
-{{- if not $wpEnabled -}}
-{{- fail "mode mesh needs the waypoint namespace: set waypointNamespace.enabled to true (or switch to mode direct)" -}}
-{{- end -}}
+{{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson -}}
+{{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
+{{- if $wpEnabled -}}
+{{/* The gateway stands in a namespace of its own (NS 2), rendered by the waypoint subchart. */}}
 {{- if ($wpNs.namespace | default dict).name -}}
 {{- fail "waypointNamespace.namespace.name is not read: the waypoint namespace is named after global.namespacePurpose, which the waypoint subchart reads too" -}}
 {{- end -}}
@@ -311,10 +347,8 @@ Parameter: the root context. Renders nothing.
 {{- fail (printf "global.namespacePurpose and vegNamespace.namespace.name both name %q: the waypoint and the VpcEgressGateway live in two different namespaces" $wpNsName) -}}
 {{- end -}}
 {{- if eq $wpNsName $senders -}}
-{{- fail (printf "senders.namespace %q is the namespace the waypoint is created in: the senders live in a namespace of their own, ordered separately" $senders) -}}
+{{- fail (printf "senders.namespace %q is the namespace the waypoint is created in: the senders live in a namespace of their own, ordered separately, or switch waypointNamespace.enabled off to put the gateway next to the senders" $senders) -}}
 {{- end -}}
-{{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson -}}
-{{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
 {{- $allowed := list -}}
 {{- range $namespace := ($waypoint.allowedNamespaces | default list) -}}
 {{- $allowed = append $allowed ($namespace | toString | trim | lower) -}}
@@ -322,6 +356,8 @@ Parameter: the root context. Renders nothing.
 {{- if not (has $senders $allowed) -}}
 {{- fail (printf "senders.namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $senders) -}}
 {{- end -}}
+{{- end -}}
+{{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace without allowedNamespaces. */}}
 {{- $entries := list -}}
 {{- range $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}

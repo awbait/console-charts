@@ -239,10 +239,17 @@ authorizationPolicy:
 # ============================================================================
 # waypointNamespace - NS 2, сабчарт namespace (только mesh)
 # ============================================================================
-# Все поля - из чарта namespace 6.1.0, здесь только те, что чарт фиксирует.
+# Все поля - из чарта namespace, здесь только те, что чарт фиксирует.
 # Назначение (имя) берётся из global.namespacePurpose; namespace.name здесь
 # не читается. Теги - из global.identity.
-#   enabled           - в режиме direct обязательно false
+#   enabled           - где стоит гейтвей. true: в своём неймспейсе (NS 2),
+#                       его рендерит сабчарт waypoint. false в режиме mesh:
+#                       NS 2 не создаётся, гейтвей встаёт в senders.namespace
+#                       рядом с приложением, его рендерит сам egress-gateway
+#                       по тому же списку waypoint.waypoints (пример -
+#                       values.mesh-senders.yaml); allowedNamespaces тогда не
+#                       нужен, сетевые политики и правило доступа уезжают в
+#                       senders.namespace. В режиме direct обязательно false.
 #   serviceMesh       - всегда enabled + waypoint, never запрещён
 #   namespace.role    - egress
 #   podSecurity       - baseline: гейтвею больше не нужно

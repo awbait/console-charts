@@ -66,7 +66,12 @@ authorizationPolicy:
 # подсети зарезервированы, cidrBlock с subnet.enable: true.
 # ----------------------------------------------------------------------------
 waypointNamespace:
-  enabled: true        # в режиме direct поставьте false
+  # true  - гейтвей в своём неймспейсе {project}-{cluster}-ns-{namespacePurpose},
+  #         его рендерит сабчарт waypoint под этим сабчартом.
+  # false - в режиме mesh гейтвей встаёт в senders.namespace рядом с приложением,
+  #         его рендерит сам egress-gateway (templates/gateway.yaml) по тому же
+  #         списку waypoint.waypoints; в режиме direct - обязательно false.
+  enabled: true
   namespace:
     displayName: "Egress waypoint"
     role: egress

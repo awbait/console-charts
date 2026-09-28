@@ -5,8 +5,9 @@ waypoint, which mode direct does not have.
 ALLOW from the senders namespace, nothing else: with the policy in place no
 other namespace of the cluster gets its traffic out through this gateway. The
 policy is attached through targetRefs, the way a Gateway API gateway is
-targeted, not through a workload selector, and lives in the waypoint namespace
-next to the Gateway. Named after the waypoint (kindShort ap).
+targeted, not through a workload selector, and lives in the namespace of the
+gateway next to the Gateway (NS 2, or the senders namespace when the gateway
+stands next to the senders). Named after the waypoint (kindShort ap).
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
@@ -19,7 +20,7 @@ apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $waypoint.name "context" $root) }}
-  namespace: {{ include "egress-gateway.helpers.waypointNamespace" $root | quote }}
+  namespace: {{ include "egress-gateway.helpers.gatewayNamespace" $root | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   targetRefs:
