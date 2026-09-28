@@ -224,6 +224,21 @@
         "type": "string"
       }
     },
+    "resourceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "memory": {
+          "type": "string"
+        }
+      }
+    },
     "nodeSelectorRequirement": {
       "type": "object",
       "additionalProperties": false,
@@ -468,7 +483,8 @@
         "scope",
         "label",
         "nodeSelector",
-        "tolerations"
+        "tolerations",
+        "limitRange"
       ],
       "properties": {
         "name": {
@@ -518,6 +534,36 @@
           "description": "Целиком заменяют правило платформы для этого выхода, пустой список отключает его. В форме скрыто.",
           "ui:widget": "hidden",
           "$ref": "#/definitions/podTolerations"
+        },
+        "limitRange": {
+          "title": "Ресурсы по умолчанию",
+          "description": "Подставляет ресурсы контейнерам без своих значений в неймспейсе выхода. В форме скрыто.",
+          "ui:widget": "hidden",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "enabled",
+            "defaultRequest",
+            "default"
+          ],
+          "properties": {
+            "enabled": {
+              "title": "Создание LimitRange",
+              "description": "Включает LimitRange в неймспейсе выхода. По умолчанию включено.",
+              "type": "boolean",
+              "default": true
+            },
+            "defaultRequest": {
+              "title": "Запросы по умолчанию",
+              "description": "Запросы для контейнеров без своих значений: по умолчанию 100m процессора и 128Mi памяти.",
+              "$ref": "#/definitions/resourceList"
+            },
+            "default": {
+              "title": "Лимиты по умолчанию",
+              "description": "Лимиты для контейнеров без своих значений: по умолчанию 500m процессора и 256Mi памяти.",
+              "$ref": "#/definitions/resourceList"
+            }
+          }
         }
       },
       "required": [

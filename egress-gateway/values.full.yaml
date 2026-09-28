@@ -152,6 +152,13 @@ serviceEntries:
 #                 gatewayScheduling (см. ниже), а пустое значение
 #                 (nodeSelector: []) отключает умолчание. В форме заказа
 #                 скрыты, задаются в values
+#   limitRange  - LimitRange в неймспейсе выхода (NS 3), имя как у
+#                 VpcEgressGateway. Квота неймспейса требует requests и limits
+#                 у каждого контейнера, а под выхода собирает контроллер
+#                 kube-ovn, и его init-контейнер приходит без ресурсов:
+#                 LimitRange типа Container подставляет их при создании пода.
+#                 enabled: false убирает его (например, если квоты в NS 3
+#                 нет). В форме заказа скрыт
 vpcEgressGateway:
   name: vip
   externalIPs:
@@ -159,6 +166,14 @@ vpcEgressGateway:
     - 10.193.101.11
   scope: namespace
   label: ecpk/egress
+  limitRange:
+    enabled: true
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: 500m
+      memory: 256Mi
 
   # Этот выход живёт только на нодах группы egress. Поля ниже заменяют
   # умолчания из gatewayScheduling для него одного.

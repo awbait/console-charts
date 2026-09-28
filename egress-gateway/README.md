@@ -43,7 +43,7 @@ egress-гейтвей. Размещение по схеме ЕЦПК: два р�
 |---|---|---|
 | `waypointNamespace` | Гейтвей и, если включено, его неймспейс | mesh |
 | `vegNamespace` | Неймспейс с квотами и подсетью | оба |
-| `vpcEgressGateway` | `VpcEgressGateway` kube-ovn | оба |
+| `vpcEgressGateway` | `VpcEgressGateway` kube-ovn и `LimitRange` в неймспейсе выхода | оба |
 | `serviceEntries[]` | Записи `ServiceEntry` с привязкой к гейтвею | mesh |
 | `networkPolicy` | Две политики гейтвея и одна ваших сервисов | mesh |
 | `authorizationPolicy` | Правило `AuthorizationPolicy` гейтвея | mesh |
@@ -223,6 +223,7 @@ egress-гейтвей. Размещение по схеме ЕЦПК: два р�
 | `label` | нет, по умолчанию `ecpk/egress` | Ключ метки |
 | `nodeSelector` | нет | Выбор узлов |
 | `tolerations` | нет | Допуски размещения |
+| `limitRange` | нет | Ресурсы контейнеров по умолчанию |
 
 В `mesh` выход выбирает поды гейтвея. Поля `scope` и `label` действуют
 только в `direct`:
@@ -237,6 +238,12 @@ egress-гейтвей. Размещение по схеме ЕЦПК: два р�
 
 VPC и внешняя подсеть `egress-vip` фиксированы и через значения
 не настраиваются. Размещение подов задаёт `gatewayScheduling`.
+
+`LimitRange` включён по умолчанию, чтобы квота неймспейса не отклоняла под
+выхода из-за контейнеров без ресурсов. Таким контейнерам подставляются
+запросы 100m процессора и 128Mi памяти, лимиты 500m процессора и 256Mi памяти.
+Собственные запросы и лимиты контейнера не меняются.
+Чтобы отключить `LimitRange`, укажите `vpcEgressGateway.limitRange.enabled: false`.
 
 ## Секция `gatewayScheduling`
 
