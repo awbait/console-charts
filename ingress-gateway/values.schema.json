@@ -1814,33 +1814,61 @@
               ]
             },
             {
-              "title": "Полный путь",
+              "title": "Подмена пути",
               "type": "object",
               "additionalProperties": false,
               "properties": {
                 "path": {
                   "title": "Новый путь",
-                  "description": "Заменяет путь запроса целиком.",
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "const": "ReplaceFullPath",
-                      "default": "ReplaceFullPath",
-                      "ui:widget": "hidden"
+                  "oneOf": [
+                    {
+                      "title": "Заменить путь целиком",
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "ReplaceFullPath",
+                          "default": "ReplaceFullPath",
+                          "ui:widget": "hidden"
+                        },
+                        "replaceFullPath": {
+                          "title": "Значение пути",
+                          "description": "Заменяет весь путь запроса.",
+                          "type": "string",
+                          "pattern": "^/",
+                          "default": "/"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "replaceFullPath"
+                      ]
                     },
-                    "replaceFullPath": {
-                      "title": "Значение пути",
-                      "type": "string",
-                      "pattern": "^/",
-                      "default": "/",
-                      "description": "Укажите новый путь, начиная со слеша."
+                    {
+                      "title": "Заменить префикс пути",
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "const": "ReplacePrefixMatch",
+                          "default": "ReplacePrefixMatch",
+                          "ui:widget": "hidden"
+                        },
+                        "replacePrefixMatch": {
+                          "title": "Новый префикс",
+                          "description": "Заменяет совпавший PathPrefix, сохраняя остаток пути. Укажите / для удаления префикса.",
+                          "type": "string",
+                          "pattern": "^/",
+                          "default": "/"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "replacePrefixMatch"
+                      ]
                     }
-                  },
-                  "required": [
-                    "type",
-                    "replaceFullPath"
                   ]
                 }
               },
