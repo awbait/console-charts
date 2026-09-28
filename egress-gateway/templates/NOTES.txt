@@ -11,12 +11,18 @@ egress-gateway ({{ .Chart.Version }}), режим {{ $mode }}.
 
 Отправители: namespace {{ $senders }} (существует до заказа, создаётся отдельным заказом namespace).
 {{- if eq $mode "mesh" }}
-{{- $gwNamespace := include "egress-gateway.helpers.waypointNamespace" . }}
+{{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" . }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" . }}
 {{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson }}
+{{- if eq (include "egress-gateway.helpers.gatewayInSenders" .) "true" }}
+
+Неймспейс гейтвея: {{ $gwNamespace }} (неймспейс отправителей, отдельный неймспейс гейтвея не создан).
+Гейтвей: {{ $gwFullname }} (Gateway класса istio-waypoint, принимает трафик отправителей по HBONE на порту 15008, создаёт сам чарт).
+{{- else }}
 
 Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом, в сетке).
 Гейтвей: {{ $gwFullname }} (Gateway класса istio-waypoint, принимает трафик отправителей по HBONE на порту 15008; рендерит сабчарт waypoint).
+{{- end }}
 {{- $hpa := $waypoint.hpa | default dict }}
 {{- if $hpa.enabled }}
 Автомасштабирование включено: от {{ $hpa.minReplicas | default 2 }} до {{ $hpa.maxReplicas | default 5 }} экземпляров при загрузке CPU выше {{ $hpa.averageUtilization | default 80 }}%.

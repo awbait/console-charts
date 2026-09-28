@@ -17,9 +17,10 @@ as a whole; an explicit empty value switches it off. The CRD has no affinity
 field, kube-ovn spreads the replicas by itself.
 
 What the gateway captures depends on the mode:
-  mesh            selectors: the pods of the egress Gateway in the waypoint
-                  namespace (namespaceSelector + podSelector in ONE item, they
-                  are ANDed inside an item and ORed between items). SNAT for
+  mesh            selectors: the pods of the egress Gateway in the namespace
+                  it stands in, NS 2 or the senders namespace (namespaceSelector
+                  + podSelector in ONE item, they are ANDed inside an item and
+                  ORed between items). SNAT for
                   selected pods is done by the init script of the gateway pod,
                   so no policies are written: a policy on the senders subnet
                   would capture the application pods too, including the
@@ -66,7 +67,7 @@ spec:
   selectors:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.waypointNamespace" $root | quote }}
+          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.gatewayNamespace" $root | quote }}
       podSelector:
         matchLabels:
           {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" (include "egress-gateway.helpers.gatewayFullname" $root)) | nindent 10 }}

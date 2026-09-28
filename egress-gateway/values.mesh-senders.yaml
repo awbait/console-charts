@@ -1,0 +1,63 @@
+# Пример, режим mesh с гейтвеем в неймспейсе отправителей: waypointNamespace
+# выключен, отдельный неймспейс гейтвея не создаётся, Gateway встаёт рядом с
+# приложением в senders.namespace. Список вейпоинтов тот же, что и в
+# values.minimal.yaml, только allowedNamespaces не нужен: гейтвей и так
+# принимает свой неймспейс.
+#
+# Что создаётся (теги ниже):
+# - в namespace отправителей nbox-dev-ns-app:
+#   Gateway       ed-dev-wp-nbox-eg    (класс istio-waypoint, рендерит сам egress-gateway) и его ConfigMap
+#   ServiceEntry  ed-dev-egw-nbox-nx
+#   NetworkPolicy ed-dev-np-eg-nbox-out, ed-dev-np-eg-nbox-in и ed-dev-np-eg-nbox-senders
+#   AuthorizationPolicy ed-dev-ap-nbox-eg
+# - Namespace   nbox-dev-ns-veg-vip  (сабчарт vegNamespace, вне сетки)
+#   VpcEgressGateway ed-dev-veg-nbox-vip, захватывает поды гейтвея в nbox-dev-ns-app
+
+global:
+  identity:
+    instance: ed
+    cluster: dev
+    project: nbox
+  namespacePurpose: egw-eg   # не используется без неймспейса гейтвея, но обязателен для сабчарта
+
+mode: mesh
+
+senders:
+  namespace: nbox-dev-ns-app
+
+serviceEntries:
+  - name: nx
+    hostname: repository.solution.test
+
+vpcEgressGateway:
+  name: vip
+  externalIPs:
+    - 10.193.101.10
+
+networkPolicy:
+  enabled: true
+  endpoints:
+    - address: 10.40.20.50
+      port: 443
+
+authorizationPolicy:
+  enabled: true
+
+waypointNamespace:
+  enabled: false
+  waypoint:
+    waypoints:
+      - name: eg
+        for: service
+        hpa:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 5
+          averageUtilization: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi

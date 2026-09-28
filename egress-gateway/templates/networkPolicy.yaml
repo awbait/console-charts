@@ -3,8 +3,9 @@ NetworkPolicies of the egress gateway, created together when
 networkPolicy.enabled. Mode mesh only: they guard the waypoint, which mode
 direct does not have (a namespace outside the mesh gets no policies at all).
 
-In the waypoint namespace, on the pods the Istio Gateway controller makes for
-the Gateway (label gateway.networking.k8s.io/gateway-name):
+In the namespace of the gateway (NS 2, or the senders namespace when the
+gateway stands next to the senders), on the pods the Istio Gateway controller
+makes for the Gateway (label gateway.networking.k8s.io/gateway-name):
   {name}-out - what the gateway may reach. istiod (istio-system:15012) and
                CoreDNS (kube-system:1053, TCP and UDP) are fixed; the external
                endpoints come from networkPolicy.endpoints, which is required
@@ -15,12 +16,13 @@ the Gateway (label gateway.networking.k8s.io/gateway-name):
 
 In the senders namespace, on every pod, when networkPolicy.senders (default
 true):
-  {name}-senders - egress to the waypoint namespace on 15008. A namespace in
-               the mesh runs under the default policies of the platform
-               (annotation networking.k8s.io/enable-netpol), and without this
-               rule ztunnel cannot open the HBONE tunnel out of it. Switch it
-               off only for a senders namespace that has no default policies:
-               there it would isolate the pods instead.
+  {name}-senders - egress to the namespace of the gateway on 15008 (the own
+               namespace, when the gateway stands next to the senders). A
+               namespace in the mesh runs under the default policies of the
+               platform (annotation networking.k8s.io/enable-netpol), and
+               without this rule ztunnel cannot open the HBONE tunnel out of
+               it. Switch it off only for a senders namespace that has no
+               default policies: there it would isolate the pods instead.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
@@ -28,7 +30,7 @@ true):
 {{- $networkPolicy := $root.Values.networkPolicy | default dict }}
 {{- if and (eq (include "egress-gateway.helpers.mode" $root) "mesh") (eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true") }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
-{{- $gwNamespace := include "egress-gateway.helpers.waypointNamespace" $root }}
+{{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" $root }}
 {{- $senders := include "egress-gateway.helpers.sendersNamespace" $root }}
 {{- $waypoint := include "egress-gateway.helpers.waypoint" $root | fromJson }}
 {{- $endpoints := $networkPolicy.endpoints | default list }}
