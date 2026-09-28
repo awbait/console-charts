@@ -130,9 +130,8 @@ serviceEntries:
 # externalIPs - это несколько реплик одного выхода, а не несколько выходов;
 # два разных набора адресов - два заказа.
 # Захардкожено в шаблоне (НЕ настраивается здесь): vpc, externalSubnet
-# (egress-vip), nodeSelector (мастер-узлы: ingress-шлюз живёт на воркерах, и
-# делить узел с ним выход не должен). trafficPolicy не пишется: он действует
-# только при BFD, который не включён.
+# (egress-vip). trafficPolicy не пишется: он действует только при BFD,
+# который не включён.
 # Что выход захватывает, чарт выводит из режима:
 #   mesh                     selectors на поды гейтвея в NS 2. policies не
 #                            пишутся: SNAT для выбранных подов включает
@@ -148,6 +147,11 @@ serviceEntries:
 #   scope       - только direct: namespace (по умолчанию) | label
 #   label       - только direct со scope label: ключ метки на подах,
 #                 по умолчанию ecpk/egress. Значение метки - имя выхода.
+#   nodeSelector, tolerations - где планировать поды выхода. Заданное здесь
+#                 поле заменяет целиком одноимённое умолчание из
+#                 gatewayScheduling (см. ниже), а пустое значение
+#                 (nodeSelector: []) отключает умолчание. В форме заказа
+#                 скрыты, задаются в values
 vpcEgressGateway:
   name: vip
   externalIPs:
@@ -155,6 +159,39 @@ vpcEgressGateway:
     - 10.193.101.11
   scope: namespace
   label: ecpk/egress
+
+  # Этот выход живёт только на нодах группы egress. Поля ниже заменяют
+  # умолчания из gatewayScheduling для него одного.
+  nodeSelector:
+    - matchLabels:
+        node-group: egress
+  tolerations:
+    - key: node-group
+      operator: Equal
+      value: egress
+      effect: NoSchedule
+
+
+# ============================================================================
+# gatewayScheduling - размещение подов выхода по нодам, умолчание для
+# vpcEgressGateway
+# ============================================================================
+# В values.yaml чарта умолчание пустое: ноду выбирает планировщик, а правила
+# задаёт платформа в значениях своей установки, ниже пример такого правила.
+# Заказ меняет его полем в vpcEgressGateway (оно заменяет одноимённое
+# умолчание целиком). nodeSelector - в формате kube-ovn: список условий,
+# внутри условия matchLabels, matchExpressions и matchFields складываются
+# по «и», условия между собой - по «или». tolerations - в формате
+# спецификации пода Kubernetes. affinity у VpcEgressGateway нет: реплики по
+# нодам раскладывает сам kube-ovn. В форме заказа не показывается.
+gatewayScheduling:
+  nodeSelector:
+    - matchExpressions:
+        - key: node-group
+          operator: NotIn
+          values:
+            - gpu
+  tolerations: []
 
 
 # ============================================================================

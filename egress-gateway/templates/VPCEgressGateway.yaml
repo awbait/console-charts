@@ -5,10 +5,16 @@ pod). Several externalIPs give several replicas of one gateway, not several
 gateways.
 
 Hardcoded in the template (not configurable via values):
-  vpc, externalSubnet (egress-vip), nodeSelector. nodeSelector pins the gateway
-  to the control-plane nodes: the ingress gateway of the service runs on the
-  workers, and the two must not share a node. trafficPolicy is not written: it
-  only acts with BFD, which is not enabled.
+  vpc, externalSubnet (egress-vip). trafficPolicy is not written: it only acts
+  with BFD, which is not enabled.
+
+Scheduling of the gateway workload (nodeSelector in the kube-ovn form, a list
+of matchLabels/matchExpressions/matchFields terms, and tolerations in the pod
+form) comes from gatewayScheduling. The chart default is empty, so the
+scheduler picks the node; the platform sets its rules in the values of its
+installation. A field named in vpcEgressGateway itself replaces the default
+as a whole; an explicit empty value switches it off. The CRD has no affinity
+field, kube-ovn spreads the replicas by itself.
 
 What the gateway captures depends on the mode:
   mesh            selectors: the pods of the egress Gateway in the waypoint
@@ -30,6 +36,11 @@ What the gateway captures depends on the mode:
 {{- $mode := include "egress-gateway.helpers.mode" $root }}
 {{- $veg := .Values.vpcEgressGateway | default dict }}
 {{- $vegFullname := include "egress-gateway.helpers.vegFullname" $root }}
+{{- $scheduling := .Values.gatewayScheduling | default dict }}
+{{- $nodeSelector := $scheduling.nodeSelector }}
+{{- if hasKey $veg "nodeSelector" }}{{ $nodeSelector = $veg.nodeSelector }}{{ end }}
+{{- $tolerations := $scheduling.tolerations }}
+{{- if hasKey $veg "tolerations" }}{{ $tolerations = $veg.tolerations }}{{ end }}
 ---
 apiVersion: kubeovn.io/v1
 kind: VpcEgressGateway
@@ -43,10 +54,14 @@ spec:
   externalSubnet: egress-vip
   externalIPs:
     {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $veg.externalIPs "context" $root) | nindent 4 }}
+  {{- with $nodeSelector }}
   nodeSelector:
-    - matchExpressions:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
+  {{- end }}
+  {{- with $tolerations }}
+  tolerations:
+    {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
+  {{- end }}
   {{- if eq $mode "mesh" }}
   selectors:
     - namespaceSelector:
