@@ -30,11 +30,25 @@ senders:
 serviceEntries: []     # только mesh; заполняет заказ
 
 # Выход с известного адреса: ОДИН на релиз. externalIPs заполняет заказ.
+# Свои nodeSelector и tolerations здесь заменяют одноимённое умолчание из
+# gatewayScheduling целиком (см. values.full.yaml); в форме заказа скрыты.
 vpcEgressGateway:
   name: vip
   externalIPs: []
   scope: namespace     # только direct: namespace (вся подсеть) | label (поды с меткой)
   label: ecpk/egress   # только direct со scope label: ключ метки на подах
+
+# Размещение подов выхода по нодам: умолчание для vpcEgressGateway. Здесь
+# пусто, ноду выбирает планировщик; правила задаёт платформа в значениях
+# своей установки чарта. nodeSelector - в формате kube-ovn (список условий
+# matchLabels / matchExpressions / matchFields), tolerations - в формате
+# спецификации пода Kubernetes. Поле, заданное в vpcEgressGateway, заменяет
+# одноимённое умолчание целиком, а пустое значение там (nodeSelector: [])
+# отключает его. affinity у VpcEgressGateway нет: реплики по нодам
+# раскладывает сам kube-ovn. В форме заказа не показывается.
+gatewayScheduling:
+  nodeSelector: []
+  tolerations: []
 
 # Политики выключены по умолчанию: их включает заказ (только режим mesh).
 # У networkPolicy при enabled: true обязателен список endpoints.

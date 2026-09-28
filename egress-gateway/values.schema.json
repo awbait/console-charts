@@ -16,6 +16,7 @@
     "authorizationPolicy",
     "waypointNamespace",
     "vegNamespace",
+    "gatewayScheduling",
     "enabled"
   ],
   "required": [
@@ -170,6 +171,29 @@
       "type": "object",
       "ui:widget": "hidden"
     },
+    "gatewayScheduling": {
+      "title": "Размещение выхода",
+      "description": "Платформа задаёт общие правила размещения подов выхода для заказа. В самом чарте правила пусты, ноду выбирает планировщик кластера.",
+      "ui:widget": "hidden",
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "nodeSelector",
+        "tolerations"
+      ],
+      "properties": {
+        "nodeSelector": {
+          "title": "Условия выбора узлов",
+          "description": "Условия выбора узлов для подов выхода задаёт платформа. По умолчанию поле пусто и не ограничивает выбор узла.",
+          "$ref": "#/definitions/vegNodeSelector"
+        },
+        "tolerations": {
+          "title": "Допуски к ограничениям узлов",
+          "description": "Разрешают размещать поды выхода на узлах с соответствующими ограничениями. По умолчанию поле пусто, допуски задаёт платформа.",
+          "$ref": "#/definitions/podTolerations"
+        }
+      }
+    },
     "enabled": {
       "title": "Enabled",
       "description": "Render the chart's own resources. The namespace subcharts have switches of their own (waypointNamespace.enabled, vegNamespace.enabled).",
@@ -221,6 +245,98 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      }
+    },
+    "nodeSelectorRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "In",
+            "NotIn",
+            "Exists",
+            "DoesNotExist",
+            "Gt",
+            "Lt"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator"
+      ]
+    },
+    "vegNodeSelector": {
+      "$comment": "kube-ovn VpcEgressGateway.spec.nodeSelector: a list of terms ORed together, the matchers inside one term are ANDed.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "matchLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "matchExpressions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/nodeSelectorRequirement"
+            }
+          },
+          "matchFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/nodeSelectorRequirement"
+            }
+          }
+        }
+      }
+    },
+    "podTolerations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "Equal",
+              "Exists"
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "NoSchedule",
+              "PreferNoSchedule",
+              "NoExecute"
+            ]
+          },
+          "tolerationSeconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     },
     "identity": {
@@ -373,7 +489,9 @@
         "name",
         "externalIPs",
         "scope",
-        "label"
+        "label",
+        "nodeSelector",
+        "tolerations"
       ],
       "properties": {
         "name": {
@@ -411,6 +529,18 @@
           "description": "Ключ метки, которой помечают поды, идущие через выход. Значение метки - имя выхода. Только без сетки и только для выбора по метке.",
           "$ref": "#/definitions/labelKey",
           "default": "ecpk/egress"
+        },
+        "nodeSelector": {
+          "title": "Условия выбора узлов",
+          "description": "Условия выбора узлов для подов этого выхода целиком заменяют одноимённое правило платформы без слияния. Пустой список отключает правило платформы для этого поля.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/vegNodeSelector"
+        },
+        "tolerations": {
+          "title": "Допуски к ограничениям узлов",
+          "description": "Допуски к ограничениям узлов для подов этого выхода целиком заменяют одноимённое правило платформы без слияния. Пустой список отключает правило платформы для этого поля.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/podTolerations"
         }
       },
       "required": [
