@@ -8,9 +8,10 @@
 #     default values.yaml. Order-driven charts (ingress-gateway) intentionally
 #     ship a default values.yaml without naming, so it would not lint - the
 #     minimal example is the right input for them.
-#   - template-render with values.minimal.yaml and values.full.yaml when present.
-#     Charts that only ship a default values.yaml needing runtime config
-#     (console) are lint-only.
+#   - template-render with every values.<example>.yaml the chart ships
+#     (values.minimal.yaml, values.full.yaml, values.direct.yaml and the like);
+#     the default values.yaml itself is not rendered. Charts that only ship a
+#     default values.yaml needing runtime config (console) are lint-only.
 
 fail=0
 
@@ -30,6 +31,11 @@ for chartyaml in */Chart.yaml; do
   render_files=""
   [ -f "$chart/values.minimal.yaml" ] && render_files="$render_files values.minimal.yaml"
   [ -f "$chart/values.full.yaml" ] && render_files="$render_files values.full.yaml"
+  for f in "$chart"/values.*.yaml; do
+    [ -f "$f" ] || continue
+    f=${f##*/}
+    case " $render_files " in *" $f "*) ;; *) render_files="$render_files $f" ;; esac
+  done
 
   # File used for linting: first render file, or the default values.yaml.
   lint_file=$(echo "$render_files" | awk '{print $1}')

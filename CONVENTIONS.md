@@ -590,7 +590,9 @@ helm template release <chart> -f <chart>/values.full.yaml
 В репозитории есть `lefthook.yml`: на `git push` запускается
 `scripts/helm-check.sh`, который прогоняет `helm lint` + `helm template` по всем
 чартам (lint - с `values.minimal.yaml`, где он есть, иначе с дефолтным
-`values.yaml`; render - по `values.minimal.yaml`/`values.full.yaml`). Push с
+`values.yaml`; render - по каждому `values.<пример>.yaml` чарта: `minimal`,
+`full`, `direct` и любому другому, дефолтный `values.yaml` сам по себе не
+рендерится). Push с
 поломанным чартом блокируется. Это бэкстоп, а не замена локальной проверки выше.
 
 Установить хук один раз после клона:
