@@ -544,11 +544,15 @@ xroutes:
           - type: URLRewrite
             urlRewrite:
               hostname: internal.example.ru
+          # Путь подменяется одним из двух способов: целиком (ReplaceFullPath)
+          # или только совпавший префикс из matches (ReplacePrefixMatch), при
+          # котором остаток пути сохраняется: /shop/cart -> /cart при
+          # replacePrefixMatch: /. В одном фильтре - один способ.
           - type: URLRewrite
             urlRewrite:
               path:
-                type: ReplaceFullPath
-                replaceFullPath: /
+                type: ReplacePrefixMatch
+                replacePrefixMatch: /
         backendRefs:
           - name: shop
             port: 8080
