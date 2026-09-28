@@ -1,0 +1,46 @@
+{{/*
+LimitRange of the VpcEgressGateway namespace (NS 3), created when
+vpcEgressGateway.limitRange.enabled (default true), in both modes.
+
+The namespace carries a ResourceQuota (vegNamespace subchart), and a quota on
+cpu and memory refuses every pod whose containers do not name their requests
+and limits. The pod of the gateway is made by the kube-ovn controller, not by
+this chart, and its init container comes without resources (kube-ovn 1.14
+sets none at all; later versions set them on the gateway container only, from
+spec.resources). A LimitRange of type Container makes the API server fill in
+the missing values on admission, init containers included, so the pod passes
+the quota. A container that names its own resources keeps them.
+
+Shares the name of the VpcEgressGateway (one logical object). Sync wave -2,
+alongside the ResourceQuota of the namespace and before the gateway.
+*/}}
+{{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
+{{- include "egress-gateway.helpers.validate" . -}}
+{{- $root := . }}
+{{- $limitRange := (.Values.vpcEgressGateway | default dict).limitRange | default dict }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $limitRange) "true" }}
+{{- $defaultRequest := $limitRange.defaultRequest | default dict }}
+{{- $default := $limitRange.default | default dict }}
+{{- if and (empty $defaultRequest) (empty $default) }}
+{{- fail "vpcEgressGateway.limitRange needs defaultRequest or default (cpu, memory): the values the containers of the gateway pod get when kube-ovn creates them without resources" }}
+{{- end }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "egress-gateway.helpers.vegFullname" $root }}
+  namespace: {{ include "egress-gateway.helpers.vegNamespace" $root | quote }}
+  {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root "annotations" (dict "argocd.argoproj.io/sync-wave" "-2")) | nindent 2 }}
+spec:
+  limits:
+    - type: Container
+      {{- with $defaultRequest }}
+      defaultRequest:
+        {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 8 }}
+      {{- end }}
+      {{- with $default }}
+      default:
+        {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

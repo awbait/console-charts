@@ -37,6 +37,18 @@ vpcEgressGateway:
   externalIPs: []
   scope: namespace     # только direct: namespace (вся подсеть) | label (поды с меткой)
   label: ecpk/egress   # только direct со scope label: ключ метки на подах
+  # LimitRange в неймспейсе выхода: requests и limits по умолчанию для
+  # контейнеров, которые kube-ovn создаёт без ресурсов (init-контейнер пода
+  # выхода). Без него квота неймспейса отклоняет под. Формат - LimitRange
+  # типа Container. Контейнер со своими ресурсами их сохраняет.
+  limitRange:
+    enabled: true
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: 500m
+      memory: 256Mi
 
 # Размещение подов выхода по нодам: умолчание для vpcEgressGateway. Здесь
 # пусто, ноду выбирает планировщик; правила задаёт платформа в значениях
