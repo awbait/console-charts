@@ -540,7 +540,8 @@ Parameters: .kind (canonical), .name.
 {{- $name := .name | default "<unknown>" -}}
 {{- $kind := required (printf "xroutes.%s.kind is required" $name) .kind | toString | trim -}}
 {{- if or (eq $kind "HTTPRoute") (eq $kind "GRPCRoute") -}}gateway.networking.k8s.io/v1
-{{- else if or (eq $kind "TLSRoute") (eq $kind "TCPRoute") (eq $kind "UDPRoute") -}}gateway.networking.k8s.io/v1alpha2
+{{- else if eq $kind "TLSRoute" -}}gateway.networking.k8s.io/v1
+{{- else if or (eq $kind "TCPRoute") (eq $kind "UDPRoute") -}}gateway.networking.k8s.io/v1alpha2
 {{- else -}}{{- fail (printf "xroutes.%s.kind must be one of HTTPRoute, GRPCRoute, TLSRoute, TCPRoute, UDPRoute" $name) -}}
 {{- end -}}
 {{- end -}}
