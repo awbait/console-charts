@@ -2,7 +2,8 @@
 Route resources (Gateway API): one per element of the xroutes list.
 kind is set in values (HTTPRoute/GRPCRoute/TLSRoute/TCPRoute/UDPRoute),
 apiVersion is selected automatically by kind. matches/filters are supported
-only for HTTPRoute/GRPCRoute. backendRefs are required.
+only for HTTPRoute/GRPCRoute. backendRefs are required unless the rule
+carries a RequestRedirect filter: such a rule has no backends at all.
 
 Simplifications with a SINGLE enabled Gateway:
   - parentRefs[].gateway may be omitted - the name of this Gateway is substituted;
@@ -115,9 +116,27 @@ spec:
         backendRequest: {{ . | toString | quote }}
         {{- end }}
       {{- end }}
-      {{- if not $rule.backendRefs }}
+      {{- /* A RequestRedirect rule is answered by the gateway itself: the Gateway API
+           allows one such filter per rule, no URLRewrite next to it and no backendRefs. */ -}}
+      {{- $redirects := 0 }}
+      {{- $rewrites := 0 }}
+      {{- range $filter := $rule.filters | default list }}
+      {{- if eq $filter.type "RequestRedirect" }}{{- $redirects = add1 $redirects }}{{- end }}
+      {{- if eq $filter.type "URLRewrite" }}{{- $rewrites = add1 $rewrites }}{{- end }}
+      {{- end }}
+      {{- if gt $redirects 1 }}
+      {{- fail (printf "xroutes[%d].rules[%d].filters holds %d RequestRedirect filters for route %s; put scheme, hostname, path, port and statusCode into one requestRedirect" $index $ruleIndex $redirects $routeName) }}
+      {{- end }}
+      {{- if and $redirects $rewrites }}
+      {{- fail (printf "xroutes[%d].rules[%d].filters combines RequestRedirect with URLRewrite for route %s; a rule either redirects or rewrites" $index $ruleIndex $routeName) }}
+      {{- end }}
+      {{- if and $redirects $rule.backendRefs }}
+      {{- fail (printf "xroutes[%d].rules[%d].backendRefs is not allowed with a RequestRedirect filter for route %s; the gateway answers with a redirect and forwards nothing" $index $ruleIndex $routeName) }}
+      {{- end }}
+      {{- if and (not $redirects) (not $rule.backendRefs) }}
       {{- fail (printf "xroutes[%d].rules[%d].backendRefs is required for route %s" $index $ruleIndex $routeName) }}
       {{- end }}
+      {{- if $rule.backendRefs }}
       backendRefs:
         {{- range $backendIndex, $backend := $rule.backendRefs }}
         - name: {{ required (printf "xroutes[%d].rules[%d].backendRefs[%d].name is required" $index $ruleIndex $backendIndex) $backend.name | quote }}
@@ -129,6 +148,7 @@ spec:
           weight: {{ . }}
           {{- end }}
         {{- end }}
+      {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}

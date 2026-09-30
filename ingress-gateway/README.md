@@ -343,7 +343,12 @@ Operator прочитает запись и будет поддерживать 
 | `kind`         | нет, по умолчанию `HTTPRoute` | Тип маршрута: `HTTPRoute`, `GRPCRoute`, `TLSRoute`, `TCPRoute` или `UDPRoute`. |
 | `parentRefs[]` | да                            | В `gateway` укажите имя точки входа из `gateways[]`, в `sectionName` имя слушателя. |
 | `hostnames[]`  | для HTTP, GRPC и TLS          | Домены маршрута. Для TLS используются имена SNI.                          |
-| `rules[]`      | да                            | Правила маршрута. `backendRefs` обязателен. `matches` и `filters` доступны только для HTTP и GRPC, `timeouts` только для HTTP. |
+| `rules[]`      | да                            | Правила маршрута. `backendRefs` обязателен, кроме правила с перенаправлением. `matches` и `filters` доступны только для HTTP и GRPC, `timeouts` только для HTTP. |
+
+Правило с фильтром `RequestRedirect` точка входа обрабатывает сама: в нём
+один такой фильтр, в его `requestRedirect` любой набор из `statusCode`,
+`scheme`, `hostname`, `port` и `path`, а `backendRefs` и `URLRewrite`
+в этом правиле не указываются.
 
 В `backendRefs` укажите имя сервиса в поле `name` и его порт в поле `port`.
 Поля `namespace`, `weight`, `sessionAffinity` и `h2UpgradePolicy`
@@ -477,6 +482,8 @@ Istio: 80, 443, 15020, 15021 и 15090.
   указано поле, кроме `request` и `backendRequest`, либо длительность
   не в формате Gateway API.
 - В `backendRefs` не указано имя или порт сервиса.
+- В правиле два фильтра `RequestRedirect`, либо `RequestRedirect` вместе
+  с `URLRewrite`, либо `RequestRedirect` вместе с `backendRefs`.
 - В `sessionAffinity` не указан `cookieName`, либо `ttl` не число секунд
   с суффиксом `s`, либо в `h2UpgradePolicy` значение, кроме `DO_NOT_UPGRADE`
   и `UPGRADE`, либо два элемента `backendRefs[]` задают одному сервису

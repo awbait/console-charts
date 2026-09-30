@@ -1394,17 +1394,14 @@
         },
         "backendRefs": {
           "title": "Сервисы назначения",
-          "description": "Сервисы, в которые точка входа передаст запрос.",
+          "description": "Укажите сервисы, в которые точка входа передаст запрос. В правиле с перенаправлением оставьте поле пустым.",
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/backendRef"
           }
         }
-      },
-      "required": [
-        "backendRefs"
-      ]
+      }
     },
     "routeTimeouts": {
       "type": "object",
@@ -1717,53 +1714,57 @@
           "ui:widget": "hidden"
         },
         "requestRedirect": {
-          "title": "Параметр перенаправления",
-          "description": "Выберите одно: схема, домен, путь, порт или код ответа.",
-          "oneOf": [
-            {
+          "title": "Параметры перенаправления",
+          "description": "Заполните хотя бы одно поле: незаполненные части адреса останутся как в запросе. В правиле с перенаправлением оставьте поле «Сервисы назначения» пустым.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "propertyOrder": [
+            "statusCode",
+            "scheme",
+            "hostname",
+            "port",
+            "path"
+          ],
+          "properties": {
+            "statusCode": {
+              "title": "Код ответа",
+              "type": "integer",
+              "enum": [
+                301,
+                302
+              ],
+              "enumNames": [
+                "Постоянное перенаправление (301)",
+                "Временное перенаправление (302)"
+              ],
+              "description": "Выберите код, которым точка входа ответит при перенаправлении. Если поле пустое, платформа отвечает кодом 302."
+            },
+            "scheme": {
               "title": "Схема адреса",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "scheme": {
-                  "title": "Схема адреса",
-                  "description": "Схема адреса перенаправления: http или https.",
-                  "type": "string",
-                  "enum": [
-                    "http",
-                    "https"
-                  ],
-                  "default": "https"
-                }
-              },
-              "required": [
-                "scheme"
+              "description": "Схема адреса перенаправления: http или https.",
+              "type": "string",
+              "enum": [
+                "http",
+                "https"
               ]
             },
-            {
-              "title": "Домен перенаправления",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "hostname": {
-                  "title": "Новый домен",
-                  "description": "Домен, на который будет перенаправлен запрос.",
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "required": [
-                "hostname"
-              ]
+            "hostname": {
+              "title": "Новый домен",
+              "description": "Домен, на который будет перенаправлен запрос.",
+              "type": "string",
+              "minLength": 1
             },
-            {
-              "title": "Полный путь",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "path": {
-                  "title": "Новый путь",
-                  "description": "Заменяет путь запроса целиком.",
+            "port": {
+              "title": "Новый порт",
+              "$ref": "#/definitions/port",
+              "description": "Порт, на который будет перенаправлен запрос."
+            },
+            "path": {
+              "title": "Новый путь",
+              "oneOf": [
+                {
+                  "title": "Заменить путь целиком",
                   "type": "object",
                   "additionalProperties": false,
                   "properties": {
@@ -1775,62 +1776,44 @@
                     },
                     "replaceFullPath": {
                       "title": "Значение пути",
+                      "description": "Укажите новый путь, начиная со слеша.",
                       "type": "string",
                       "pattern": "^/",
-                      "default": "/",
-                      "description": "Укажите новый путь, начиная со слеша."
+                      "default": "/"
                     }
                   },
                   "required": [
                     "type",
                     "replaceFullPath"
                   ]
+                },
+                {
+                  "title": "Заменить префикс пути",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "const": "ReplacePrefixMatch",
+                      "default": "ReplacePrefixMatch",
+                      "ui:widget": "hidden"
+                    },
+                    "replacePrefixMatch": {
+                      "title": "Новый префикс",
+                      "description": "Заменяет совпавший PathPrefix, сохраняя остаток пути. Укажите / для удаления префикса.",
+                      "type": "string",
+                      "pattern": "^/",
+                      "default": "/"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "replacePrefixMatch"
+                  ]
                 }
-              },
-              "required": [
-                "path"
-              ]
-            },
-            {
-              "title": "Порт перенаправления",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "port": {
-                  "title": "Новый порт",
-                  "$ref": "#/definitions/port",
-                  "description": "Порт, на который будет перенаправлен запрос."
-                }
-              },
-              "required": [
-                "port"
-              ]
-            },
-            {
-              "title": "Код ответа",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "statusCode": {
-                  "title": "Код ответа",
-                  "type": "integer",
-                  "enum": [
-                    301,
-                    302
-                  ],
-                  "enumNames": [
-                    "Постоянное перенаправление (301)",
-                    "Временное перенаправление (302)"
-                  ],
-                  "default": 301,
-                  "description": "Код, которым точка входа отвечает при перенаправлении запроса."
-                }
-              },
-              "required": [
-                "statusCode"
               ]
             }
-          ]
+          }
         }
       },
       "required": [
