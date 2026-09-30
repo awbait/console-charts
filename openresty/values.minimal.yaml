@@ -1,0 +1,31 @@
+# Минимальный пример: один сервер с robots.txt и проксированием /api.
+#
+# Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
+# С тегами ниже получится:
+# - Deployment ed-dev-dp-nbox-static
+# - Service    ed-dev-svc-nbox-static
+# - ConfigMap  ed-dev-cm-nbox-static
+
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
+
+generic:
+  labels: {}
+  annotations: {}
+
+servers:
+  - name: static
+    enabled: true
+    locations:
+      - path: /robots.txt
+        match: exact
+        response:
+          contentType: text/plain
+          body: |
+            User-agent: *
+            Disallow: /
+      - path: /api
+        match: prefix
+        proxyPass: http://api.nbox-dev-ns-core.svc.cluster.local:8080

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: openresty
+description: Отдаёт готовые ответы, выполняет обработчики на Lua и проксирует запросы по заданным адресам. Используйте, когда точке входа нужно отдать статический ответ или собрать ответ из нескольких сервисов.
+type: application
+version: 1.0.0
+appVersion: "1.27.1.2"
+icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KICA8dGl0bGU+T3BlblJlc3R5PC90aXRsZT4KICA8ZyBzdHJva2U9IiM1MjdGQzciIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPgogICAgPHJlY3QgeD0iMiIgeT0iMyIgd2lkdGg9IjIwIiBoZWlnaHQ9IjE4IiByeD0iMS41Ii8+CiAgICA8cGF0aCBkPSJNMiA4aDIwIi8+CiAgICA8cGF0aCBkPSJNNiAxM2wyLjUgMi41TDYgMTgiLz4KICAgIDxwYXRoIGQ9Ik0xMSAxOGg3Ii8+CiAgPC9nPgo8L3N2Zz4K
+maintainers:
+  - name: core

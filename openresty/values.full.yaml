@@ -1,0 +1,234 @@
+# ============================================================================
+#  Helm-чарт openresty - полный справочник значений
+#  Чарт разворачивает небольшой веб-сервер на OpenResty (nginx с Lua) в
+#  namespace команды. Секция одна:
+#
+#    servers[] - список серверов, на каждый создаётся Deployment, Service и
+#                ConfigMap с nginx.conf. Сервер обрабатывает список адресов
+#                (locations[]), у каждого адреса одно действие: готовый ответ
+#                (response), обработчик на Lua (lua) или проксирование
+#                (proxyPass).
+#
+#  Сервер доступен только внутри кластера. Снаружи его открывает маршрут
+#  чарта ingress-gateway, который ведёт нужные пути в Service сервера.
+#
+#  Имя каждого ресурса:
+#    {instance}-{cluster}-{kindShort}-{project}-{name}
+#  kindShort: dp (Deployment), svc (Service), cm (ConfigMap).
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# identity - теги окружения и проекта (см. схему имени выше)
+# ----------------------------------------------------------------------------
+# instance / cluster / project задаются один раз на релиз.
+# name задаётся у каждого сервера (2..6 символов, DNS-формат).
+#
+# Эти же теги проставляются на каждый ресурс чарта как labels:
+#   ecpk/instance: <instance>
+#   ecpk/cluster:  <cluster>
+#   ecpk/project:  <project>
+#
+# Когда чарт подключён сабчартом, родитель может передать теги один раз через
+# global.identity: тогда они сильнее этого блока.
+identity:
+  # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
+  instance: pr
+
+  # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
+  cluster: cmi
+
+  # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
+  # и дефис (дефис не может быть первым или последним символом).
+  # В заказе через портал поле не заполняют: портал подставляет команду.
+  project: vis
+
+generic:
+  # Общие labels для всех ресурсов чарта.
+  labels:
+    team: datamart
+
+  # Общие annotations для всех ресурсов чарта.
+  annotations:
+    owner: datamart-team
+
+
+# ----------------------------------------------------------------------------
+# image - образ сервера. Платформенные значения, в форме заказа скрыты
+# ----------------------------------------------------------------------------
+# Официальный OpenResty плюс lua-resty-http: обработчикам на Lua нужна эта
+# библиотека, чтобы ходить в другие сервисы, а в официальном образе её нет.
+# Dockerfile лежит рядом с чартом в docker/. Собранный образ кладётся
+# в Harbor, и платформа указывает его здесь.
+image:
+  # Реестр, префикс перед repository. Пусто - берётся как есть из repository.
+  registry: harbor.example.ru
+
+  # Путь образа в реестре.
+  repository: platform/openresty
+
+  # Тег образа. Пусто - appVersion чарта, то есть версия OpenResty, под
+  # которую чарт собран.
+  tag: "1.27.1.2"
+
+  pullPolicy: IfNotPresent
+
+# Секреты для доступа к реестру, если он закрытый.
+imagePullSecrets:
+  - name: harbor-pull
+
+# DNS-сервер кластера. Обработчики на Lua разрешают имена сервисов через
+# nginx, а не через систему, поэтому nginx должен знать адрес DNS. Имя или IP,
+# несколько через пробел. Платформа задаёт в значениях установки.
+dns:
+  resolver: kube-dns.kube-system.svc.cluster.local
+
+
+# ============================================================================
+# servers - список серверов (на элемент Deployment, Service и ConfigMap)
+# ============================================================================
+#   name        - обязательно, 2..6 символов; подставляется в {name} имени
+#   enabled     - по умолчанию true; false -> ресурсы сервера не создаются
+#   replicas    - число экземпляров, по умолчанию 2; экземпляры разводятся
+#                 по разным нодам, когда планировщик может
+#   port        - порт Service, по умолчанию 80; сам сервер слушает 8080
+#   resources   - ресурсы контейнера; по умолчанию 50m/64Mi и 500m/256Mi.
+#                 В форме заказа скрыты, правятся из карточки
+#   locations[] - адреса, хотя бы один:
+#     path      - путь запроса
+#     match     - exact (по умолчанию, путь целиком) | prefix (начинается с
+#                 path) | regex (регулярное выражение nginx)
+#     и ровно одно из:
+#     response  - готовый ответ: status (200), contentType (text/plain),
+#                 body, headers
+#     lua       - тело content_by_lua_block; resty.http и cjson доступны
+#     proxyPass - адрес сервиса, куда передать запрос (http:// или https://)
+#
+# Путь /healthz занят: там сервер отвечает на проверки пода.
+#
+# Пример ниже повторяет server-snippet из Ingress приложения Visiology:
+# конфиг мобильного приложения, robots.txt и агрегатор версий девяти
+# сервисов. Маршрут точки входа ведёт эти три пути в Service
+# pr-cmi-svc-vis-helper условием Exact.
+servers:
+  - name: helper
+    enabled: true
+    replicas: 2
+    port: 80
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+    locations:
+      # Готовый ответ. Тело отдаётся как есть: nginx не подставляет в него
+      # переменные, знак доллара безопасен.
+      - path: /mobile-app-v3-config
+        match: exact
+        response:
+          status: 200
+          contentType: application/json
+          body: '{"deployPath":"/v3","realm":"Visiology","https":true}'
+
+      # Многострочное тело и дополнительный заголовок ответа.
+      - path: /robots.txt
+        match: exact
+        response:
+          contentType: text/plain
+          headers:
+            Cache-Control: max-age=3600
+          body: |
+            User-agent: *
+            Disallow: /
+
+      # Обработчик на Lua: опрашивает /version у девяти сервисов и склеивает
+      # ответы в один JSON. Это тело content_by_lua_block, как в OpenResty.
+      - path: /v3/version
+        match: exact
+        lua: |
+          local http = require('resty.http')
+          local cjson = require('cjson')
+          local component = {
+            'designer:80',
+            'dashboard-service:80',
+            'formula-engine:80',
+            'dashboard-viewer:80',
+            'data-management-service:80',
+            'workspace-service:80',
+            'smart-forms:80',
+            'ai-agent:5000',
+            'edge:80'
+          }
+          local function fetch_and_merge_jsons()
+            local merged_result = {}
+            local httpc = http.new()
+            for _, url in ipairs(component) do
+              httpc:set_timeout(1000)
+              local inj = url:gsub(':', '.ecpk-datamart-visiology.svc.cluster.local:')
+              local uri = 'http://visiology-' .. inj .. '/version'
+              local res, err = httpc:request_uri(uri, {
+                method = "GET",
+                headers = { ["Content-Type"] = "application/json" }
+              })
+              if not res then
+                merged_result[url] = { error = 'Network error: ' .. (err or 'unknown') }
+              elseif res.status == 200 then
+                local ok, data = pcall(cjson.decode, res.body)
+                if ok then
+                  merged_result[url] = data
+                else
+                  merged_result[url] = { error = 'Failed to parse JSON' }
+                end
+              else
+                merged_result[url] = { error = 'HTTP ' .. res.status }
+              end
+            end
+            httpc:close()
+            return merged_result
+          end
+          local success, data = pcall(fetch_and_merge_jsons)
+          if not success then
+            ngx.say('An error occurred: ' .. data)
+          else
+            ngx.status = ngx.HTTP_OK
+            ngx.header.content_type = 'application/json; charset=utf-8'
+            ngx.say(cjson.encode(data))
+          end
+          return ngx.exit(ngx.OK)
+
+      # Проксирование: всё под /legacy уходит в другой сервис. Заголовки Host,
+      # X-Real-IP, X-Forwarded-For и X-Forwarded-Proto передаются дальше.
+      - path: /legacy
+        match: prefix
+        proxyPass: http://visiology-edge.ecpk-datamart-visiology.svc.cluster.local:80
+
+      # Регулярное выражение nginx: пишется как есть, чарт экранирует его
+      # для конфига сам.
+      - path: ^/v3/(api|transfer-service)(/|$)
+        match: regex
+        proxyPass: http://visiology-edge.ecpk-datamart-visiology.svc.cluster.local:80
+
+  # Второй сервер того же заказа: выключен, ресурсы не создаются.
+  - name: draft
+    enabled: false
+    locations:
+      - path: /
+        match: prefix
+        response:
+          body: "under construction"
+
+
+# ============================================================================
+# Служебные секции: в форме портала скрыты
+# ============================================================================
+
+# global - глобальные значения Helm. Инжектятся автоматически, когда чарт
+# подключён сабчартом. Чарт читает из них только global.identity.
+global: {}
+
+# enabled - главный выключатель чарта. false -> не создаётся ни один ресурс.
+enabled: true

@@ -1,0 +1,536 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/openresty/values.schema.json",
+  "title": "openresty Helm chart values",
+  "description": "Editor-oriented schema for the openresty chart (OpenResty servers with static responses, Lua handlers and proxying).",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyOrder": [
+    "identity",
+    "generic",
+    "image",
+    "imagePullSecrets",
+    "dns",
+    "servers"
+  ],
+  "required": [
+    "identity"
+  ],
+  "properties": {
+    "identity": {
+      "title": "Окружение и проект",
+      "description": "Куда встанет сервис и какому проекту он принадлежит. Задаётся один раз на весь заказ.",
+      "$ref": "#/definitions/identity"
+    },
+    "generic": {
+      "title": "Generic settings",
+      "description": "Common labels/annotations applied to all chart resources.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/generic"
+    },
+    "image": {
+      "title": "Image",
+      "description": "Container image of the servers: the official OpenResty image plus lua-resty-http (see docker/Dockerfile). Set by the platform.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/image"
+    },
+    "imagePullSecrets": {
+      "title": "Image pull secrets",
+      "description": "Secrets for a private registry, as in a pod spec. Set by the platform.",
+      "ui:widget": "hidden",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "$ref": "#/definitions/k8sName"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "dns": {
+      "title": "DNS",
+      "description": "Cluster DNS for the nginx resolver: Lua handlers resolve service names through nginx. Set by the platform.",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/dns"
+    },
+    "servers": {
+      "title": "Серверы",
+      "description": "Каждый элемент создаёт отдельный сервер со своим адресом внутри кластера. Обычно хватает одного.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/server"
+      },
+      "defaultSnippets": [
+        {
+          "label": "Сервер",
+          "body": [
+            {
+              "name": "static",
+              "locations": [
+                {
+                  "path": "/robots.txt",
+                  "match": "exact",
+                  "response": {
+                    "contentType": "text/plain",
+                    "body": "User-agent: *\nDisallow: /\n"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "global": {
+      "title": "Global values",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. The chart reads global.identity (wins over identity when set) from it.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "type": "boolean",
+      "default": true,
+      "ui:widget": "hidden"
+    }
+  },
+  "definitions": {
+    "shortToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 6
+    },
+    "projectToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 9
+    },
+    "k8sName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "tplStringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "instance",
+        "cluster",
+        "project"
+      ],
+      "properties": {
+        "instance": {
+          "title": "Инстанс",
+          "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
+          "type": "string",
+          "enum": [
+            "in",
+            "id",
+            "ed",
+            "pr"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (in)",
+            "dev-ecpk (id)",
+            "techsec-dev, dev-common, test-common (ed)",
+            "global, observability, techsec, int-common, ML, ext-common (pr)"
+          ]
+        },
+        "cluster": {
+          "title": "Кластер",
+          "description": "Кластер, в котором будет работать сервис. Выбирайте вместе с инстансом.",
+          "type": "string",
+          "enum": [
+            "inf",
+            "dev",
+            "tco",
+            "tst",
+            "gl",
+            "obs",
+            "tcc",
+            "cmi",
+            "ml",
+            "cme"
+          ],
+          "enumNames": [
+            "Infra-dev-ecpk (inf)",
+            "dev-ecpk и dev-common (dev)",
+            "techsec-dev (tco)",
+            "test-common (tst)",
+            "global (gl)",
+            "observability (obs)",
+            "techsec (tcc)",
+            "int-common (cmi)",
+            "ML (ml)",
+            "ext-common (cme)"
+          ]
+        },
+        "project": {
+          "title": "Проект",
+          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
+          "$ref": "#/definitions/projectToken"
+        }
+      },
+      "required": [
+        "instance",
+        "cluster",
+        "project"
+      ]
+    },
+    "generic": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "labels",
+        "annotations"
+      ],
+      "properties": {
+        "labels": {
+          "title": "Common labels",
+          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "$ref": "#/definitions/tplStringMap"
+        },
+        "annotations": {
+          "title": "Common annotations",
+          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "$ref": "#/definitions/tplStringMap"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "registry",
+        "repository",
+        "tag",
+        "pullPolicy"
+      ],
+      "properties": {
+        "registry": {
+          "title": "Registry",
+          "description": "Registry prefix put before the repository. Empty: the repository is used as written.",
+          "type": "string"
+        },
+        "repository": {
+          "title": "Repository",
+          "description": "Image path in the registry.",
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "title": "Tag",
+          "description": "Image tag. Empty: appVersion of the chart, the OpenResty version it was built against.",
+          "type": "string"
+        },
+        "pullPolicy": {
+          "title": "Pull policy",
+          "type": "string",
+          "enum": [
+            "IfNotPresent",
+            "Always",
+            "Never"
+          ],
+          "default": "IfNotPresent"
+        }
+      },
+      "required": [
+        "repository"
+      ]
+    },
+    "dns": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resolver": {
+          "title": "Resolver",
+          "description": "Name or address of the cluster DNS, several separated by spaces. Goes into the nginx resolver directive.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "resolver"
+      ]
+    },
+    "resourceQuantityMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "title": "Объём процессора",
+          "description": "Укажите объём процессора, например 100m, 500m или 1.",
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "title": "Объём памяти",
+          "description": "Укажите объём памяти, например 128Mi, 512Mi или 1Gi.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "containerResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "requests",
+        "limits"
+      ],
+      "properties": {
+        "requests": {
+          "title": "Запрашиваемые ресурсы",
+          "description": "Процессор и память, запрашиваемые для контейнера сервера.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        },
+        "limits": {
+          "title": "Предельные ресурсы",
+          "description": "Максимальный объём процессора и памяти для контейнера сервера.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        }
+      }
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "enabled",
+        "replicas",
+        "port",
+        "resources",
+        "locations"
+      ],
+      "properties": {
+        "name": {
+          "title": "Имя сервера",
+          "description": "Укажите имя, по которому вы отличите сервер от других. Оно входит в имена ресурсов сервера в кластере.",
+          "$ref": "#/definitions/shortToken"
+        },
+        "enabled": {
+          "title": "Включено",
+          "description": "Включает создание сервера. Если выключить, его ресурсы не создаются.",
+          "type": "boolean",
+          "ui:widget": "hidden",
+          "default": true
+        },
+        "replicas": {
+          "title": "Число экземпляров",
+          "description": "Укажите, сколько экземпляров сервера работает одновременно. По умолчанию их 2, чтобы обновление и перезапуск проходили без перерыва.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 2
+        },
+        "port": {
+          "title": "Service port",
+          "description": "Port of the Service of the server; the container listens on 8080. Set by the platform.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 80,
+          "ui:widget": "hidden"
+        },
+        "resources": {
+          "title": "Ресурсы сервера",
+          "description": "Процессор и память для контейнера сервера. При заказе используются значения по умолчанию, затем их можно изменить в карточке сервиса.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/containerResources",
+          "default": {
+            "requests": {
+              "cpu": "50m",
+              "memory": "64Mi"
+            },
+            "limits": {
+              "cpu": "500m",
+              "memory": "256Mi"
+            }
+          }
+        },
+        "locations": {
+          "title": "Адреса сервера",
+          "description": "Добавьте хотя бы один адрес и выберите для каждого одно действие: готовый ответ, обработчик на Lua или проксирование. Путь /healthz занят проверкой работоспособности сервера.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/location"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "locations"
+      ]
+    },
+    "locationPath": {
+      "title": "Путь запроса",
+      "description": "Укажите путь, например /robots.txt или /api. Сервер сравнивает его с путём запроса по выбранному правилу.",
+      "type": "string",
+      "minLength": 1
+    },
+    "locationMatch": {
+      "title": "Правило сравнения",
+      "description": "Выберите, как сравнивать путь запроса с указанным значением. По умолчанию путь должен совпадать целиком.",
+      "type": "string",
+      "enum": [
+        "exact",
+        "prefix",
+        "regex"
+      ],
+      "enumNames": [
+        "Полное совпадение",
+        "Начало пути",
+        "Регулярное выражение nginx"
+      ],
+      "default": "exact"
+    },
+    "location": {
+      "title": "Адрес",
+      "description": "Путь запроса и одно действие: готовый ответ, обработчик на Lua или проксирование.",
+      "oneOf": [
+        {
+          "title": "Готовый ответ",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "path",
+            "match",
+            "response"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/locationPath"
+            },
+            "match": {
+              "$ref": "#/definitions/locationMatch"
+            },
+            "response": {
+              "title": "Готовый ответ",
+              "description": "Сервер отдаёт заданный ответ как есть, без обращения к другим сервисам.",
+              "$ref": "#/definitions/response"
+            }
+          },
+          "required": [
+            "path",
+            "response"
+          ]
+        },
+        {
+          "title": "Обработчик на Lua",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "path",
+            "match",
+            "lua"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/locationPath"
+            },
+            "match": {
+              "$ref": "#/definitions/locationMatch"
+            },
+            "lua": {
+              "title": "Код обработчика",
+              "description": "Напишите тело обработчика на Lua, который выполняется при каждом запросе к этому адресу и сам формирует ответ. Доступны библиотеки resty.http и cjson.",
+              "type": "string",
+              "minLength": 1,
+              "ui:widget": "textarea"
+            }
+          },
+          "required": [
+            "path",
+            "lua"
+          ]
+        },
+        {
+          "title": "Проксирование запроса",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "path",
+            "match",
+            "proxyPass"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/definitions/locationPath"
+            },
+            "match": {
+              "$ref": "#/definitions/locationMatch"
+            },
+            "proxyPass": {
+              "title": "Адрес сервиса",
+              "description": "Укажите адрес сервиса, куда передавать запрос, например http://api.team-ns.svc.cluster.local:8080. Сервер передаёт дальше заголовок Host и адрес клиента.",
+              "type": "string",
+              "pattern": "^https?://[^\\s\"'{};$]+$"
+            }
+          },
+          "required": [
+            "path",
+            "proxyPass"
+          ]
+        }
+      ]
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "status",
+        "contentType",
+        "body",
+        "headers"
+      ],
+      "properties": {
+        "status": {
+          "title": "Код HTTP-ответа",
+          "description": "Укажите код, который сервер вернёт клиенту. По умолчанию используется 200.",
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599,
+          "default": 200
+        },
+        "contentType": {
+          "title": "Тип содержимого",
+          "description": "Укажите тип содержимого, который увидит клиент, например text/plain или application/json. По умолчанию используется text/plain.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(; ?[A-Za-z0-9._-]+=[A-Za-z0-9._-]+)*$",
+          "default": "text/plain"
+        },
+        "body": {
+          "title": "Текст ответа",
+          "description": "Введите текст, который сервер вернёт клиенту. Можно использовать несколько строк.",
+          "type": "string",
+          "ui:widget": "textarea"
+        },
+        "headers": {
+          "title": "Заголовки ответа",
+          "description": "Добавьте заголовки, которые сервер отправит вместе с ответом. Для каждого укажите имя и значение.",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9-]+$"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

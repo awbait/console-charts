@@ -1,0 +1,33 @@
+# openresty - значения по умолчанию (минимум, при котором проходит рендер).
+# По умолчанию серверы не создаются: список пустой.
+# Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
+
+# Теги окружения и проекта: попадают в имя каждого ресурса и в labels
+# ecpk/instance, ecpk/cluster, ecpk/project. Допустимые значения - в README.md.
+# Когда чарт подключён сабчартом и родитель задал global.identity, читается
+# global.identity, а этот блок не учитывается.
+identity:
+  instance: ed         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: nbox        # тег проекта, до 9 символов
+
+generic:
+  labels: {}
+  annotations: {}
+
+# Образ сервера: официальный OpenResty плюс lua-resty-http (см. docker/Dockerfile).
+# Задаёт платформа в значениях своей установки, в форме заказа не показывается.
+image:
+  registry: ""
+  repository: platform/openresty
+  tag: ""              # пусто - appVersion чарта
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# DNS-сервер кластера: Lua-обработчики разрешают имена сервисов через nginx,
+# а не через систему. Имя сервиса DNS платформа задаёт в значениях установки.
+dns:
+  resolver: kube-dns.kube-system.svc.cluster.local
+
+servers: []
