@@ -154,6 +154,8 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | `secret`  | `Secret` (TLS)           | ingress-gateway            |
 | `es`      | `ExternalSecret`         | ingress-gateway            |
 | `cert`    | `Certificate` (cert-manager) | ingress-gateway        |
+| `ef`      | `EnvoyFilter` (Istio)    | ingress-gateway            |
+| `dr`      | `DestinationRule` (Istio) | ingress-gateway           |
 
 Правила реестра:
 

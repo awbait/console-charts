@@ -1,0 +1,55 @@
+{{/*
+DestinationRule (Istio) for every Service a route asks something of: one per
+Service named in xroutes[].rules[].backendRefs[] with sessionAffinity or
+h2UpgradePolicy. Both are things the Gateway API has no field for, and the
+Istio way is a DestinationRule on the host:
+- sessionAffinity: a consistent hash on a cookie the gateway issues, so every
+  request that carries it lands on the same endpoint. Istio does not
+  implement the Gateway API sessionPersistence field.
+- h2UpgradePolicy: whether the gateway upgrades the connection to the Service
+  to HTTP/2. The mesh decides that for everyone; a Service that does not
+  speak HTTP/2 needs DO_NOT_UPGRADE.
+The rule lives in the namespace of the release with exportTo ".", so only the
+proxies of this namespace, the gateways of the release, see it: a rule in the
+namespace of the Service would change how every client in the mesh reaches
+it. The host is the full cluster name of the Service, so a Service in another
+namespace is matched exactly.
+The gateway picks the endpoint itself, so the affinity holds. It stops holding
+when the Service, or its namespace, carries istio.io/ingress-use-waypoint:
+"true": ingress traffic then goes through the waypoint, which balances on its
+own. README says so.
+Which rules exist is decided by ingress-gateway.helpers.app.destinationRules:
+one per Service, settings from every reference merged, and two references
+that disagree on a setting stop the render.
+*/}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- $rules := include "ingress-gateway.helpers.app.destinationRules" $root | fromJson }}
+{{- range $key, $rule := $rules }}
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  {{- /* Named after the Service, which is a DNS label of up to 63 characters, not a short token of the order. */}}
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "DestinationRule" "name" $rule.name "nameMax" 63 "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  host: {{ printf "%s.%s.svc.cluster.local" $rule.name $rule.namespace | quote }}
+  exportTo:
+    - "."
+  trafficPolicy:
+    {{- with $rule.h2UpgradePolicy }}
+    connectionPool:
+      http:
+        h2UpgradePolicy: {{ . | quote }}
+    {{- end }}
+    {{- with $rule.cookieName }}
+    loadBalancer:
+      consistentHash:
+        httpCookie:
+          name: {{ . | quote }}
+          ttl: {{ $rule.ttl | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}

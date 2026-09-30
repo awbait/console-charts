@@ -785,6 +785,7 @@
         "listeners",
         "hpa",
         "resources",
+        "proxy",
         "nodeSelector",
         "tolerations",
         "affinity"
@@ -838,6 +839,12 @@
               "memory": "1024Mi"
             }
           }
+        },
+        "proxy": {
+          "title": "Настройки прокси",
+          "description": "Настройки ожидания данных и размера заголовков запросов для точки входа. Доступны после создания заказа через пункт меню «Редактировать прокси».",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/gatewayProxy"
         },
         "nodeSelector": {
           "title": "Метки узлов размещения",
@@ -900,6 +907,29 @@
           "minimum": 1,
           "maximum": 100,
           "default": 80
+        }
+      }
+    },
+    "gatewayProxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "streamIdleTimeout",
+        "maxRequestHeadersKb"
+      ],
+      "properties": {
+        "streamIdleTimeout": {
+          "title": "Время ожидания данных",
+          "description": "Ограничивает ожидание следующих данных запроса или ответа до закрытия соединения. Если поле пустое, точка входа ждёт 5 минут, а при 0s ждёт без ограничения.",
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?s$"
+        },
+        "maxRequestHeadersKb": {
+          "title": "Предельный размер заголовков",
+          "description": "Ограничивает суммарный размер заголовков одного запроса в килобайтах. По умолчанию предел равен 60, при превышении клиент получает ошибку 431.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
         }
       }
     },
@@ -1337,6 +1367,7 @@
       "propertyOrder": [
         "matches",
         "filters",
+        "timeouts",
         "backendRefs"
       ],
       "properties": {
@@ -1356,6 +1387,11 @@
             "$ref": "#/definitions/routeFilter"
           }
         },
+        "timeouts": {
+          "title": "Ограничения времени",
+          "description": "Ограничивают время обработки запросов, которые попадают под это правило маршрута.",
+          "$ref": "#/definitions/routeTimeouts"
+        },
         "backendRefs": {
           "title": "Сервисы назначения",
           "description": "Сервисы, в которые точка входа передаст запрос.",
@@ -1369,6 +1405,28 @@
       "required": [
         "backendRefs"
       ]
+    },
+    "routeTimeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "request",
+        "backendRequest"
+      ],
+      "properties": {
+        "request": {
+          "title": "Время на запрос",
+          "description": "Ограничивает время от получения запроса точкой входа до отправки полного ответа клиенту. При превышении клиент получает ошибку 504, а пустое поле оставляет запрос без ограничения времени.",
+          "type": "string",
+          "pattern": "^([0-9]{1,5}(h|m|s|ms)){1,4}$"
+        },
+        "backendRequest": {
+          "title": "Время на попытку обращения",
+          "description": "Ограничивает время одной попытки обращения к сервису назначения и не может превышать «Время на запрос». Если поле пустое, действует ограничение на запрос целиком.",
+          "type": "string",
+          "pattern": "^([0-9]{1,5}(h|m|s|ms)){1,4}$"
+        }
+      }
     },
     "routeMatch": {
       "title": "Предмет сравнения",
@@ -2045,7 +2103,9 @@
         "namespace",
         "referenceGrant",
         "port",
-        "weight"
+        "weight",
+        "sessionAffinity",
+        "h2UpgradePolicy"
       ],
       "properties": {
         "name": {
@@ -2076,11 +2136,57 @@
           "type": "integer",
           "minimum": 0,
           "default": 100
+        },
+        "sessionAffinity": {
+          "title": "Закрепление клиента",
+          "description": "Направляет запросы с одной и той же cookie в один экземпляр сервиса. Действует на весь трафик от этой точки входа к сервису во всех правилах, где он указан.",
+          "$ref": "#/definitions/sessionAffinity"
+        },
+        "h2UpgradePolicy": {
+          "title": "Переход на HTTP/2",
+          "description": "Определяет, переходит ли точка входа с HTTP/1.1 на HTTP/2 при обращении к сервису. Выберите «Использовать HTTP/1.1», если сервис не поддерживает HTTP/2. Если поле пустое, действует общая настройка платформы. Настройка действует на весь трафик от этой точки входа к сервису во всех правилах, где он указан.",
+          "type": "string",
+          "enum": [
+            "DO_NOT_UPGRADE",
+            "UPGRADE"
+          ],
+          "enumNames": [
+            "Использовать HTTP/1.1",
+            "Переходить на HTTP/2"
+          ]
         }
       },
       "required": [
         "name",
         "port"
+      ]
+    },
+    "sessionAffinity": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "cookieName",
+        "ttl"
+      ],
+      "properties": {
+        "cookieName": {
+          "title": "Имя cookie",
+          "description": "Имя cookie, которую точка входа выдаёт клиенту и использует для его закрепления за экземпляром сервиса. Например, route.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "ttl": {
+          "title": "Срок жизни cookie",
+          "description": "Определяет, как долго хранится cookie для закрепления клиента. При значении 0s cookie хранится до закрытия браузера.",
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]+)?s$",
+          "default": "0s"
+        }
+      },
+      "required": [
+        "cookieName"
       ]
     },
     "oidcAuth": {

@@ -59,8 +59,9 @@ Returns the value in lower-case.
 Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
 Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret),
-cert (Certificate).
+tcr (TCPRoute), ur (UDPRoute), rg (ReferenceGrant), secret (Secret),
+es (ExternalSecret), cert (Certificate), ef (EnvoyFilter),
+dr (DestinationRule).
 Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
@@ -71,6 +72,8 @@ Unknown kind -> fail.
 {{- else if eq $kind "configmap" -}}cm
 {{- else if eq $kind "authorizationpolicy" -}}ap
 {{- else if eq $kind "networkpolicy" -}}np
+{{- else if eq $kind "envoyfilter" -}}ef
+{{- else if eq $kind "destinationrule" -}}dr
 {{- else if eq $kind "httproute" -}}hr
 {{- else if eq $kind "grpcroute" -}}gr
 {{- else if eq $kind "tlsroute" -}}tr
@@ -124,6 +127,70 @@ Parameter: the root context.
 {{- end -}}
 {{- end -}}
 {{- $grants | toJson -}}
+{{- end -}}
+
+{{/*
+DestinationRules the routes ask for, as JSON: a map keyed by the Service the
+rule is for ("name.namespace") of {name, namespace, cookieName, ttl,
+h2UpgradePolicy}, with a setting left out when no reference set it.
+These settings are properties of the Service, not of a route: Istio applies
+them with a DestinationRule on the host, and every route of the release that
+sends to that host is affected. So one entry per Service, collected from every
+enabled route whose backendRefs carry sessionAffinity or h2UpgradePolicy.
+References to one Service merge: one may pin the cookie and another the
+protocol. Two that set the same setting differently stop the render: the
+second would silently win otherwise. Rendered by destinationRule.yaml.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.destinationRules" -}}
+{{- $root := . -}}
+{{- $rules := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- range $ruleIndex, $rule := $route.rules | default list -}}
+{{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- $label := printf "xroutes[%d].rules[%d].backendRefs[%d]" $index $ruleIndex $backendIndex -}}
+{{- $wanted := dict -}}
+{{- with $backend.sessionAffinity -}}
+{{- $cookie := required (printf "%s.sessionAffinity.cookieName is required" $label) .cookieName | toString -}}
+{{- $ttl := .ttl | default "0s" | toString -}}
+{{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
+{{- fail (printf "%s.sessionAffinity.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
+{{- end -}}
+{{- $_ := set $wanted "cookieName" $cookie -}}
+{{- $_ := set $wanted "ttl" $ttl -}}
+{{- end -}}
+{{- with $backend.h2UpgradePolicy -}}
+{{- $policy := toString . -}}
+{{- if not (has $policy (list "DO_NOT_UPGRADE" "UPGRADE")) -}}
+{{- fail (printf "%s.h2UpgradePolicy must be DO_NOT_UPGRADE or UPGRADE, got %q" $label $policy) -}}
+{{- end -}}
+{{- $_ := set $wanted "h2UpgradePolicy" $policy -}}
+{{- end -}}
+{{- if $wanted -}}
+{{- $service := required (printf "%s.name is required" $label) $backend.name | toString -}}
+{{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
+{{- $key := printf "%s.%s" $service $namespace -}}
+{{- $entry := index $rules $key | default (dict "name" $service "namespace" $namespace) -}}
+{{- range $setting, $value := $wanted -}}
+{{- if and (hasKey $entry $setting) (ne (index $entry $setting) $value) -}}
+{{- fail (printf "%s.%s %q disagrees with an earlier %q for service %s in namespace %s: one Service gets one DestinationRule" $label $setting $value (index $entry $setting) $service $namespace) -}}
+{{- end -}}
+{{- $_ := set $entry $setting $value -}}
+{{- end -}}
+{{- /* The DestinationRule is named after the Service alone, so two Services of one name in different namespaces would share it. */ -}}
+{{- range $otherKey, $other := $rules -}}
+{{- if and (eq $other.name $service) (ne $other.namespace $namespace) -}}
+{{- fail (printf "%s names service %s in namespace %s, but an earlier reference already asks a DestinationRule for %s in namespace %s: the two would share one name" $label $service $namespace $service $other.namespace) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set $rules $key $entry -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $rules | toJson -}}
 {{- end -}}
 
 {{/*
@@ -311,8 +378,8 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
 {{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "resourceName.kind is required" .kind | toString | lower -}}
 {{- $kindShort := include "ingress-gateway.helpers.app.kindShort" $kind -}}
-{{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
-{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy"))) -}}
+{{/* These five are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
+{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy" "envoyfilter"))) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
 {{- if .parent -}}
 {{- $parent := include "ingress-gateway.helpers.shortToken" (dict "label" "parentGatewayName" "value" .parent "max" 9) -}}

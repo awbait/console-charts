@@ -146,6 +146,13 @@ gatewayScheduling:
 #   ipAddress   - постоянный адрес LoadBalancer (аннотация MetalLB в ConfigMap)
 #   hpa         - HorizontalPodAutoscaler для создаваемого Deployment
 #   resources   - ресурсы контейнера istio-proxy (ConfigMap.data.deployment)
+#   proxy       - настройки прокси, которых нет в Gateway API; уходят в
+#                 EnvoyFilter на поды этой точки входа:
+#     streamIdleTimeout   - пауза в передаче данных, после которой запрос
+#                           обрывается; по умолчанию 5 минут; секунды с s,
+#                           0s отключает
+#     maxRequestHeadersKb - предел на заголовки запроса в КиБ, 1..8192;
+#                           по умолчанию 60, сверх него клиент получает 431
 #   nodeSelector, tolerations, affinity - где планировать под шлюза, в формате
 #                 спецификации пода Kubernetes. Заданное здесь поле заменяет
 #                 целиком одноимённое умолчание из gatewayScheduling (см. ниже),
@@ -185,6 +192,15 @@ gateways:
       limits:
         cpu: 500m
         memory: 512Mi
+
+    # Долгие отчёты и потоковые ответы: запрос, который молчит дольше
+    # 5 минут, Envoy обрывает по умолчанию. Приложение к тому же присылает
+    # большие cookie, поэтому предел на заголовки поднят с 60 КиБ. Чарт
+    # создаёт EnvoyFilter ed-dev-ef-nbox-main. В форме заказа блок скрыт,
+    # в карточке открывается пунктом «Редактировать прокси».
+    proxy:
+      streamIdleTimeout: 18000s
+      maxRequestHeadersKb: 256
 
     # Эта точка входа живёт только на нодах группы ingress. Поля ниже заменяют
     # умолчания из gatewayScheduling для неё одной.
@@ -358,6 +374,18 @@ gateways:
 #                  Gateway API не пропустит ссылку через границу namespace.
 #                  referenceGrant: false у ссылки отключает это: например, когда
 #                  прав на тот namespace нет и grant создают его владельцы.
+#                  timeouts (только HTTPRoute) ограничивает время: request на
+#                  запрос целиком, backendRequest на одну попытку обращения
+#                  к сервису; длительности Gateway API: 30s, 5m, 1h30m.
+#                  sessionAffinity у ссылки закрепляет клиента за подом
+#                  сервиса по cookie (cookieName, ttl в секундах с s): чарт
+#                  создаёт DestinationRule {instance}-{cluster}-dr-{project}-{service},
+#                  одну на сервис, видимую только точкам входа релиза.
+#                  Не работает для сервисов с меткой
+#                  istio.io/ingress-use-waypoint: "true".
+#                  h2UpgradePolicy у ссылки (DO_NOT_UPGRADE | UPGRADE) решает,
+#                  переходить ли к сервису на HTTP/2, когда mesh переводит
+#                  соединения сам; уходит в ту же DestinationRule.
 #
 # Если включённый Gateway один, часть полей можно не писать (в этом примере их
 # два, поэтому gateway указан явно):
@@ -386,18 +414,32 @@ xroutes:
               add:
                 - name: x-routed-by
                   value: gateway-chart
+        # Отчёт может строиться часами: без timeouts Gateway API предела
+        # не ставит, здесь он задан явно, чтобы попытка к сервису не жила
+        # дольше запроса целиком.
+        timeouts:
+          request: 5h
+          backendRequest: 5h
         backendRefs:
+          # Сессия живёт в памяти пода: клиент с cookie route двое суток
+          # ходит в один и тот же под. DestinationRule ed-dev-dr-nbox-app.
           - name: app
             port: 80
             weight: 100
+            sessionAffinity:
+              cookieName: route
+              ttl: 172800s
       - matches:
           - path:
               type: PathPrefix
               value: /api
         backendRefs:
+          # Сервис не понимает HTTP/2, а mesh переводит соединения на него:
+          # точка входа остаётся на HTTP/1.1. DestinationRule ed-dev-dr-nbox-api.
           - name: api
             port: 8080
             weight: 100
+            h2UpgradePolicy: DO_NOT_UPGRADE
       # Сервис в другом namespace: чарт создаст там ReferenceGrant
       # id-dev-rg-main-nbox-routes (по identity этого примера) для HTTPRoute
       # точки входа main. Второй сервис ссылку получает без grant: его создают

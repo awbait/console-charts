@@ -45,6 +45,18 @@ The element is skipped when enabled: false.
 {{- if and (not $supportsFilters) $rule.filters }}
 {{- fail (printf "xroutes[%d].rules[%d].filters is not supported for %s" $index $ruleIndex $routeKind) }}
 {{- end }}
+{{- /* Only HTTPRoute has timeouts in the Gateway API: GRPCRoute and the L4 routes do not. */ -}}
+{{- if and $rule.timeouts (ne $routeKind "HTTPRoute") }}
+{{- fail (printf "xroutes[%d].rules[%d].timeouts is not supported for %s" $index $ruleIndex $routeKind) }}
+{{- end }}
+{{- range $field, $value := $rule.timeouts | default dict }}
+{{- if not (has $field (list "request" "backendRequest")) }}
+{{- fail (printf "xroutes[%d].rules[%d].timeouts.%s is not a timeout; use request or backendRequest" $index $ruleIndex $field) }}
+{{- end }}
+{{- if and $value (not (regexMatch "^([0-9]{1,5}(h|m|s|ms)){1,4}$" (toString $value))) }}
+{{- fail (printf "xroutes[%d].rules[%d].timeouts.%s must be a Gateway API duration such as 30s, 5m or 1h30m, got %q" $index $ruleIndex $field (toString $value)) }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- /* hostnames: explicit from values or auto from the listeners of the single Gateway by sectionName */ -}}
 {{- $effectiveHostnames := $route.hostnames | default list }}
@@ -92,6 +104,16 @@ spec:
       {{- if and $supportsFilters $rule.filters }}
       filters:
         {{- toYaml $rule.filters | nindent 8 }}
+      {{- end }}
+      {{- $timeouts := $rule.timeouts | default dict }}
+      {{- if or $timeouts.request $timeouts.backendRequest }}
+      timeouts:
+        {{- with $timeouts.request }}
+        request: {{ . | toString | quote }}
+        {{- end }}
+        {{- with $timeouts.backendRequest }}
+        backendRequest: {{ . | toString | quote }}
+        {{- end }}
       {{- end }}
       {{- if not $rule.backendRefs }}
       {{- fail (printf "xroutes[%d].rules[%d].backendRefs is required for route %s" $index $ruleIndex $routeName) }}
