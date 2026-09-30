@@ -59,8 +59,9 @@ Returns the value in lower-case.
 Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
 Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret),
-cert (Certificate).
+tcr (TCPRoute), ur (UDPRoute), rg (ReferenceGrant), secret (Secret),
+es (ExternalSecret), cert (Certificate), ef (EnvoyFilter),
+dr (DestinationRule).
 Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
@@ -71,6 +72,8 @@ Unknown kind -> fail.
 {{- else if eq $kind "configmap" -}}cm
 {{- else if eq $kind "authorizationpolicy" -}}ap
 {{- else if eq $kind "networkpolicy" -}}np
+{{- else if eq $kind "envoyfilter" -}}ef
+{{- else if eq $kind "destinationrule" -}}dr
 {{- else if eq $kind "httproute" -}}hr
 {{- else if eq $kind "grpcroute" -}}gr
 {{- else if eq $kind "tlsroute" -}}tr
@@ -124,6 +127,54 @@ Parameter: the root context.
 {{- end -}}
 {{- end -}}
 {{- $grants | toJson -}}
+{{- end -}}
+
+{{/*
+Session affinity the routes ask for, as JSON: a map keyed by the Service the
+affinity is for ("name.namespace") of {name, namespace, cookieName, ttl}.
+Affinity is a property of the Service, not of a route: Istio pins a client to
+an endpoint with a DestinationRule on the host, and every route of the release
+that sends to that host is affected. So one entry per Service, collected from
+every enabled route whose backendRefs carry sessionAffinity. Two references to
+one Service that disagree on the cookie stop the render: the second would
+silently win otherwise. Rendered by destinationRule.yaml.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.sessionAffinities" -}}
+{{- $root := . -}}
+{{- $affinities := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- range $ruleIndex, $rule := $route.rules | default list -}}
+{{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- with $backend.sessionAffinity -}}
+{{- $label := printf "xroutes[%d].rules[%d].backendRefs[%d].sessionAffinity" $index $ruleIndex $backendIndex -}}
+{{- $cookie := required (printf "%s.cookieName is required" $label) .cookieName | toString -}}
+{{- $ttl := .ttl | default "0s" | toString -}}
+{{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
+{{- fail (printf "%s.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
+{{- end -}}
+{{- $service := required (printf "xroutes[%d].rules[%d].backendRefs[%d].name is required" $index $ruleIndex $backendIndex) $backend.name | toString -}}
+{{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
+{{- $key := printf "%s.%s" $service $namespace -}}
+{{- $entry := dict "name" $service "namespace" $namespace "cookieName" $cookie "ttl" $ttl -}}
+{{- $seen := index $affinities $key -}}
+{{- if and $seen (or (ne $seen.cookieName $cookie) (ne $seen.ttl $ttl)) -}}
+{{- fail (printf "%s disagrees with an earlier sessionAffinity for service %s in namespace %s: one Service gets one cookie and one ttl" $label $service $namespace) -}}
+{{- end -}}
+{{- /* The DestinationRule is named after the Service alone, so two Services of one name in different namespaces would share it. */ -}}
+{{- range $otherKey, $other := $affinities -}}
+{{- if and (eq $other.name $service) (ne $other.namespace $namespace) -}}
+{{- fail (printf "%s names service %s in namespace %s, but an earlier sessionAffinity already pins %s in namespace %s: the two would share one DestinationRule name" $label $service $namespace $service $other.namespace) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set $affinities $key $entry -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $affinities | toJson -}}
 {{- end -}}
 
 {{/*
@@ -311,8 +362,8 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
 {{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "resourceName.kind is required" .kind | toString | lower -}}
 {{- $kindShort := include "ingress-gateway.helpers.app.kindShort" $kind -}}
-{{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
-{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy"))) -}}
+{{/* These five are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
+{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy" "envoyfilter"))) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
 {{- if .parent -}}
 {{- $parent := include "ingress-gateway.helpers.shortToken" (dict "label" "parentGatewayName" "value" .parent "max" 9) -}}
