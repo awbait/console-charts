@@ -130,51 +130,67 @@ Parameter: the root context.
 {{- end -}}
 
 {{/*
-Session affinity the routes ask for, as JSON: a map keyed by the Service the
-affinity is for ("name.namespace") of {name, namespace, cookieName, ttl}.
-Affinity is a property of the Service, not of a route: Istio pins a client to
-an endpoint with a DestinationRule on the host, and every route of the release
-that sends to that host is affected. So one entry per Service, collected from
-every enabled route whose backendRefs carry sessionAffinity. Two references to
-one Service that disagree on the cookie stop the render: the second would
-silently win otherwise. Rendered by destinationRule.yaml.
+DestinationRules the routes ask for, as JSON: a map keyed by the Service the
+rule is for ("name.namespace") of {name, namespace, cookieName, ttl,
+h2UpgradePolicy}, with a setting left out when no reference set it.
+These settings are properties of the Service, not of a route: Istio applies
+them with a DestinationRule on the host, and every route of the release that
+sends to that host is affected. So one entry per Service, collected from every
+enabled route whose backendRefs carry sessionAffinity or h2UpgradePolicy.
+References to one Service merge: one may pin the cookie and another the
+protocol. Two that set the same setting differently stop the render: the
+second would silently win otherwise. Rendered by destinationRule.yaml.
 Parameter: the root context.
 */}}
-{{- define "ingress-gateway.helpers.app.sessionAffinities" -}}
+{{- define "ingress-gateway.helpers.app.destinationRules" -}}
 {{- $root := . -}}
-{{- $affinities := dict -}}
+{{- $rules := dict -}}
 {{- range $index, $route := $root.Values.xroutes -}}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
 {{- range $ruleIndex, $rule := $route.rules | default list -}}
 {{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- $label := printf "xroutes[%d].rules[%d].backendRefs[%d]" $index $ruleIndex $backendIndex -}}
+{{- $wanted := dict -}}
 {{- with $backend.sessionAffinity -}}
-{{- $label := printf "xroutes[%d].rules[%d].backendRefs[%d].sessionAffinity" $index $ruleIndex $backendIndex -}}
-{{- $cookie := required (printf "%s.cookieName is required" $label) .cookieName | toString -}}
+{{- $cookie := required (printf "%s.sessionAffinity.cookieName is required" $label) .cookieName | toString -}}
 {{- $ttl := .ttl | default "0s" | toString -}}
 {{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
-{{- fail (printf "%s.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
+{{- fail (printf "%s.sessionAffinity.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
 {{- end -}}
-{{- $service := required (printf "xroutes[%d].rules[%d].backendRefs[%d].name is required" $index $ruleIndex $backendIndex) $backend.name | toString -}}
+{{- $_ := set $wanted "cookieName" $cookie -}}
+{{- $_ := set $wanted "ttl" $ttl -}}
+{{- end -}}
+{{- with $backend.h2UpgradePolicy -}}
+{{- $policy := toString . -}}
+{{- if not (has $policy (list "DO_NOT_UPGRADE" "UPGRADE")) -}}
+{{- fail (printf "%s.h2UpgradePolicy must be DO_NOT_UPGRADE or UPGRADE, got %q" $label $policy) -}}
+{{- end -}}
+{{- $_ := set $wanted "h2UpgradePolicy" $policy -}}
+{{- end -}}
+{{- if $wanted -}}
+{{- $service := required (printf "%s.name is required" $label) $backend.name | toString -}}
 {{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
 {{- $key := printf "%s.%s" $service $namespace -}}
-{{- $entry := dict "name" $service "namespace" $namespace "cookieName" $cookie "ttl" $ttl -}}
-{{- $seen := index $affinities $key -}}
-{{- if and $seen (or (ne $seen.cookieName $cookie) (ne $seen.ttl $ttl)) -}}
-{{- fail (printf "%s disagrees with an earlier sessionAffinity for service %s in namespace %s: one Service gets one cookie and one ttl" $label $service $namespace) -}}
+{{- $entry := index $rules $key | default (dict "name" $service "namespace" $namespace) -}}
+{{- range $setting, $value := $wanted -}}
+{{- if and (hasKey $entry $setting) (ne (index $entry $setting) $value) -}}
+{{- fail (printf "%s.%s %q disagrees with an earlier %q for service %s in namespace %s: one Service gets one DestinationRule" $label $setting $value (index $entry $setting) $service $namespace) -}}
+{{- end -}}
+{{- $_ := set $entry $setting $value -}}
 {{- end -}}
 {{- /* The DestinationRule is named after the Service alone, so two Services of one name in different namespaces would share it. */ -}}
-{{- range $otherKey, $other := $affinities -}}
+{{- range $otherKey, $other := $rules -}}
 {{- if and (eq $other.name $service) (ne $other.namespace $namespace) -}}
-{{- fail (printf "%s names service %s in namespace %s, but an earlier sessionAffinity already pins %s in namespace %s: the two would share one DestinationRule name" $label $service $namespace $service $other.namespace) -}}
+{{- fail (printf "%s names service %s in namespace %s, but an earlier reference already asks a DestinationRule for %s in namespace %s: the two would share one name" $label $service $namespace $service $other.namespace) -}}
 {{- end -}}
 {{- end -}}
-{{- $_ := set $affinities $key $entry -}}
+{{- $_ := set $rules $key $entry -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
 {{- end -}}
-{{- $affinities | toJson -}}
+{{- $rules | toJson -}}
 {{- end -}}
 
 {{/*

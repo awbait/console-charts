@@ -383,6 +383,9 @@ gateways:
 #                  одну на сервис, видимую только точкам входа релиза.
 #                  Не работает для сервисов с меткой
 #                  istio.io/ingress-use-waypoint: "true".
+#                  h2UpgradePolicy у ссылки (DO_NOT_UPGRADE | UPGRADE) решает,
+#                  переходить ли к сервису на HTTP/2, когда mesh переводит
+#                  соединения сам; уходит в ту же DestinationRule.
 #
 # Если включённый Gateway один, часть полей можно не писать (в этом примере их
 # два, поэтому gateway указан явно):
@@ -431,9 +434,12 @@ xroutes:
               type: PathPrefix
               value: /api
         backendRefs:
+          # Сервис не понимает HTTP/2, а mesh переводит соединения на него:
+          # точка входа остаётся на HTTP/1.1. DestinationRule ed-dev-dr-nbox-api.
           - name: api
             port: 8080
             weight: 100
+            h2UpgradePolicy: DO_NOT_UPGRADE
       # Сервис в другом namespace: чарт создаст там ReferenceGrant
       # id-dev-rg-main-nbox-routes (по identity этого примера) для HTTPRoute
       # точки входа main. Второй сервис ссылку получает без grant: его создают
