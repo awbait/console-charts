@@ -1,0 +1,99 @@
+{
+  "views": {
+    "order": {
+      "$comment": "Заказ: один сервер. Теги окружения и проекта проставляет блок defaults, проект берётся из команды заказа. В заказе спрашиваются имя сервера и адреса. Число экземпляров и ресурсы в заказе не спрашиваются, их правят из меню «Действия». Образ, секреты реестра и DNS задаёт платформа в значениях установки, схема их прячет.",
+      "include": [
+        "servers"
+      ],
+      "identity": "/servers/0/name",
+      "overrides": {
+        "servers": {
+          "title": "Сервер",
+          "ui:widget": "single",
+          "ui:view": {
+            "exclude": [
+              "replicas"
+            ]
+          }
+        }
+      }
+    },
+    "server": {
+      "$comment": "Правка адресов сервера из карточки. Имя не меняется: по нему названы ресурсы, и на Service ссылаются маршруты точки входа.",
+      "include": [
+        "servers"
+      ],
+      "overrides": {
+        "servers": {
+          "title": "Сервер",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "locations"
+            ]
+          }
+        }
+      }
+    },
+    "replicas": {
+      "include": [
+        "servers"
+      ],
+      "overrides": {
+        "servers": {
+          "title": "Сервер",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "replicas"
+            ]
+          }
+        }
+      }
+    },
+    "resources": {
+      "$comment": "Ресурсы схема чарта прячет, поэтому здесь их приходится раскрывать виджетом edit.",
+      "include": [
+        "servers"
+      ],
+      "overrides": {
+        "servers": {
+          "title": "Сервер",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "resources"
+            ],
+            "overrides": {
+              "resources": {
+                "ui:widget": "edit"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "server",
+      "label": "Изменить адреса сервера"
+    },
+    {
+      "in": "info",
+      "view": "replicas",
+      "label": "Изменить число экземпляров"
+    },
+    {
+      "in": "info",
+      "view": "resources",
+      "label": "Изменить ресурсы"
+    }
+  ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}"
+  }
+}

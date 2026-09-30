@@ -1,0 +1,106 @@
+{{/*
+Deployment of a server: one per element of the servers list. The container
+runs the OpenResty image of the chart with the nginx.conf of the server
+mounted over the one of the image. It runs as nobody on a read-only root
+filesystem, so the pid and the temporary files go to an emptyDir at /tmp (the
+nginx.conf points them there). Two replicas by default, spread over nodes
+when the scheduler can, so a rollout or a node drain keeps the server up.
+The element is skipped when enabled: false.
+*/}}
+{{- if eq (include "openresty.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- range $index, $server := $root.Values.servers }}
+{{- if eq (include "openresty.helpers.app.enabled" $server) "true" }}
+{{- $name := required (printf "servers[%d].name is required" $index) $server.name }}
+{{- $replicas := $server.replicas | default 2 -}}
+{{- if or (not (regexMatch "^[0-9]+$" (toString $replicas))) (lt (int $replicas) 1) -}}
+{{- fail (printf "servers[%d].replicas must be a whole number of at least 1, got %q" $index (toString $replicas)) -}}
+{{- end -}}
+{{- $defaultResources := dict "requests" (dict "cpu" "50m" "memory" "64Mi") "limits" (dict "cpu" "500m" "memory" "256Mi") -}}
+{{- $resources := $server.resources | default $defaultResources -}}
+{{- $configMapName := include "openresty.helpers.app.resourceName" (dict "kindShort" "cm" "name" $name "context" $root) }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openresty.helpers.app.resourceName" (dict "kindShort" "dp" "name" $name "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "openresty.helpers.app.metadata" (dict "context" $root "labels" (dict "app.kubernetes.io/component" $name)) | nindent 2 }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      {{- include "openresty.helpers.app.serverSelectorLabels" (dict "context" $root "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- /* Rolls the pods when the nginx.conf changes: a subPath mount does not pick up ConfigMap updates by itself. */}}
+        checksum/config: {{ include "openresty.helpers.app.nginxConf" (dict "server" $server "index" $index "context" $root) | sha256sum }}
+      labels:
+        {{- include "openresty.helpers.app.labels" $root | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      {{- with $root.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "openresty.helpers.app.serverSelectorLabels" (dict "context" $root "name" $name) | nindent 20 }}
+      containers:
+        - name: openresty
+          image: {{ include "openresty.helpers.app.image" $root | quote }}
+          imagePullPolicy: {{ ($root.Values.image | default dict).pullPolicy | default "IfNotPresent" }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            {{- include "openresty.helpers.tplvalues.render" (dict "value" $resources "context" $root) | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $configMapName }}
+        - name: tmp
+          emptyDir: {}
+{{- end }}
+{{- end }}
+{{- end }}

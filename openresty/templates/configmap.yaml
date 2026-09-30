@@ -1,0 +1,24 @@
+{{/*
+ConfigMap with the nginx.conf of a server: one per element of the servers
+list. It is mounted over the nginx.conf of the image (see deployment.yaml),
+which rolls the pods through a checksum annotation whenever it changes.
+The element is skipped when enabled: false.
+*/}}
+{{- if eq (include "openresty.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- range $index, $server := $root.Values.servers }}
+{{- if eq (include "openresty.helpers.app.enabled" $server) "true" }}
+{{- $name := required (printf "servers[%d].name is required" $index) $server.name }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openresty.helpers.app.resourceName" (dict "kindShort" "cm" "name" $name "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "openresty.helpers.app.metadata" (dict "context" $root "labels" (dict "app.kubernetes.io/component" $name)) | nindent 2 }}
+data:
+  nginx.conf: |
+    {{- include "openresty.helpers.app.nginxConf" (dict "server" $server "index" $index "context" $root) | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

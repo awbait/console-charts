@@ -1,0 +1,31 @@
+{{- if eq (include "openresty.helpers.chartEnabled" .) "true" }}
+openresty ({{ .Chart.Version }}) deployed into namespace {{ .Release.Namespace | quote }}.
+Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
+Identity labels on every resource: {{ include "openresty.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
+
+{{ $hasServer := false -}}
+{{- range .Values.servers }}{{ if eq (include "openresty.helpers.app.enabled" .) "true" }}{{ $hasServer = true }}{{ end }}{{ end -}}
+{{- if $hasServer }}
+Servers (Deployment + Service + ConfigMap, image {{ include "openresty.helpers.app.image" . }}):
+{{- range $index, $server := .Values.servers }}
+{{- if eq (include "openresty.helpers.app.enabled" $server) "true" }}
+  - {{ include "openresty.helpers.app.resourceName" (dict "kindShort" "svc" "name" $server.name "context" $) }}:{{ $server.port | default 80 }} ({{ $server.replicas | default 2 }} replicas)
+{{- range $lIndex, $location := $server.locations }}
+{{- $kind := include "openresty.helpers.app.locationKind" (dict "location" $location "label" (printf "servers[%d].locations[%d]" $index $lIndex)) }}
+      - {{ $location.match | default "exact" }} {{ $location.path }}: {{ if eq $kind "response" }}static response{{ else if eq $kind "lua" }}Lua handler{{ else }}proxy to {{ $location.proxyPass }}{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+The servers are reachable inside the cluster only. Point a route of an
+ingress-gateway order at the Service to open a path from outside.
+{{- else }}
+
+No servers are described: the servers list is empty, nothing was created.
+{{- end }}
+
+All resources of this release carry the labels app={{ .Chart.Name }} and
+app.kubernetes.io/instance={{ .Release.Name }}.
+{{- else }}
+Resources not created: enabled=false.
+{{- end }}

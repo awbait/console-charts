@@ -142,7 +142,9 @@ appVersion: "1.2.3"        # версия деплоимого приложен�
 | `egw`     | `ServiceEntry` (egress)  | egress-gateway             |
 | `wp`      | `Gateway` (istio-waypoint) + его `ConfigMap` | waypoint (в том числе egress-гейтвей чарта egress-gateway) |
 | `veg`     | `VpcEgressGateway`       | egress-gateway             |
-| `cm`      | `ConfigMap`              | ingress-gateway            |
+| `cm`      | `ConfigMap`              | ingress-gateway, openresty |
+| `dp`      | `Deployment`             | openresty                  |
+| `svc`     | `Service`                | openresty                  |
 | `np`      | `NetworkPolicy`          | ingress-gateway, egress-gateway, policies |
 | `ap`      | `AuthorizationPolicy`    | ingress-gateway, egress-gateway, policies |
 | `hr`      | `HTTPRoute`              | ingress-gateway            |
