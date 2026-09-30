@@ -549,7 +549,10 @@ xroutes:
             port: 80
             weight: 100
 
-      # Перенаправление: на фильтр меняется одна часть адреса.
+      # Перенаправление: один фильтр на правило, в нём все меняемые части адреса
+      # (любой набор из statusCode, scheme, hostname, port, path). Точка входа
+      # отвечает сама, поэтому backendRefs в таком правиле не указываются.
+      # Незаданные части адреса остаются как в запросе, код ответа по умолчанию 302.
       - matches:
           - path:
               type: PathPrefix
@@ -557,25 +560,13 @@ xroutes:
         filters:
           - type: RequestRedirect
             requestRedirect:
-              scheme: https
-          - type: RequestRedirect
-            requestRedirect:
-              hostname: new.example.ru
-          - type: RequestRedirect
-            requestRedirect:
-              port: 8443
-          - type: RequestRedirect
-            requestRedirect:
               statusCode: 301
-          - type: RequestRedirect
-            requestRedirect:
+              scheme: https
+              hostname: new.example.ru
+              port: 8443
               path:
                 type: ReplaceFullPath
                 replaceFullPath: /new
-        backendRefs:
-          - name: app
-            port: 80
-            weight: 100
 
       # Подмена адреса перед отправкой в сервис.
       - matches:
