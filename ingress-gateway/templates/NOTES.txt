@@ -55,10 +55,38 @@ Routes:
 
 ReferenceGrants for routes:
 Created in service namespaces to allow routes to reference the listed services.
-Network access and Istio policies are configured separately.
+Network access and Istio policies for these namespaces are configured by this installation when `policies.enabled` is enabled, as listed below.
 {{- range $key, $grant := $grants }}
   - {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "ReferenceGrant" "name" "routes" "parent" $grant.gateway "context" $) }} in {{ $grant.namespace }}
 {{- end }}
+{{- end }}
+
+{{- if eq (include "ingress-gateway.helpers.app.policiesEnabled" .) "true" }}
+{{- $backends := include "ingress-gateway.helpers.app.backends" . | fromJson }}
+
+Policies of the gateways (NetworkPolicy + AuthorizationPolicy in {{ .Release.Namespace }}):
+{{- range $gw := .Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gw) "true" }}
+  - {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "NetworkPolicy" "name" $gw.name "context" $) }}, {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "AuthorizationPolicy" "name" $gw.name "context" $) }}
+{{- end }}
+{{- end }}
+{{- $foreign := false }}
+{{- range $key, $entry := $backends }}{{ if and $entry.foreign $entry.granted }}{{ $foreign = true }}{{ end }}{{ end }}
+{{- if $foreign }}
+
+Network and authorization policies for services:
+Created in service namespaces to allow ingress traffic to the listed services on the listed ports.
+{{- range $key, $entry := $backends }}
+{{- if and $entry.foreign $entry.granted }}
+{{- $ports := list }}
+{{- range $portKey, $p := $entry.granted }}{{ $ports = append $ports (printf "%d/%s" ($p.port | int) $p.protocol) }}{{ end }}
+  - {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "NetworkPolicy" "name" "routes" "parent" $entry.gateway "context" $) }}, {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "AuthorizationPolicy" "name" "routes" "parent" $entry.gateway "context" $) }} in {{ $entry.namespace }}: {{ keys $entry.services | sortAlpha | join ", " }} on {{ $ports | join ", " }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- else }}
+
+Network policies were not created. Enable them by setting `policies.enabled` to `true`.
 {{- end }}
 
 {{- if ($.Values.oidcAuth).enabled }}
