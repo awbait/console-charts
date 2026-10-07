@@ -3,8 +3,8 @@ ServiceEntry - one per entry of .Values.serviceEntries, each describing a single
 external service the senders reach through the gateway. Mode mesh only: in
 mode direct there is no waypoint to bind an entry to.
 
-Every entry lands in the namespace of the senders (senders.namespace) and
-carries both binding labels: istio.io/use-waypoint with the name of the egress
+Every entry lands in each namespace of the senders (senders.namespace and
+senders.additionalNamespaces, one copy per namespace) and carries both binding labels: istio.io/use-waypoint with the name of the egress
 Gateway and istio.io/use-waypoint-namespace with the namespace the gateway
 stands in. When the gateway has a namespace of its own (NS 2), ztunnel picks
 the traffic of the entry up in the senders namespace and tunnels it into the
@@ -23,8 +23,8 @@ Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
 {{- $root := . }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
 {{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" $root }}
-{{- $senders := include "egress-gateway.helpers.sendersNamespace" $root }}
-{{- range $index, $entry := .Values.serviceEntries }}
+{{- range $senders := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
+{{- range $index, $entry := $root.Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
 {{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
@@ -49,6 +49,7 @@ spec:
     - name: tls
       number: 443
       protocol: TLS
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

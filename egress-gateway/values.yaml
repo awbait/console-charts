@@ -22,10 +22,13 @@ generic:
 # внешний трафик их подсети).
 mode: mesh
 
-# Отправители: один существующий namespace на релиз. Заполняет заказ.
+# Отправители: существующие namespace. Основной - namespace, остальные -
+# additionalNamespaces. Заполняет заказ.
 senders:
   namespace: ""
+  additionalNamespaces: []   # другие namespace, которые ходят через тот же выход
   subnet: ""           # только direct со scope namespace: имя Subnet отправителей
+  additionalSubnets: []      # только direct со scope namespace: другие Subnet
 
 serviceEntries: []     # только mesh; заполняет заказ
 

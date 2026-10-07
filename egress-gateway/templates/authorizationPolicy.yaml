@@ -2,7 +2,7 @@
 AuthorizationPolicy (Istio) attached to the egress gateway of this release,
 created when authorizationPolicy.enabled. Mode mesh only: it targets the
 waypoint, which mode direct does not have.
-ALLOW from the senders namespace, nothing else: with the policy in place no
+ALLOW from the senders namespaces, nothing else: with the policy in place no
 other namespace of the cluster gets its traffic out through this gateway. The
 policy is attached through targetRefs, the way a Gateway API gateway is
 targeted, not through a workload selector, and lives in the namespace of the
@@ -32,6 +32,8 @@ spec:
     - from:
         - source:
             namespaces:
-              - {{ include "egress-gateway.helpers.sendersNamespace" $root | quote }}
+              {{- range $sender := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
+              - {{ $sender | quote }}
+              {{- end }}
 {{- end }}
 {{- end }}

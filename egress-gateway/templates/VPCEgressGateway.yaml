@@ -26,9 +26,10 @@ What the gateway captures depends on the mode:
                   would capture the application pods too, including the
                   answers to their kubelet probes.
   direct, scope namespace
-                  policies: SNAT for the whole Subnet of the senders.
+                  policies: SNAT for the whole Subnet of the senders
+                  (senders.subnet and senders.additionalSubnets).
   direct, scope label
-                  selectors: the pods of the senders namespace carrying the
+                  selectors: the pods of every senders namespace carrying the
                   label vpcEgressGateway.label with the name of this gateway.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
@@ -73,16 +74,20 @@ spec:
           {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" (include "egress-gateway.helpers.gatewayFullname" $root)) | nindent 10 }}
   {{- else if eq (include "egress-gateway.helpers.scope" $root) "label" }}
   selectors:
+    {{- range $sender := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.sendersNamespace" $root | quote }}
+          kubernetes.io/metadata.name: {{ $sender | quote }}
       podSelector:
         matchLabels:
           {{ include "egress-gateway.helpers.egressLabel" $root }}: {{ $vegFullname | quote }}
+    {{- end }}
   {{- else }}
   policies:
     - snat: true
       subnets:
-        - {{ include "egress-gateway.helpers.sendersSubnet" $root | quote }}
+        {{- range $subnet := (include "egress-gateway.helpers.sendersSubnets" $root | fromJsonArray) }}
+        - {{ $subnet | quote }}
+        {{- end }}
   {{- end }}
 {{- end }}
