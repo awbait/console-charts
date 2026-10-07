@@ -440,15 +440,7 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/definitions/namespaceName"
-          },
-          "defaultSnippets": [
-            {
-              "label": "Ещё один неймспейс",
-              "body": [
-                "nbox-dev-ns-app2"
-              ]
-            }
-          ]
+          }
         },
         "subnet": {
           "title": "Подсеть сервисов",
