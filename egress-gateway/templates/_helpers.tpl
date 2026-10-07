@@ -157,6 +157,26 @@ Parameter: the root context.
 {{- end -}}
 
 {{/*
+Every namespace of the senders, as JSON (callers fromJson it): senders.namespace
+first, then senders.additionalNamespaces. The first one is the primary: the
+gateway stands in it when it stands next to the senders. A repeated name is
+refused. Parameter: the root context.
+*/}}
+{{- define "egress-gateway.helpers.sendersNamespaces" -}}
+{{- $senders := .Values.senders | default dict -}}
+{{- $primary := include "egress-gateway.helpers.sendersNamespace" . -}}
+{{- $all := list $primary -}}
+{{- range $index, $value := ($senders.additionalNamespaces | default list) -}}
+{{- $name := include "egress-gateway.helpers.namespaceToken" (dict "label" (printf "senders.additionalNamespaces[%d]" $index) "value" $value) -}}
+{{- if has $name $all -}}
+{{- fail (printf "senders.additionalNamespaces[%d] %q is already listed: each namespace of the senders is named once, senders.namespace included" $index $name) -}}
+{{- end -}}
+{{- $all = append $all $name -}}
+{{- end -}}
+{{- $all | toJson -}}
+{{- end -}}
+
+{{/*
 Name of a namespace the namespace subchart creates, built the way that chart
 builds it: {project}-{cluster}-ns-{purpose}, purpose 2..12 characters. The
 subchart cannot report the name back, so the same formula is repeated here.
@@ -306,7 +326,7 @@ Parameter: the root context. Renders nothing.
 */}}
 {{- define "egress-gateway.helpers.validate" -}}
 {{- $mode := include "egress-gateway.helpers.mode" . -}}
-{{- $senders := include "egress-gateway.helpers.sendersNamespace" . -}}
+{{- $sendersAll := include "egress-gateway.helpers.sendersNamespaces" . | fromJsonArray -}}
 {{- $veg := .Values.vpcEgressGateway | default dict -}}
 {{- $_ := include "egress-gateway.helpers.vegFullname" . -}}
 {{- if not $veg.externalIPs -}}
@@ -323,8 +343,8 @@ Parameter: the root context. Renders nothing.
 {{- if ne (($vegNs.namespace | default dict).role | default "" | toString) "egress" -}}
 {{- fail "vegNamespace.namespace.role must be egress: the cluster policies tell the VpcEgressGateway namespace apart by that label" -}}
 {{- end -}}
-{{- if eq $vegNsName $senders -}}
-{{- fail (printf "senders.namespace %q is the namespace the VpcEgressGateway is created in: the senders live in a namespace of their own, ordered separately" $senders) -}}
+{{- if has $vegNsName $sendersAll -}}
+{{- fail (printf "%q is the namespace the VpcEgressGateway is created in, but it is named among the senders (senders.namespace, senders.additionalNamespaces): the senders live in namespaces of their own, ordered separately" $vegNsName) -}}
 {{- end -}}
 {{- $wpNs := .Values.waypointNamespace | default dict -}}
 {{- $wpEnabled := eq (include "egress-gateway.helpers.app.enabled" $wpNs) "true" -}}
@@ -346,15 +366,17 @@ Parameter: the root context. Renders nothing.
 {{- if eq $wpNsName $vegNsName -}}
 {{- fail (printf "global.namespacePurpose and vegNamespace.namespace.name both name %q: the waypoint and the VpcEgressGateway live in two different namespaces" $wpNsName) -}}
 {{- end -}}
-{{- if eq $wpNsName $senders -}}
-{{- fail (printf "senders.namespace %q is the namespace the waypoint is created in: the senders live in a namespace of their own, ordered separately, or switch waypointNamespace.enabled off to put the gateway next to the senders" $senders) -}}
+{{- if has $wpNsName $sendersAll -}}
+{{- fail (printf "%q is the namespace the waypoint is created in, but it is named among the senders (senders.namespace, senders.additionalNamespaces): the senders live in namespaces of their own, ordered separately, or switch waypointNamespace.enabled off to put the gateway next to the senders" $wpNsName) -}}
 {{- end -}}
 {{- $allowed := list -}}
 {{- range $namespace := ($waypoint.allowedNamespaces | default list) -}}
 {{- $allowed = append $allowed ($namespace | toString | trim | lower) -}}
 {{- end -}}
-{{- if not (has $senders $allowed) -}}
-{{- fail (printf "senders.namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $senders) -}}
+{{- range $sender := $sendersAll -}}
+{{- if not (has $sender $allowed) -}}
+{{- fail (printf "the senders namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $sender) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace without allowedNamespaces. */}}
@@ -383,7 +405,7 @@ Parameter: the root context. Renders nothing.
 {{- end -}}
 {{- $scope := include "egress-gateway.helpers.scope" . -}}
 {{- if eq $scope "namespace" -}}
-{{- $_ := include "egress-gateway.helpers.sendersSubnet" . -}}
+{{- $_ := include "egress-gateway.helpers.sendersSubnets" . -}}
 {{- else -}}
 {{- $_ := include "egress-gateway.helpers.egressLabel" . -}}
 {{- end -}}
@@ -417,6 +439,27 @@ nbox-dev-subnet-app. Parameter: the root context.
 {{- fail (printf "senders.subnet must be a Subnet name (DNS-like lowercase), got %q" $value) -}}
 {{- end -}}
 {{- $value -}}
+{{- end -}}
+
+{{/*
+Every subnet of the senders (mode direct, scope namespace), as JSON: the
+required senders.subnet first, then senders.additionalSubnets, for senders
+namespaces that sit in other subnets. A repeated name is refused. Parameter:
+the root context.
+*/}}
+{{- define "egress-gateway.helpers.sendersSubnets" -}}
+{{- $all := list (include "egress-gateway.helpers.sendersSubnet" .) -}}
+{{- range $index, $value := ((.Values.senders | default dict).additionalSubnets | default list) -}}
+{{- $name := $value | toString | trim | lower -}}
+{{- if or (gt (len $name) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name)) -}}
+{{- fail (printf "senders.additionalSubnets[%d] must be a Subnet name (DNS-like lowercase), got %q" $index $name) -}}
+{{- end -}}
+{{- if has $name $all -}}
+{{- fail (printf "senders.additionalSubnets[%d] %q is already listed: each subnet is named once, senders.subnet included" $index $name) -}}
+{{- end -}}
+{{- $all = append $all $name -}}
+{{- end -}}
+{{- $all | toJson -}}
 {{- end -}}
 
 {{/*

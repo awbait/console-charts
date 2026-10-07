@@ -423,18 +423,46 @@
       "additionalProperties": false,
       "propertyOrder": [
         "namespace",
-        "subnet"
+        "additionalNamespaces",
+        "subnet",
+        "additionalSubnets"
       ],
       "properties": {
         "namespace": {
           "title": "Неймспейс сервисов",
-          "description": "Укажите существующий неймспейс, из которого ваши сервисы ходят наружу, например nbox-dev-ns-app.",
+          "description": "Укажите существующий неймспейс, из которого сервисы будут выходить наружу, например nbox-dev-ns-app. Если гейтвей размещается рядом с сервисами, он будет создан в этом неймспейсе.",
           "$ref": "#/definitions/namespaceName"
+        },
+        "additionalNamespaces": {
+          "title": "Другие неймспейсы сервисов",
+          "description": "Добавьте существующие неймспейсы, сервисам из которых нужен выход через этот гейтвей. Не указывайте основной неймспейс и не повторяйте значения.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/namespaceName"
+          },
+          "defaultSnippets": [
+            {
+              "label": "Ещё один неймспейс",
+              "body": [
+                "nbox-dev-ns-app2"
+              ]
+            }
+          ]
         },
         "subnet": {
           "title": "Подсеть сервисов",
           "description": "Только без сетки. Укажите подсеть, например nbox-dev-subnet-app: весь её внешний трафик пойдёт через выход.",
           "$ref": "#/definitions/subnetName"
+        },
+        "additionalSubnets": {
+          "title": "Другие подсети сервисов",
+          "description": "Без сетки при выборе всей подсети здесь указываются подсети остальных неймспейсов сервисов, если они не входят в основную подсеть.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/namespaceName"
+          }
         }
       },
       "required": [
@@ -582,7 +610,7 @@
       "properties": {
         "enabled": {
           "title": "Ограничение трафика",
-          "description": "Гейтвей сможет обращаться только к указанным адресам и принимать трафик только от ваших сервисов.",
+          "description": "Гейтвей сможет обращаться только к указанным адресам и принимать трафик только из неймспейсов ваших сервисов.",
           "type": "boolean",
           "default": false
         },
@@ -649,7 +677,7 @@
       "properties": {
         "enabled": {
           "title": "Ограничение доступа",
-          "description": "Разрешает обращения к гейтвею только из неймспейса ваших сервисов.",
+          "description": "Разрешает обращаться к гейтвею только из указанных неймспейсов сервисов.",
           "type": "boolean",
           "default": false
         }

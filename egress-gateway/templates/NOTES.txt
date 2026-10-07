@@ -1,7 +1,7 @@
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
 {{- $mode := include "egress-gateway.helpers.mode" . }}
-{{- $senders := include "egress-gateway.helpers.sendersNamespace" . }}
+{{- $senders := include "egress-gateway.helpers.sendersNamespaces" . | fromJsonArray | join ", " }}
 {{- $vegNamespace := include "egress-gateway.helpers.vegNamespace" . }}
 {{- $vegFullname := include "egress-gateway.helpers.vegFullname" . }}
 {{- $veg := .Values.vpcEgressGateway | default dict }}
@@ -9,7 +9,7 @@ egress-gateway ({{ .Chart.Version }}), режим {{ $mode }}.
 Конвенция имён: {instance}-{cluster}-{kindShort}-{project}-{name}
 Теги на каждом ресурсе: {{ include "egress-gateway.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
-Отправители: namespace {{ $senders }} (существует до заказа, создаётся отдельным заказом namespace).
+Отправители: namespace {{ $senders }} существуют до заказа и создаются отдельными заказами namespace.
 {{- if eq $mode "mesh" }}
 {{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" . }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" . }}
@@ -30,7 +30,7 @@ Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом,
 Автомасштабирование выключено.
 {{- end }}
 
-Внешние сервисы (ServiceEntry в namespace {{ $senders }}, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
+Внешние сервисы (ServiceEntry в каждом namespace отправителей, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
 {{- range .Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
   * {{ .hostname }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
@@ -42,7 +42,7 @@ Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом,
 {{- if eq (include "egress-gateway.helpers.app.enabled" $np) "true" }}
 Сетевые правила: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "out" "context" $) }} (куда гейтвею можно ходить) и {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "in" "context" $) }} (кто ходит к гейтвею на 15008) в namespace {{ $gwNamespace }}.
 {{- if or (not (hasKey $np "senders")) (eq (toString $np.senders | lower) "true") }}
-В namespace отправителей добавлено правило {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "senders" "context" $) }}: выход к гейтвею на 15008.
+В каждом namespace отправителей добавлено правило {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "np" "parent" $waypoint.name "name" "senders" "context" $) }} для выхода к гейтвею на порт 15008.
 {{- end }}
 {{- else }}
 Сетевые правила не созданы (networkPolicy.enabled=false).
@@ -63,7 +63,7 @@ Waypoint не создаётся: отправители вне сетки.
 Выход с известного адреса: {{ $vegFullname }} в namespace {{ $vegNamespace }} (создан этим релизом, вне сетки навсегда).
 Внешних адресов: {{ len $veg.externalIPs }}, столько же экземпляров.
 {{- if eq $scope "namespace" }}
-Наружу с этих адресов уходит весь внешний трафик подсети {{ include "egress-gateway.helpers.sendersSubnet" . }}.
+С этих адресов уходит весь внешний трафик подсетей {{ include "egress-gateway.helpers.sendersSubnets" . | fromJsonArray | join ", " }}.
 {{- else }}
 Наружу с этих адресов уходят поды namespace {{ $senders }} с меткой {{ include "egress-gateway.helpers.egressLabel" . }}={{ $vegFullname }}.
 {{- end }}
