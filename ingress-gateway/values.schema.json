@@ -8,8 +8,7 @@
   "propertyOrder": [
     "identity",
     "generic",
-    "authorizationPolicy",
-    "networkPolicy",
+    "policies",
     "gateways",
     "xroutes",
     "tls",
@@ -60,16 +59,19 @@
       "$ref": "#/definitions/generic",
       "ui:widget": "hidden"
     },
-    "authorizationPolicy": {
-      "title": "Политика доступа",
-      "description": "Настройки AuthorizationPolicy в Istio для доступа к точкам входа.",
-      "$ref": "#/definitions/authorizationPolicy",
-      "ui:widget": "hidden"
+    "policies": {
+      "title": "Сетевые политики",
+      "description": "При включении заказ создаёт политики для точки входа и выводит правила исходящего трафика из сервисов назначения в маршрутах.",
+      "$ref": "#/definitions/policies"
     },
     "networkPolicy": {
-      "title": "Сетевая политика",
-      "description": "Настройки NetworkPolicy для входящего и исходящего трафика точек входа.",
-      "$ref": "#/definitions/networkPolicy",
+      "$comment": "Deprecated since 10.0.0, kept so an old value reaches the templates and stops there with a message that names policies.enabled instead of a schema error. Not read.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "authorizationPolicy": {
+      "$comment": "Deprecated since 10.0.0, see networkPolicy above. Not read.",
+      "type": "object",
       "ui:widget": "hidden"
     },
     "gateways": {
@@ -614,155 +616,28 @@
         }
       }
     },
-    "authorizationPolicy": {
+    "policies": {
       "type": "object",
       "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "trustDomain"
+      ],
       "properties": {
         "enabled": {
-          "title": "Включено",
-          "description": "Включает создание AuthorizationPolicy для каждой включённой точки входа. Если выключить, эта политика не создаётся.",
+          "title": "Включить сетевые политики",
+          "description": "Политики для сервисов в другом namespace создаются там и действуют на весь namespace. Они разрешают трафик точки входа к указанным сервисам.",
           "type": "boolean",
-          "default": true
-        }
-      }
-    },
-    "networkPolicy": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": {
-          "title": "Включено",
-          "description": "Включает создание NetworkPolicy для каждой включённой точки входа. Если выключить, эта политика не создаётся.",
-          "type": "boolean",
-          "default": true
+          "default": false
         },
-        "egress": {
-          "title": "Правила исходящего трафика",
-          "description": "Разрешают точке входа отправлять трафик в указанные назначения. Заполните, если сетевая политика включена.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/networkPolicyEgressRule"
-          }
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "enabled": {
-                "const": true
-              }
-            },
-            "required": [
-              "enabled"
-            ]
-          },
-          "then": {
-            "required": [
-              "egress"
-            ],
-            "properties": {
-              "egress": {
-                "minItems": 1
-              }
-            }
-          }
-        }
-      ]
-    },
-    "networkPolicyEgressRule": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "to": {
-          "title": "Разрешённые назначения",
-          "description": "Куда точке входа разрешено отправлять трафик по этому правилу.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/networkPolicyPeer"
-          }
-        },
-        "ports": {
-          "title": "Порты назначения",
-          "description": "Укажите порт и протокол для каждого разрешённого подключения по этому правилу.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/networkPolicyPort"
-          }
-        }
-      },
-      "required": [
-        "to",
-        "ports"
-      ]
-    },
-    "networkPolicyPeer": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "podSelector": {
-          "title": "Выбор подов",
-          "description": "Метки подов, к которым разрешено отправлять трафик.",
-          "$ref": "#/definitions/labelSelector"
-        },
-        "namespaceSelector": {
-          "title": "Выбор неймспейсов",
-          "description": "Метки неймспейсов, в которые разрешено отправлять трафик.",
-          "$ref": "#/definitions/labelSelector"
-        },
-        "ipBlock": {
-          "title": "Диапазон адресов",
-          "description": "Диапазон адресов назначения для NetworkPolicy. Укажите его в формате CIDR.",
-          "ui:widget": "hidden",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "cidr": {
-              "type": "string"
-            },
-            "except": {
-              "title": "Исключения из диапазона",
-              "description": "Диапазоны в формате CIDR, которые нужно исключить из разрешённого диапазона адресов.",
-              "ui:widget": "hidden",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "required": [
-            "cidr"
-          ]
-        }
-      }
-    },
-    "networkPolicyPort": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "port": {
-          "title": "Порт назначения",
-          "description": "Порт, на который разрешено отправлять трафик.",
-          "$ref": "#/definitions/port"
-        },
-        "protocol": {
-          "title": "Протокол подключения",
-          "description": "Протокол для подключения к порту назначения.",
+        "trustDomain": {
+          "title": "Домен доверия сетки",
+          "description": "Из него собирается principal точки входа для политик в namespace сервиса. Заполняет платформа.",
           "type": "string",
-          "enum": [
-            "TCP",
-            "UDP",
-            "SCTP"
-          ],
-          "default": "TCP"
+          "default": "cluster.local",
+          "ui:widget": "hidden"
         }
-      },
-      "required": [
-        "port",
-        "protocol"
-      ]
+      }
     },
     "labelSelector": {
       "type": "object",

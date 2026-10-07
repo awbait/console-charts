@@ -1,14 +1,29 @@
 {{/*
-AuthorizationPolicy (Istio) for the workload of each enabled Gateway: one
-per element of the gateways list (when authorizationPolicy.enabled). The workload
-is selected by the label gateway.networking.k8s.io/gateway-name = full Gateway name.
-By default ALLOW for all sources (0.0.0.0/0); fine-grained rule tuning is
-under development.
+AuthorizationPolicies (Istio) of the release, created together with the
+NetworkPolicies when policies.enabled.
+
+For the workload of each enabled Gateway, in the namespace of the release, on
+the pods the Istio Gateway controller makes for it (label
+gateway.networking.k8s.io/gateway-name = full Gateway name):
+  {name}     - ALLOW from every source (0.0.0.0/0): the gateway is the point
+               the outside reaches the cluster at, who gets further is
+               decided per route.
+
+In every other namespace the routes of a gateway send traffic to, when at
+least one backendRef there keeps referenceGrant (default true):
+  {gateway}-routes - ALLOW from the principal of the gateway workload (the
+               ServiceAccount Istio creates for the Gateway, see
+               ingress-gateway.helpers.app.gatewayPrincipal) to the ports of
+               the services the routes name there. No workload selector: the
+               chart knows the Services, not the labels of their pods, so the
+               policy covers the namespace and narrows by source and port.
+               Named after the gateway the way the ReferenceGrant of the
+               namespace is (kindShort ap, name "routes"), one per gateway
+               and namespace.
 */}}
 {{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
-{{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict -}}
-{{- if eq (include "ingress-gateway.helpers.app.enabled" $authorizationPolicy) "true" }}
+{{- if eq (include "ingress-gateway.helpers.app.policiesEnabled" $root) "true" }}
 {{- range $index, $gateway := $root.Values.gateways }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
 {{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
@@ -30,6 +45,32 @@ spec:
         - source:
             ipBlocks:
               - 0.0.0.0/0
+{{- end }}
+{{- end }}
+{{- $backends := include "ingress-gateway.helpers.app.backends" $root | fromJson }}
+{{- range $key, $entry := $backends }}
+{{- if and $entry.foreign $entry.granted }}
+{{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $entry.gateway "context" $root) }}
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "AuthorizationPolicy" "name" "routes" "parent" $entry.gateway "context" $root) }}
+  namespace: {{ $entry.namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - {{ include "ingress-gateway.helpers.app.gatewayPrincipal" (dict "gatewayFullname" $gatewayFullname "context" $root) | quote }}
+      to:
+        - operation:
+            ports:
+              {{- range $portKey, $p := $entry.granted }}
+              - {{ $p.port | quote }}
+              {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

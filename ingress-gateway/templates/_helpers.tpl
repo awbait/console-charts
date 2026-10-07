@@ -130,6 +130,110 @@ Parameter: the root context.
 {{- end -}}
 
 {{/*
+Whether the policies of the release are on: policies.enabled, default false.
+Returns "true" or "" (for if-tests). The two switches it replaced,
+networkPolicy and authorizationPolicy, are refused with a message rather than
+read: the egress rules the first one carried are generated now, and a value
+that still names them would otherwise be ignored in silence.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.policiesEnabled" -}}
+{{- if hasKey .Values "networkPolicy" -}}
+{{- fail "networkPolicy moved to policies.enabled: the egress rules are generated from the routes now, remove networkPolicy (and its egress) and set policies.enabled instead" -}}
+{{- end -}}
+{{- if hasKey .Values "authorizationPolicy" -}}
+{{- fail "authorizationPolicy merged into policies.enabled: one switch creates the NetworkPolicies and the AuthorizationPolicies together, remove authorizationPolicy and set policies.enabled instead" -}}
+{{- end -}}
+{{- include "ingress-gateway.helpers.app.enabled" (dict "enabled" ((.Values.policies | default dict).enabled | default false)) -}}
+{{- end -}}
+
+{{/*
+Istio principal of the workload of a Gateway: the ServiceAccount the Istio
+gateway controller creates for it, named {gateway}-{gatewayClass}, under the
+trust domain of the mesh (policies.trustDomain, default cluster.local).
+Parameters: .gatewayFullname, .context.
+*/}}
+{{- define "ingress-gateway.helpers.app.gatewayPrincipal" -}}
+{{- $trustDomain := (.context.Values.policies | default dict).trustDomain | default "cluster.local" | toString -}}
+{{- printf "%s/ns/%s/sa/%s-istio" $trustDomain .context.Release.Namespace .gatewayFullname -}}
+{{- end -}}
+
+{{/*
+Where the routes send traffic, as JSON: a map keyed "gateway|namespace" of
+{gateway, namespace, foreign, services: {name: true}, ports: {"port/PROTO":
+{port, protocol}}, granted: {"port/PROTO": {port, protocol}}}. One entry per
+gateway and backend namespace, collected from every enabled route whose rules
+name backendRefs; a backendRef without a namespace points at the namespace of
+the release (foreign: false). The protocol is that of the route: UDP for a
+UDPRoute, TCP for every other kind.
+ports holds every backend of the entry: what the workload of the gateway is
+allowed to reach. granted leaves out the backends with referenceGrant: false,
+the same opt-out the ReferenceGrant honours: the person ordering may have no
+rights in that namespace, and then the policies there are somebody else's to
+create, like the grant. Shared by networkPolicy.yaml, authorizationPolicy.yaml
+and NOTES.txt, so the three cannot disagree.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.backends" -}}
+{{- $root := . -}}
+{{- $backends := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- $routeName := $route.name | default "" | toString -}}
+{{- $routeKind := include "ingress-gateway.helpers.app.xRouteKind" (dict "kind" ($route.kind | default "HTTPRoute") "name" $routeName) -}}
+{{- $protocol := ternary "UDP" "TCP" (eq $routeKind "UDPRoute") -}}
+{{- $parent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) -}}
+{{- range $ruleIndex, $rule := $route.rules | default list -}}
+{{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
+{{- $foreign := ne $namespace $root.Release.Namespace -}}
+{{- $wanted := true -}}
+{{- if hasKey $backend "referenceGrant" -}}{{- $wanted = ne (toString $backend.referenceGrant) "false" -}}{{- end -}}
+{{- $port := required (printf "xroutes[%d].rules[%d].backendRefs[%d].port is required" $index $ruleIndex $backendIndex) $backend.port | int -}}
+{{- $key := printf "%s|%s" $parent $namespace -}}
+{{- $entry := index $backends $key -}}
+{{- if not $entry -}}
+{{- $entry = dict "gateway" $parent "namespace" $namespace "foreign" $foreign "services" (dict) "ports" (dict) "granted" (dict) -}}
+{{- $_ := set $backends $key $entry -}}
+{{- end -}}
+{{- with $backend.name -}}
+{{- $_ := set (index $entry "services") (toString .) true -}}
+{{- end -}}
+{{- $portKey := printf "%d/%s" $port $protocol -}}
+{{- $portEntry := dict "port" $port "protocol" $protocol -}}
+{{- $_ := set (index $entry "ports") $portKey $portEntry -}}
+{{- if $wanted -}}
+{{- $_ := set (index $entry "granted") $portKey $portEntry -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $backends | toJson -}}
+{{- end -}}
+
+{{/*
+The ports of a NetworkPolicy rule towards the backends of one entry of
+ingress-gateway.helpers.app.backends: every port of the given map, plus 15008
+over TCP when any of them is TCP. In ambient, traffic to a pod of the mesh
+arrives over HBONE on 15008, traffic to a pod outside the mesh on the port of
+the service; both are allowed, so the rule holds whichever the namespace is.
+Parameters: .ports (the map). Renders the list items.
+*/}}
+{{- define "ingress-gateway.helpers.app.backendPorts" -}}
+{{- $hbone := false -}}
+{{- range $key, $p := .ports }}
+- port: {{ $p.port }}
+  protocol: {{ $p.protocol }}
+{{- if eq $p.protocol "TCP" }}{{ $hbone = true }}{{ end }}
+{{- end }}
+{{- if $hbone }}
+- port: 15008
+  protocol: TCP
+{{- end }}
+{{- end -}}
+
+{{/*
 DestinationRules the routes ask for, as JSON: a map keyed by the Service the
 rule is for ("name.namespace") of {name, namespace, cookieName, ttl,
 h2UpgradePolicy}, with a setting left out when no reference set it.

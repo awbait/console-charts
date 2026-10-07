@@ -8,11 +8,14 @@ generic:
   annotations: {}
 
 # Необязательные секции по умолчанию выключены - заказ включает только нужное.
-authorizationPolicy:
+# policies: один переключатель на NetworkPolicy и AuthorizationPolicy. Правила
+# чарт выводит из маршрутов сам, вводить их не нужно (см. values.full.yaml).
+policies:
   enabled: false
-
-networkPolicy:
-  enabled: false
+  # Домен доверия сетки: из него собирается principal точки входа в
+  # AuthorizationPolicy в namespace сервиса. Значение платформенное, в форме
+  # заказа не показывается.
+  trustDomain: cluster.local
 
 oidcAuth:
   enabled: false

@@ -7,8 +7,9 @@
 #    gateways[]           - Gateway (Gateway API) и инфраструктурный ConfigMap
 #                           (Deployment/Service/HPA создаваемого workload'а).
 #    xroutes[]            - маршруты (HTTP/GRPC/TLS/TCP/UDP) до сервисов.
-#    networkPolicy        - NetworkPolicy для workload'а каждого Gateway.
-#    authorizationPolicy  - AuthorizationPolicy (Istio) для workload'а Gateway.
+#    policies             - NetworkPolicy и AuthorizationPolicy (Istio) для
+#                           workload'а каждого Gateway и для namespace
+#                           сервисов назначения; правила из маршрутов.
 #    oidcAuth             - вход через OIDC: oauth2-proxy и Keycloak.
 #    tls                  - сертификаты точек входа: автовыпуск через
 #                           cert-manager (по умолчанию), ExternalSecret из
@@ -64,54 +65,43 @@ generic:
 
 
 # ============================================================================
-# authorizationPolicy - Istio AuthorizationPolicy для workload'а Gateway
+# policies - сетевые политики: NetworkPolicy и AuthorizationPolicy
 # ============================================================================
-# enabled: true -> для каждого включённого Gateway создаётся AuthorizationPolicy
-# (по умолчанию ALLOW для 0.0.0.0/0). Тонкая настройка правил в разработке.
-authorizationPolicy:
+# Один переключатель на обе. Правила чарт выводит из маршрутов сам, вводить
+# их нельзя: старые секции networkPolicy (с egress) и authorizationPolicy
+# останавливают рендер с подсказкой.
+#
+# enabled: true -> для каждого включённого Gateway в namespace релиза:
+#   NetworkPolicy {instance}-{cluster}-np-{project}-{gateway}
+#     вход отовсюду на 80, 443 и служебные порты Istio 15020, 15021, 15090;
+#     выход к istiod (istio-system:15012), CoreDNS (kube-system:1053, TCP и
+#     UDP) и в каждый namespace, куда ведут backendRefs маршрутов этого
+#     гейтвея: на порты сервисов и на 15008 (HBONE, так в ambient приходит
+#     трафик к поду в сетке; порт сервиса нужен поду вне сетки).
+#   AuthorizationPolicy {instance}-{cluster}-ap-{project}-{gateway}
+#     ALLOW отовсюду (0.0.0.0/0).
+# И в каждом ЧУЖОМ namespace, куда ведут backendRefs (namespace указан и
+# отличается от namespace релиза), рядом с ReferenceGrant:
+#   NetworkPolicy {instance}-{cluster}-np-{gateway}-{project}-routes
+#     вход ко всем подам namespace от подов этого гейтвея на те же порты.
+#   AuthorizationPolicy {instance}-{cluster}-ap-{gateway}-{project}-routes
+#     ALLOW от principal гейтвея ({trustDomain}/ns/{namespace релиза}/sa/
+#     {полное имя Gateway}-istio, этот ServiceAccount создаёт Istio) на порты
+#     сервисов. Селектора подов нет: чарт знает имена сервисов, а не метки их
+#     подов, поэтому политика покрывает namespace и сужается источником и
+#     портами. Istio после первой ALLOW-политики запрещает всё, что не
+#     разрешено явно: если в том namespace других политик нет, остальной
+#     трафик к его подам в сетке остановится.
+# referenceGrant: false у ссылки (прав на тот namespace нет) выключает там и
+# политики, как и сам grant; выход гейтвея в тот namespace остаётся.
+# Порт в политиках - порт сервиса из backendRefs: он должен совпадать с
+# портом контейнера (targetPort), иначе трафик к поду вне сетки не пройдёт.
+policies:
   enabled: true
 
-
-# ============================================================================
-# networkPolicy - NetworkPolicy для workload'а Gateway
-# ============================================================================
-# enabled: true -> для каждого включённого Gateway создаётся NetworkPolicy.
-# Входящий трафик по умолчанию разрешён на служебные порты Istio
-# (80/443/15020/15021/15090). Секцию egress задаёте вы, при enabled: true
-# она обязательна.
-networkPolicy:
-  enabled: true
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: api
-      ports:
-        - port: 80
-          protocol: TCP
-
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - port: 1053
-          protocol: TCP
-        - port: 1053
-          protocol: UDP
-
-    # Правило по диапазону адресов, с исключениями.
-    - to:
-        - ipBlock:
-            cidr: 10.0.0.0/8
-            except:
-              - 10.40.0.0/16
-      ports:
-        - port: 443
-          protocol: TCP
+  # Домен доверия сетки для principal гейтвея. Платформенное значение, в
+  # форме заказа не показывается.
+  trustDomain: cluster.local
 
 
 # ============================================================================

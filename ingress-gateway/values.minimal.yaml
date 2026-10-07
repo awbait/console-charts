@@ -1,5 +1,6 @@
 # Минимальный пример: один Gateway с HTTP-listener'ом и один HTTPRoute,
-# плюс NetworkPolicy и AuthorizationPolicy для workload'а шлюза.
+# плюс политики: NetworkPolicy и AuthorizationPolicy для workload'а шлюза и
+# ещё по одной в namespace сервиса назначения.
 #
 # Имена ресурсов по конвенции: {instance}-{cluster}-{kindShort}-{project}-{name}
 # С тегами ниже получится:
@@ -7,7 +8,10 @@
 # - ConfigMap           ed-dev-cm-nbox-main
 # - NetworkPolicy       ed-dev-np-nbox-main
 # - AuthorizationPolicy ed-dev-ap-nbox-main
-# - HTTPRoute           ed-dev-hr-nbox-app
+# - HTTPRoute           ed-dev-hr-main-nbox-app
+# - ReferenceGrant      ed-dev-rg-main-nbox-routes   (в demo-core-test)
+# - NetworkPolicy       ed-dev-np-main-nbox-routes   (в demo-core-test)
+# - AuthorizationPolicy ed-dev-ap-main-nbox-routes   (в demo-core-test)
 
 identity:
   instance: ed         # тег инстанса окружения
@@ -18,19 +22,11 @@ generic:
   labels: {}
   annotations: {}
 
-authorizationPolicy:
+# Один переключатель: NetworkPolicy и AuthorizationPolicy точки входа, а для
+# сервиса в другом namespace (demo-core-test ниже) ещё NetworkPolicy и
+# AuthorizationPolicy в том namespace. Правила выводятся из маршрутов.
+policies:
   enabled: true
-
-networkPolicy:
-  enabled: true
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: app
-      ports:
-        - port: 80
-          protocol: TCP
 
 gateways:
   - name: main

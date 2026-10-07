@@ -1,17 +1,32 @@
 {{/*
-NetworkPolicy for the workload of each enabled Gateway: one per element of
-the gateways list (when networkPolicy.enabled). The workload is selected by the label
-gateway.networking.k8s.io/gateway-name (set by the Istio Gateway controller)
-= full Gateway name. Ingress is by default allowed on the Istio service ports,
-egress is provided by the user (networkPolicy.egress, required when enabled).
+NetworkPolicies of the release, created together when policies.enabled.
+
+For the workload of each enabled Gateway, in the namespace of the release, on
+the pods the Istio Gateway controller makes for it (label
+gateway.networking.k8s.io/gateway-name = full Gateway name):
+  {name}     - ingress from anywhere on the service ports of the gateway
+               (80, 443) and the ports Istio uses for probes and metrics
+               (15020, 15021, 15090); egress to istiod (istio-system:15012),
+               to CoreDNS (kube-system:1053, TCP and UDP) and to every
+               namespace the routes of the gateway send traffic to, on the
+               ports of the services there and on 15008 (HBONE, see
+               ingress-gateway.helpers.app.backendPorts). Nothing of it is
+               taken from values: the egress follows the backendRefs of the
+               routes, so a new route opens its own way out.
+
+In every other namespace the routes of a gateway send traffic to, when at
+least one backendRef there keeps referenceGrant (default true):
+  {gateway}-routes - ingress to every pod of the namespace from the pods of
+               the gateway, on the same ports. Named after the gateway the
+               way the ReferenceGrant of the namespace is (kindShort np,
+               name "routes"), one per gateway and namespace. Backends in the
+               namespace of the release need none: the policies of that
+               namespace are the order's own business.
 */}}
 {{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
 {{- $root := . -}}
-{{- $networkPolicy := $root.Values.networkPolicy | default dict -}}
-{{- if eq (include "ingress-gateway.helpers.app.enabled" $networkPolicy) "true" }}
-{{- if not $networkPolicy.egress }}
-{{- fail "networkPolicy.egress is required when networkPolicy.enabled=true" }}
-{{- end }}
+{{- if eq (include "ingress-gateway.helpers.app.policiesEnabled" $root) "true" }}
+{{- $backends := include "ingress-gateway.helpers.app.backends" $root | fromJson }}
 {{- range $index, $gateway := $root.Values.gateways }}
 {{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
 {{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
@@ -46,7 +61,58 @@ spec:
         - port: 15090
           protocol: TCP
   egress:
-    {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" $networkPolicy.egress "context" $root) | nindent 4 }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - port: 15012
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 1053
+          protocol: TCP
+        - port: 1053
+          protocol: UDP
+    {{- range $key, $entry := $backends }}
+    {{- if eq $entry.gateway $gatewayName }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $entry.namespace | quote }}
+      ports:
+        {{- include "ingress-gateway.helpers.app.backendPorts" (dict "ports" $entry.ports) | trim | nindent 8 }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- range $key, $entry := $backends }}
+{{- if and $entry.foreign $entry.granted }}
+{{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $entry.gateway "context" $root) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "NetworkPolicy" "name" "routes" "parent" $entry.gateway "context" $root) }}
+  namespace: {{ $entry.namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $root.Release.Namespace | quote }}
+          podSelector:
+            matchLabels:
+              {{- include "ingress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gatewayFullname) | nindent 14 }}
+      ports:
+        {{- include "ingress-gateway.helpers.app.backendPorts" (dict "ports" $entry.granted) | trim | nindent 8 }}
 {{- end }}
 {{- end }}
 {{- end }}
