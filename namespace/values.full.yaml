@@ -59,13 +59,13 @@ namespace:
   # поля не видят, поэтому вместе с waypoint такое переопределение запрещено.
   # name: app
 
-  # Имя namespace целиком, например ecpk-app: тогда оно не собирается из
+  # Имя namespace целиком, например team-app: тогда оно не собирается из
   # identity и назначения. DNS-метка до 63 символов. Подсеть по-прежнему
   # называется по назначению ({project}-{cluster}-subnet-<назначение>).
   # Сабчарт waypoint этого поля не видит: с waypoint задавайте имя в
   # global.namespaceOverride. Смена имени у существующего релиза создаёт
   # новый namespace, а старый Argo CD удалит вместе с содержимым.
-  # namespaceOverride: ecpk-app
+  # namespaceOverride: team-app
 
   # Отображаемое имя (annotation cpaas.io/display-name).
   displayName: "Managed namespace"
@@ -243,6 +243,6 @@ global:
   namespacePurpose: app
 
   # Имя namespace целиком для этого чарта и сабчарта waypoint, например
-  # ecpk-app. Пустое - имя собирается из identity и назначения. Поле
+  # team-app. Пустое - имя собирается из identity и назначения. Поле
   # namespace.namespaceOverride, если задано, главнее.
-  # namespaceOverride: ecpk-app
+  # namespaceOverride: team-app

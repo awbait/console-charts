@@ -114,7 +114,7 @@ global.namespaceOverride when the chart's own field is empty. Empty when
 neither is set. Validated as a DNS label of at most 63 characters and returned
 in lower-case.
 
-Some teams name namespaces by a scheme of their own (ecpk-{purpose}) rather
+Some teams name namespaces by a scheme of their own rather
 than the {project}-{cluster}-ns-{purpose} the chart builds. The global form is
 the one the waypoint subchart reads too, so a single value moves both. A parent
 that installs this chart twice (egress-gateway) must not use the global form:

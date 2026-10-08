@@ -25,7 +25,7 @@ global:
 
 namespace:
   # name переопределяет global.namespacePurpose только для самого неймспейса.
-  # namespaceOverride задаёт имя неймспейса целиком, например ecpk-app: имя
+  # namespaceOverride задаёт имя неймспейса целиком, например team-app: имя
   # больше не собирается из identity и назначения. Это же поле есть в global,
   # его читает и сабчарт waypoint.
   namespaceOverride: ""
