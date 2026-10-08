@@ -253,10 +253,22 @@ ports:
   - 8080
   - port: 8080
     protocol: TCP
+
+In ambient, traffic to a pod of the mesh does not arrive on the port of the
+application: ztunnel tunnels it over HBONE to port 15008, and the CNI sees
+that port. A rule naming only the port of the application therefore blocks
+every mesh connection, and the person ordering had to list 15008 by hand next
+to each port. So the HBONE port is appended to every rule that names a TCP
+port, once, unless the rule already lists it. A pod outside the mesh is still
+reached on its own port, which stays in the rule. The AuthorizationPolicies
+are not touched: ztunnel evaluates them on the inner connection, where the
+port is the port of the application (see security-policies.authzPorts).
 */}}
 {{- define "security-policies.netpolPorts" -}}
 {{- $root := .root -}}
 {{- $defaultProto := default "TCP" $root.Values.defaults.protocol -}}
+{{- $hbone := false -}}
+{{- $hboneListed := false -}}
 {{- range $port := .ports }}
 {{- $portValue := $port -}}
 {{- $protocol := $defaultProto -}}
@@ -264,8 +276,16 @@ ports:
 {{- $portValue = required "port.port is required" $port.port -}}
 {{- $protocol = default $defaultProto $port.protocol -}}
 {{- end }}
+{{- if eq (upper (toString $protocol)) "TCP" -}}
+{{- $hbone = true -}}
+{{- if eq (toString $portValue) "15008" -}}{{- $hboneListed = true -}}{{- end -}}
+{{- end }}
 - port: {{ $portValue }}
   protocol: {{ $protocol | quote }}
+{{- end }}
+{{- if and $hbone (not $hboneListed) }}
+- port: 15008
+  protocol: "TCP"
 {{- end }}
 {{- end -}}
 
