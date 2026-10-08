@@ -3,18 +3,25 @@ ServiceEntry - one per entry of .Values.serviceEntries, each describing a single
 external service the senders reach through the gateway. Mode mesh only: in
 mode direct there is no waypoint to bind an entry to.
 
-Every entry lands in each namespace of the senders (senders.namespace and
-senders.additionalNamespaces, one copy per namespace) and carries both binding labels: istio.io/use-waypoint with the name of the egress
-Gateway and istio.io/use-waypoint-namespace with the namespace the gateway
-stands in. When the gateway has a namespace of its own (NS 2), ztunnel picks
-the traffic of the entry up in the senders namespace and tunnels it into the
-waypoint over HBONE, and the listener of the waypoint admits the senders
-namespace through allowedNamespaces (checked in validate). When the gateway
-stands next to the senders, the namespace label names the own namespace,
-which Istio treats the same as no label.
-exportTo keeps the entry visible in its own namespace and, when that is
-another namespace, in the namespace of the gateway, so the waypoint resolves
-the same host.
+Every entry lands in the primary namespace of the senders (senders.namespace)
+once, and only there. A hostname is mesh-wide to Istio: a second ServiceEntry
+for the same host in another namespace (senders.additionalNamespaces) does not
+give that namespace its own copy, it makes the two entries fight over the
+host, and the TLS handshake through the gateway breaks. The other namespaces
+of the senders see the entry through exportTo instead, which is what a shared
+host needs.
+The entry carries both binding labels: istio.io/use-waypoint with the name of
+the egress Gateway and istio.io/use-waypoint-namespace with the namespace the
+gateway stands in. When the gateway has a namespace of its own (NS 2), ztunnel
+picks the traffic of the entry up in the senders namespaces and tunnels it
+into the waypoint over HBONE, and the listener of the waypoint admits the
+primary senders namespace, where the entry is, through allowedNamespaces
+(checked in validate). When the gateway stands next to the senders, the
+namespace label names the own namespace, which Istio treats the same as no
+label.
+exportTo keeps the entry visible in its own namespace, in every other
+namespace of the senders and, when that is another namespace, in the
+namespace of the gateway, so the waypoint resolves the same host.
 Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
@@ -23,7 +30,8 @@ Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
 {{- $root := . }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
 {{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" $root }}
-{{- range $senders := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
+{{- $sendersAll := include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray }}
+{{- $senders := index $sendersAll 0 }}
 {{- range $index, $entry := $root.Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
@@ -40,7 +48,10 @@ spec:
     - {{ $hostname | quote }}
   exportTo:
     - "."
-    {{- if ne $gwNamespace $senders }}
+    {{- range $other := (rest $sendersAll) }}
+    - {{ $other | quote }}
+    {{- end }}
+    {{- if not (has $gwNamespace $sendersAll) }}
     - {{ $gwNamespace | quote }}
     {{- end }}
   location: MESH_EXTERNAL
@@ -49,7 +60,6 @@ spec:
     - name: tls
       number: 443
       protocol: TLS
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

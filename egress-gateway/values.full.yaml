@@ -94,12 +94,14 @@ senders:
   # выключенным waypointNamespace), он создаётся именно здесь.
   namespace: nbox-dev-ns-app
 
-  # Необязательно. Другие namespace, которым нужен тот же выход. Каждый
-  # получает свои ServiceEntry и правило выхода к гейтвею (mesh), попадает
-  # в политики гейтвея (вход и AuthorizationPolicy) и выбирается по метке
-  # (direct + label). При включённом waypointNamespace каждый из них нужно
-  # добавить и в allowedNamespaces вейпоинта (ниже); при выключенном чарт
-  # добавит их в слушатель гейтвея сам.
+  # Необязательно. Другие namespace, которым нужен тот же выход. ServiceEntry
+  # остаются в основном namespace и экспортируются сюда (exportTo): для Istio
+  # домен один на всю сетку, вторая запись на тот же домен в другом namespace
+  # ломает TLS через гейтвей. Каждый из этих namespace получает правило
+  # выхода к гейтвею (mesh), попадает в политики гейтвея (вход и
+  # AuthorizationPolicy) и выбирается по метке (direct + label). В
+  # allowedNamespaces вейпоинта их добавлять не нужно: привязывается только
+  # основной namespace, где лежат ServiceEntry.
   additionalNamespaces:
     - nbox-dev-ns-app2
 

@@ -30,7 +30,7 @@ Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом,
 Автомасштабирование выключено.
 {{- end }}
 
-Внешние сервисы (ServiceEntry в каждом namespace отправителей, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
+Внешние сервисы (ServiceEntry создаются в основном неймспейсе отправителей и видны в остальных неймспейсах отправителей, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
 {{- range .Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
   * {{ .hostname }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}

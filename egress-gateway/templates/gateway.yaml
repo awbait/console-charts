@@ -13,11 +13,11 @@ subchart renders it in NS 2 and this file renders nothing. Mirrors
 waypoint/templates/waypoint.yaml and configmap.yaml of this repository; keep
 the two in step.
 
-The listener admits its own namespace, which is where the primary senders
-namespace is, so allowedNamespaces is not needed for it. The other senders
-namespaces (senders.additionalNamespaces) are added to the Selector by the
-chart itself, together with the namespaces still listed in allowedNamespaces
-(minus the own one), as the waypoint chart does. The Service of the
+The listener admits its own namespace, which is where the senders and their
+ServiceEntries are (the other senders namespaces see the entries through
+exportTo and bind nothing themselves), so allowedNamespaces is not needed
+here; namespaces still listed there (minus the own one) land in a Selector as
+the waypoint chart does. The Service of the
 waypoint stays internal (annotation networking.istio.io/service-type:
 ClusterIP): a waypoint is only ever reached over HBONE from ztunnel.
 */}}
@@ -40,11 +40,6 @@ ClusterIP): a waypoint is only ever reached over HBONE from ztunnel.
 {{- end }}
 {{- if and (ne $value $namespace) (not (has $value $allowed)) }}
 {{- $allowed = append $allowed $value }}
-{{- end }}
-{{- end }}
-{{- range $sender := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
-{{- if and (ne $sender $namespace) (not (has $sender $allowed)) }}
-{{- $allowed = append $allowed $sender }}
 {{- end }}
 {{- end }}
 {{- $hpa := $waypoint.hpa | default dict }}
