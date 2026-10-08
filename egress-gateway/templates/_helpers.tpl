@@ -373,10 +373,10 @@ Parameter: the root context. Renders nothing.
 {{- range $namespace := ($waypoint.allowedNamespaces | default list) -}}
 {{- $allowed = append $allowed ($namespace | toString | trim | lower) -}}
 {{- end -}}
-{{- range $sender := $sendersAll -}}
-{{- if not (has $sender $allowed) -}}
-{{- fail (printf "the senders namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $sender) -}}
-{{- end -}}
+{{- /* Only the primary senders namespace binds: the ServiceEntries live there and reach the other senders namespaces through exportTo (serviceEntry.yaml). */ -}}
+{{- $primary := index $sendersAll 0 -}}
+{{- if not (has $primary $allowed) -}}
+{{- fail (printf "senders.namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $primary) -}}
 {{- end -}}
 {{- end -}}
 {{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace without allowedNamespaces. */}}
