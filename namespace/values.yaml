@@ -24,7 +24,11 @@ global:
   namespacePurpose: app
 
 namespace:
-  # name переопределяет global.namespacePurpose только для самого неймспейса
+  # name переопределяет global.namespacePurpose только для самого неймспейса.
+  # namespaceOverride задаёт имя неймспейса целиком, например team-app: имя
+  # больше не собирается из identity и назначения. Это же поле есть в global,
+  # его читает и сабчарт waypoint.
+  namespaceOverride: ""
   displayName: "Managed namespace"
   role: other
   creator: lk
@@ -63,6 +67,9 @@ resourceQuotas:
   storage:
     topolvm-mu: ""
     topolvm-ri: ""
+    ceph-rbd: ""
+    ceph-rgw: ""
+    cephfs-hot: ""
 
 subnet:
   enable: false

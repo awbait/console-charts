@@ -333,6 +333,15 @@ Parameter: the root context. Renders nothing.
 {{- fail "vpcEgressGateway.externalIPs is required: the addresses the traffic leaves with, one replica per address" -}}
 {{- end -}}
 {{- $vegNs := .Values.vegNamespace | default dict -}}
+{{- /* This chart names both namespaces itself; an override would make the namespace subcharts create others (and global would give both the same one). */ -}}
+{{- if (.Values.global | default dict).namespaceOverride -}}
+{{- fail "global.namespaceOverride is not supported here: it would name the waypoint namespace and the VpcEgressGateway namespace alike, name them by global.namespacePurpose and vegNamespace.namespace.name" -}}
+{{- end -}}
+{{- range $key := list "waypointNamespace" "vegNamespace" -}}
+{{- if ((index $.Values $key | default dict).namespace | default dict).namespaceOverride -}}
+{{- fail (printf "%s.namespace.namespaceOverride is not supported here: the chart builds that namespace name itself from identity and the purpose" $key) -}}
+{{- end -}}
+{{- end -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $vegNs) "" -}}
 {{- fail "vegNamespace.enabled must stay true: the VpcEgressGateway needs a namespace of its own in both modes" -}}
 {{- end -}}

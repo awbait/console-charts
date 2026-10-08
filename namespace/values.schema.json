@@ -65,13 +65,20 @@
       "description": "Настройки для неймспейса и связанных с ним ресурсов. Если неймспейс создаётся в составе другого сервиса, тот может передать окружение и проект через global.identity. Тогда используются значения из global.identity вместо identity.",
       "type": "object",
       "propertyOrder": [
-        "namespacePurpose"
+        "namespacePurpose",
+        "namespaceOverride"
       ],
       "properties": {
         "namespacePurpose": {
           "title": "Назначение неймспейса",
           "description": "Опишите назначение неймспейса одним словом, например app, api или monitoring. Остальные части имени платформа добавит сама. Например, получится nbox-dev-ns-app.",
           "$ref": "#/definitions/purposeToken"
+        },
+        "namespaceOverride": {
+          "title": "Полное имя неймспейса",
+          "description": "Полное имя неймспейса для неймспейса и подключённого вейпоинта. В форме скрыто.",
+          "$ref": "#/definitions/namespaceOverride",
+          "ui:widget": "hidden"
         }
       },
       "required": [
@@ -87,6 +94,11 @@
     }
   },
   "definitions": {
+    "namespaceOverride": {
+      "type": "string",
+      "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
     "projectToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
@@ -185,6 +197,7 @@
       "additionalProperties": false,
       "propertyOrder": [
         "name",
+        "namespaceOverride",
         "displayName",
         "role",
         "podSecurity",
@@ -196,6 +209,12 @@
           "title": "Отдельное назначение неймспейса",
           "description": "Заменяет global.namespacePurpose только для самого неймспейса. Обычно назначение задают один раз в global.namespacePurpose, чтобы его использовали и связанные ресурсы. Служебное поле, в форме скрыто.",
           "$ref": "#/definitions/purposeToken",
+          "ui:widget": "hidden"
+        },
+        "namespaceOverride": {
+          "title": "Полное имя неймспейса",
+          "description": "Полное имя неймспейса. Если указано, имя не зависит от тегов и назначения. В форме скрыто.",
+          "$ref": "#/definitions/namespaceOverride",
           "ui:widget": "hidden"
         },
         "displayName": {
@@ -338,7 +357,10 @@
           "additionalProperties": false,
           "propertyOrder": [
             "topolvm-mu",
-            "topolvm-ri"
+            "topolvm-ri",
+            "ceph-rbd",
+            "ceph-rgw",
+            "cephfs-hot"
           ],
           "properties": {
             "topolvm-mu": {
@@ -349,6 +371,21 @@
             "topolvm-ri": {
               "title": "Экономичный диск для частого чтения (topolvm-ri)",
               "description": "Выбирайте для кешей, поисковых индексов и данных, которые можно загрузить заново. Данные хранятся на диске сервера, где работает сервис. Этот диск дешевле и медленнее на запись, чем topolvm-mu. Копии на других серверах нет. Укажите объём, например 200Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "ceph-rbd": {
+              "title": "Сетевой блочный диск (ceph-rbd)",
+              "description": "Данные хранятся в сетевом хранилище и не привязаны к серверу. Выбирайте для баз данных и сервисов, которым нужен отдельный диск. Укажите объём, например 50Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "ceph-rgw": {
+              "title": "Объектное хранилище (ceph-rgw)",
+              "description": "Квота ограничивает объём, запрошенный томами этого класса. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "cephfs-hot": {
+              "title": "Общая файловая система (cephfs-hot)",
+              "description": "Один том могут одновременно подключить несколько подов. Выбирайте для общих файлов нескольких реплик. Укажите объём, например 20Gi.",
               "$ref": "#/definitions/quantity"
             }
           }

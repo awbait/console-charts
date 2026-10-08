@@ -109,12 +109,46 @@ in sync by hand.
 {{- end -}}
 
 {{/*
-Name of the Namespace the chart creates, e.g. nbox-dev-ns-app.
+The namespace name given outright: namespace.namespaceOverride, or
+global.namespaceOverride when the chart's own field is empty. Empty when
+neither is set. Validated as a DNS label of at most 63 characters and returned
+in lower-case.
+
+Some teams name namespaces by a scheme of their own rather
+than the {project}-{cluster}-ns-{purpose} the chart builds. The global form is
+the one the waypoint subchart reads too, so a single value moves both. A parent
+that installs this chart twice (egress-gateway) must not use the global form:
+both copies would claim the same namespace.
+*/}}
+{{- define "namespace.helpers.namespaceOverride" -}}
+{{- $global := .Values.global | default dict -}}
+{{- $override := (.Values.namespace | default dict).namespaceOverride | default $global.namespaceOverride | default "" | toString -}}
+{{- if $override -}}
+{{- $value := $override | lower -}}
+{{- if gt (len $value) 63 -}}
+{{- fail (printf "namespaceOverride must be at most 63 characters, got %q" $override) -}}
+{{- end -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
+{{- fail (printf "namespaceOverride must be DNS-like lowercase, got %q" $override) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name of the Namespace the chart creates: the override when one is set,
+otherwise built from identity and the purpose, e.g. nbox-dev-ns-app.
 Every template that needs it calls this, so the Namespace, the ResourceQuota
-inside it and the Subnet bound to it can never drift apart.
+inside it and the Subnet bound to it can never drift apart. The Subnet keeps
+its own purpose-based name either way.
 */}}
 {{- define "namespace.helpers.namespaceName" -}}
+{{- $override := include "namespace.helpers.namespaceOverride" . -}}
+{{- if $override -}}
+{{- $override -}}
+{{- else -}}
 {{- include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" (include "namespace.helpers.namespacePurpose" .)) -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -294,6 +328,8 @@ instead.
 {{- if ne ($override | lower) $wanted -}}
 {{- fail (printf "waypoint.namespaceOverride must be the namespace this chart creates (%q), got %q" $wanted $override) -}}
 {{- end -}}
+{{- else if include "namespace.helpers.namespaceOverride" . -}}
+{{- fail (printf "the waypoint subchart cannot see namespace.namespaceOverride (%q): put the name in global.namespaceOverride or repeat it in waypoint.namespaceOverride" $wanted) -}}
 {{- else if $purpose -}}
 {{- $resolved := include "namespace.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" $purpose) -}}
 {{- if ne $resolved $wanted -}}

@@ -59,6 +59,14 @@ namespace:
   # поля не видят, поэтому вместе с waypoint такое переопределение запрещено.
   # name: app
 
+  # Имя namespace целиком, например team-app: тогда оно не собирается из
+  # identity и назначения. DNS-метка до 63 символов. Подсеть по-прежнему
+  # называется по назначению ({project}-{cluster}-subnet-<назначение>).
+  # Сабчарт waypoint этого поля не видит: с waypoint задавайте имя в
+  # global.namespaceOverride. Смена имени у существующего релиза создаёт
+  # новый namespace, а старый Argo CD удалит вместе с содержимым.
+  # namespaceOverride: team-app
+
   # Отображаемое имя (annotation cpaas.io/display-name).
   displayName: "Managed namespace"
 
@@ -157,9 +165,16 @@ resourceQuotas:
   #   topolvm-mu - быстрый диск для частой записи: очереди, журналы, базы,
   #   topolvm-ri - экономичный диск для частого чтения: кеши, индексы.
   # Оба держат данные на диске своего сервера и копий на других не делают.
+  #   ceph-rbd   - блочный том в кластере Ceph,
+  #   ceph-rgw   - класс объектного хранилища Ceph (RGW),
+  #   cephfs-hot - общая файловая система CephFS на быстром пуле.
+  # Квота считает объём, запрошенный PVC этого класса.
   storage:
     topolvm-mu: "100Gi"
     topolvm-ri: "200Gi"
+    ceph-rbd: "50Gi"
+    ceph-rgw: ""
+    cephfs-hot: "20Gi"
 
 # ----------------------------------------------------------------------------
 # subnet - подсети kube-ovn для namespace
@@ -226,3 +241,8 @@ global:
   # Полное имя собирается как {identity.project}-{identity.cluster}-ns-<значение>,
   # для примера ниже получится nbox-dev-ns-app.
   namespacePurpose: app
+
+  # Имя namespace целиком для этого чарта и сабчарта waypoint, например
+  # team-app. Пустое - имя собирается из identity и назначения. Поле
+  # namespace.namespaceOverride, если задано, главнее.
+  # namespaceOverride: team-app
