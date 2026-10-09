@@ -13,12 +13,12 @@ dependencies:
   # них идут под ключами waypointNamespace и vegNamespace; global (identity,
   # namespacePurpose) Helm раздаёт обоим сам.
   - name: namespace
-    version: "6.4.0"
+    version: "6.4.1"
     repository: "file://../namespace"
     alias: waypointNamespace
     condition: waypointNamespace.enabled
   - name: namespace
-    version: "6.4.0"
+    version: "6.4.1"
     repository: "file://../namespace"
     alias: vegNamespace
     condition: vegNamespace.enabled
