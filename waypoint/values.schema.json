@@ -62,7 +62,7 @@
     },
     "global": {
       "title": "Global values",
-      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+      "description": "Helm global values, injected automatically when the chart is used as a subchart. The chart reads global.identity (wins over identity when set), global.namespaceOverride and global.namespacePurpose from it.",
       "type": "object",
       "ui:widget": "hidden"
     },
@@ -91,6 +91,89 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      }
+    },
+    "namespaceName": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "waypointHpa": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "minReplicas",
+        "maxReplicas",
+        "averageUtilization"
+      ],
+      "properties": {
+        "enabled": {
+          "title": "Включить",
+          "description": "Вейпоинт будет сам добавлять экземпляры под нагрузкой.",
+          "type": "boolean",
+          "default": false
+        },
+        "minReplicas": {
+          "title": "Минимум экземпляров",
+          "description": "Столько работает всегда.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 2
+        },
+        "maxReplicas": {
+          "title": "Максимум экземпляров",
+          "description": "Выше этого числа не поднимется.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 5
+        },
+        "averageUtilization": {
+          "title": "Целевая загрузка CPU",
+          "description": "Процент, выше которого добавляется экземпляр.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 80
+        }
+      }
+    },
+    "containerResources": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "requests",
+        "limits"
+      ],
+      "properties": {
+        "requests": {
+          "title": "Запрошено (requests)",
+          "description": "Сколько вейпоинт резервирует за собой. Процессор здесь нужен, если включено автомасштабирование: по нему считается загрузка.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        },
+        "limits": {
+          "title": "Предел (limits)",
+          "description": "Выше этого вейпоинт не поднимется.",
+          "$ref": "#/definitions/resourceQuantityMap"
+        }
+      }
+    },
+    "resourceQuantityMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "title": "Процессор",
+          "description": "Например, 100m, 500m или 1.",
+          "type": "string",
+          "minLength": 1
+        },
+        "memory": {
+          "title": "Память",
+          "description": "Например, 128Mi, 512Mi или 1Gi.",
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "identity": {
@@ -186,13 +269,36 @@
       "propertyOrder": [
         "name",
         "enabled",
-        "for"
+        "for",
+        "allowedNamespaces",
+        "hpa",
+        "resources"
       ],
       "properties": {
         "name": {
           "title": "Имя вейпоинта",
           "description": "Короткое имя, по которому вы отличите этот вейпоинт от других.",
           "$ref": "#/definitions/shortToken"
+        },
+        "allowedNamespaces": {
+          "title": "Namespace, которым можно привязаться",
+          "description": "Namespace, из которых к вейпоинту привязываются помимо его собственного. Пусто - только свой namespace.",
+          "type": "array",
+          "items": {
+            "title": "Namespace",
+            "$ref": "#/definitions/namespaceName"
+          }
+        },
+        "hpa": {
+          "title": "Автомасштабирование",
+          "description": "Сколько экземпляров вейпоинта держать под нагрузкой.",
+          "$ref": "#/definitions/waypointHpa"
+        },
+        "resources": {
+          "title": "Ресурсы вейпоинта",
+          "description": "Сколько процессора и памяти отводится вейпоинту. В форме заказа поле скрыто.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/containerResources"
         },
         "enabled": {
           "title": "enabled",

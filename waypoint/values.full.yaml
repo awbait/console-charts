@@ -3,11 +3,13 @@
 #  Чарт разворачивает waypoint-прокси Istio ambient (Gateway API, класс
 #  istio-waypoint, listener HBONE на порту 15008). Секция одна:
 #
-#    waypoints[] - список waypoint'ов, на каждый создаётся Gateway.
+#    waypoints[] - список waypoint'ов, на каждый создаётся Gateway и, если
+#                  включено автомасштабирование или заданы ресурсы, ConfigMap
+#                  с настройками создаваемого Istio Deployment.
 #
 #  Имя каждого ресурса:
 #    {instance}-{cluster}-{kindShort}-{project}-{name}
-#  kindShort: wp (Gateway waypoint'а).
+#  kindShort: wp (Gateway waypoint'а и его ConfigMap).
 # ============================================================================
 
 
@@ -22,6 +24,10 @@
 #   ecpk/instance: <instance>
 #   ecpk/cluster:  <cluster>
 #   ecpk/project:  <project>
+#
+# Когда чарт подключён сабчартом, родитель может передать теги один раз через
+# global.identity: тогда они сильнее этого блока, и дублировать их под ключом
+# сабчарта не нужно.
 identity:
   # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
   instance: ed
@@ -54,6 +60,8 @@ generic:
 #   3. оба пусты - неймспейс релиза.
 # Второй шаг нужен, когда чарт подключён сабчартом к namespace: сабчарт не
 # видит значений родителя, а неймспейс релиза у заказа из портала другой.
+# Оба поля читаются и из global (global.namespaceOverride,
+# global.namespacePurpose) - так их передаёт родительский чарт.
 namespaceOverride: ""
 namespacePurpose: ""
 
@@ -63,20 +71,56 @@ namespacePurpose: ""
 # ============================================================================
 # Поды и сервисы привязываются к waypoint'у через label
 #   istio.io/use-waypoint: {instance}-{cluster}-wp-{project}-{name}
+# Захардкожено в шаблоне (НЕ настраивается здесь):
+#   один listener mesh, порт 15008, протокол HBONE;
+#   аннотация networking.istio.io/service-type: ClusterIP - Service waypoint'а
+#   не выходит за пределы кластера.
+#
 #   name    - обязательно, 2..6 символов; подставляется в {name} имени Gateway
 #   enabled - по умолчанию true; при false Gateway не создаётся
 #   for     - что перехватывать (istio.io/waypoint-for):
 #             service (по умолчанию) | workload | all
+#   allowedNamespaces - неймспейсы, из которых к waypoint'у можно привязаться
+#             помимо его собственного. Привязка из чужого неймспейса
+#             (istio.io/use-waypoint-namespace) работает, только если
+#             listener допускает этот неймспейс: чарт переводит allowedRoutes
+#             на Selector по перечисленным именам. Пусто - только свой
+#             неймспейс.
+#   hpa     - автомасштабирование Deployment, который Istio создаёт для
+#             waypoint'а. При enabled: true появляется ConfigMap с именем
+#             Gateway и parametersRef на него.
+#   resources - ресурсы контейнера istio-proxy того же Deployment. Тоже
+#             уезжают в ConfigMap; без hpa и resources ConfigMap не создаётся.
 waypoints:
   - name: mesh
     enabled: true
     for: service
 
+  # Waypoint, к которому привязываются из других неймспейсов, с
+  # автомасштабированием и ресурсами. Так его использует чарт egress-gateway.
+  - name: eg
+    for: service
+    allowedNamespaces:
+      - nbox-dev-ns-app
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      averageUtilization: 80
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 2000m
+        memory: 1024Mi
+
 # ----------------------------------------------------------------------------
 # Служебные поля
 # ----------------------------------------------------------------------------
 # global - глобальные значения Helm. Инжектятся автоматически, когда чарт
-# подключён сабчартом. Шаблоны чарта их не используют.
+# подключён сабчартом. Чарт читает из него identity, namespaceOverride и
+# namespacePurpose, если их передал родитель.
 global: {}
 
 # enabled - главный выключатель чарта. false -> не создаётся ни один ресурс.

@@ -6,7 +6,8 @@ enabled: true
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
 # ecpk/project на всех ресурсах, а project и cluster - ещё и в имена ресурсов.
-# Допустимые значения - в README.md.
+# Допустимые значения - в README.md. Когда чарт подключён сабчартом и родитель
+# задал global.identity, читается global.identity, а этот блок не учитывается.
 identity:
   instance: ed         # тег инстанса окружения
   cluster: dev         # тег кластера окружения
@@ -23,13 +24,26 @@ global:
   namespacePurpose: app
 
 namespace:
-  # name переопределяет global.namespacePurpose только для самого неймспейса
+  # name переопределяет global.namespacePurpose только для самого неймспейса.
+  # namespaceOverride задаёт имя неймспейса целиком, например team-app: имя
+  # больше не собирается из identity и назначения. Это же поле есть в global,
+  # его читает и сабчарт waypoint.
+  namespaceOverride: ""
   displayName: "Managed namespace"
   role: other
   creator: lk
+  podSecurity: ""      # "" | restricted | baseline | privileged
+  # Имена кластера и проекта в консоли платформы (Alauda): метки cpaas.io/cluster
+  # и cpaas.io/project, annotation cpaas.io/project-inner-namespace. Пустые -
+  # берутся теги identity.cluster и identity.project.
+  cpaas:
+    cluster: ""
+    project: ""
 
 serviceMesh:
   enabled: false       # учитывается только в кластере dev, в остальных сетка включена всегда
+  discovery: false     # true - только метка istio-discovery=enabled, без ambient, в любом кластере
+  never: false         # true - неймспейс никогда не в сетке, в любом кластере
   waypoint: false      # подключает сабчарт waypoint, требует включённой сетки
 
 # Значения сабчарта waypoint. Неймспейс он берёт из global.namespacePurpose,
@@ -40,10 +54,11 @@ waypoint:
       enabled: true
       for: service
 
+# Лимиты обязательны: без них рендер останавливается.
 resourceQuotas:
   limits:
-    cpu: ""
-    memory: ""
+    cpu: "4"
+    memory: "8Gi"
   requests:
     cpu: ""
     memory: ""
@@ -52,6 +67,9 @@ resourceQuotas:
   storage:
     topolvm-mu: ""
     topolvm-ri: ""
+    ceph-rbd: ""
+    ceph-rgw: ""
+    cephfs-hot: ""
 
 subnet:
   enable: false
@@ -61,3 +79,5 @@ subnet:
       cidrBlock: ""    # заполняет платформа: диапазон с маской mask из Netbox
       reservedIps: 0   # сколько адресов не выдавать подам, кроме адреса шлюза
       allowSubnets: []
+      private: true    # изолированная подсеть: связность только с allowSubnets
+      natOutgoing: false

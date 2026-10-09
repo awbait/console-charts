@@ -1,3 +1,11 @@
+{{/*
+kube-ovn Subnet - one per item of subnet.subnets, bound to the Namespace of
+this chart. The order names the mask and, when it needs them, private and
+natOutgoing: a private subnet (the default) only talks to the ranges listed in
+allowSubnets, so a namespace whose pods reach outside addresses on their own
+(a waypoint namespace, the senders of a direct egress) is created with
+private: false. Sync wave -2: after the Namespace, before whatever runs in it.
+*/}}
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 {{- if .Values.subnet.enable }}
 {{- $root := . }}
@@ -10,24 +18,27 @@
 {{- end }}
 {{- end }}
 {{- $excluded := splitList "," (include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps)) }}
+{{- $private := true }}
+{{- if hasKey . "private" }}{{- $private = eq (toString .private | lower) "true" }}{{- end }}
+{{- $natOutgoing := eq (toString (.natOutgoing | default false) | lower) "true" }}
 ---
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
   name: {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default (include "namespace.helpers.namespacePurpose" $root))) }}
-  {{- include "namespace.helpers.metadata" (dict "context" $root) | nindent 2 }}
+  {{- include "namespace.helpers.metadata" (dict "context" $root "annotations" (include "namespace.helpers.syncWave" "-2" | fromJson)) | nindent 2 }}
 spec:
   default: false
   protocol: IPv4
   cidrBlock: {{ .cidrBlock }}
-  natOutgoing: false
+  natOutgoing: {{ $natOutgoing }}
   excludeIps:
     {{- range $excluded }}
     - {{ . }}
     {{- end }}
   gateway: {{ include "namespace.helpers.subnetGateway" .cidrBlock }}
   gatewayType: centralized
-  private: true
+  private: {{ $private }}
   allowSubnets:
     - 172.30.0.0/15
     {{- range .allowSubnets }}

@@ -154,6 +154,53 @@ Examples:
 {{- end -}}
 
 {{/*
+Name of a mirror resource in a peer namespace.
+
+A policy gets one mirror per distinct pod selector it names in that namespace.
+The first one keeps the plain resource name, so a policy with a single peer
+selector per namespace (the common case) is named exactly as before; every
+further one gets an ordinal suffix: -2, -3, ...
+
+Params: .context, .shortkind (np|ap), .name, .ordinal (0-based position of the
+selector among the ones named in that namespace).
+*/}}
+{{- define "security-policies.mirrorName" -}}
+{{- $base := include "security-policies.resourceName" (dict "name" .name "shortkind" .shortkind "context" .context) -}}
+{{- $ordinal := .ordinal | default 0 | int -}}
+{{- if gt $ordinal 0 -}}
+{{- printf "%s-%d" $base (add $ordinal 1) | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- $base -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Register a peer of a mirrored rule in the mirrors map: .mirrors is a dict of
+namespace -> (dict "order" (list of selector keys) "entries" (dict key -> entry)),
+where an entry holds "selector" and the port lists of each direction. Peers with
+the same selector in the same namespace share one entry, so their ports merge;
+a different selector opens a new entry, and later a mirror of its own.
+
+Params: .mirrors, .namespace, .selector, .direction (inPorts|outPorts), .ports.
+Mutates .mirrors in place and renders nothing.
+*/}}
+{{- define "security-policies.registerMirror" -}}
+{{- $ns := index .mirrors .namespace -}}
+{{- if not $ns -}}
+{{- $ns = dict "order" (list) "entries" (dict) -}}
+{{- $_ := set .mirrors .namespace $ns -}}
+{{- end -}}
+{{- $key := toYaml .selector -}}
+{{- $entry := index (index $ns "entries") $key -}}
+{{- if not $entry -}}
+{{- $entry = dict "selector" .selector -}}
+{{- $_ := set (index $ns "entries") $key $entry -}}
+{{- $_ := set $ns "order" (append (index $ns "order") $key) -}}
+{{- end -}}
+{{- $_ := set $entry .direction (concat (default (list) (index $entry .direction)) (default (list) .ports)) -}}
+{{- end -}}
+
+{{/*
 Render NetworkPolicy peer.
 
 Supported formats:
@@ -206,10 +253,22 @@ ports:
   - 8080
   - port: 8080
     protocol: TCP
+
+In ambient, traffic to a pod of the mesh does not arrive on the port of the
+application: ztunnel tunnels it over HBONE to port 15008, and the CNI sees
+that port. A rule naming only the port of the application therefore blocks
+every mesh connection, and the person ordering had to list 15008 by hand next
+to each port. So the HBONE port is appended to every rule that names a TCP
+port, once, unless the rule already lists it. A pod outside the mesh is still
+reached on its own port, which stays in the rule. The AuthorizationPolicies
+are not touched: ztunnel evaluates them on the inner connection, where the
+port is the port of the application (see security-policies.authzPorts).
 */}}
 {{- define "security-policies.netpolPorts" -}}
 {{- $root := .root -}}
 {{- $defaultProto := default "TCP" $root.Values.defaults.protocol -}}
+{{- $hbone := false -}}
+{{- $hboneListed := false -}}
 {{- range $port := .ports }}
 {{- $portValue := $port -}}
 {{- $protocol := $defaultProto -}}
@@ -217,8 +276,16 @@ ports:
 {{- $portValue = required "port.port is required" $port.port -}}
 {{- $protocol = default $defaultProto $port.protocol -}}
 {{- end }}
+{{- if eq (upper (toString $protocol)) "TCP" -}}
+{{- $hbone = true -}}
+{{- if eq (toString $portValue) "15008" -}}{{- $hboneListed = true -}}{{- end -}}
+{{- end }}
 - port: {{ $portValue }}
   protocol: {{ $protocol | quote }}
+{{- end }}
+{{- if and $hbone (not $hboneListed) }}
+- port: 15008
+  protocol: "TCP"
 {{- end }}
 {{- end -}}
 

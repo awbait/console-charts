@@ -2,15 +2,18 @@ apiVersion: v2
 name: console
 description: "Портал Console: каталог сервисов, заказы и согласования в одном месте."
 type: application
-version: 0.9.0
+version: 0.9.10
+icon: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KICA8dGl0bGU+Q29uc29sZTwvdGl0bGU+CiAgPGcgc3Ryb2tlPSIjNTI3RkM3IiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICAgIDxwYXRoIGQ9Im0yIDQgOSA4LTkgOG0xMyAwaDciLz4KICA8L2c+Cjwvc3ZnPgo=
 appVersion: "0.4.0"
+maintainers:
+  - name: core
 
 # Optional ingress via the in-repo ingress-gateway chart (Istio Gateway API),
 # wired only when ingressGateway.enabled=true. Vendored locally; run
 # `helm dependency build` before packaging (charts/ and Chart.lock are gitignored).
 dependencies:
   - name: ingress-gateway
-    version: "7.0.0"
+    version: "10.0.0"
     repository: "file://../ingress-gateway"
     alias: ingressGateway
     condition: ingressGateway.enabled

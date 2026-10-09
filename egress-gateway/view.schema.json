@@ -1,0 +1,164 @@
+{
+  "tabs": [
+    {
+      "id": "serviceEntries",
+      "form": "serviceEntries",
+      "items": "/serviceEntries",
+      "ui:uniqueBy": "name",
+      "title": "Внешние сервисы",
+      "addLabel": "Добавить внешний сервис",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Имя сервиса"
+        },
+        {
+          "path": "hostname",
+          "label": "Домен внешнего сервиса"
+        }
+      ]
+    },
+    {
+      "id": "networkRules",
+      "form": "networkPolicies",
+      "items": "/networkPolicy/endpoints",
+      "title": "Адреса и порты",
+      "addLabel": "Добавить адрес и порт",
+      "ui:table": [
+        {
+          "path": "address",
+          "label": "Адрес"
+        },
+        {
+          "path": "port",
+          "label": "Порт"
+        }
+      ]
+    }
+  ],
+  "views": {
+    "order": {
+      "include": [
+        "mode",
+        "waypointNamespace/enabled",
+        "senders",
+        "global/namespacePurpose",
+        "vegNamespace/namespace/name",
+        "serviceEntries",
+        "vpcEgressGateway",
+        "networkPolicy",
+        "authorizationPolicy",
+        "waypointNamespace/waypoint/waypoints"
+      ],
+      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity. Назначения двух служебных namespace (\"global/namespacePurpose\" для гейтвея и \"vegNamespace/namespace/name\" для выхода) в форме есть, с предзаполнением из блока initial: два заказа одной команды в одном кластере иначе получили бы одни и те же namespace. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены. Поле \"waypointNamespace/enabled\" стоит сразу за режимом, потому что от режима и зависит: в mesh оно true, в direct - false, и без него режим direct нельзя было заказать формой вовсе. Выводить его вычислением из mode нельзя: это condition сабчарта в Chart.yaml, а Helm считает condition по values до рендера шаблонов.",
+      "identity": "/vpcEgressGateway/name",
+      "required": [
+        "vegNamespace/namespace/name"
+      ],
+      "overrides": {
+        "waypointNamespace/enabled": {
+          "title": "Создавать неймспейс гейтвея",
+          "description": "В mesh: включён - свой неймспейс, выключен - неймспейс ваших сервисов. В direct выключите.",
+          "ui:widget": "edit"
+        },
+        "global/namespacePurpose": {
+          "description": "Укажите слово для имени {проект}-{кластер}-ns-egw-eg. Для второго гейтвея команды в кластере выберите другое."
+        },
+        "vegNamespace/namespace/name": {
+          "title": "Назначение неймспейса выхода",
+          "description": "Укажите слово для имени {проект}-{кластер}-ns-veg-vip. Для второго выхода команды в кластере выберите другое.",
+          "ui:widget": "edit"
+        },
+        "vpcEgressGateway": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        },
+        "waypointNamespace/waypoint/waypoints": {
+          "description": "При включённом переключателе «Создавать неймспейс гейтвея» укажите в поле «Namespace, которым можно привязаться» основной неймспейс сервисов. Если переключатель выключен, оставьте поле пустым."
+        }
+      }
+    },
+    "egress": {
+      "include": [
+        "vpcEgressGateway"
+      ],
+      "overrides": {
+        "vpcEgressGateway": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "waypoint": {
+      "$comment": "Правка гейтвея (имя, разрешённые namespace, автомасштабирование, ресурсы) из карточки заказа. Ресурсы скрыты схемой сабчарта, поэтому здесь их нужно раскрыть явно.",
+      "include": [
+        "waypointNamespace/waypoint/waypoints"
+      ],
+      "overrides": {
+        "waypointNamespace/waypoint/waypoints": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              },
+              "resources": {
+                "ui:widget": "edit"
+              }
+            }
+          }
+        }
+      }
+    },
+    "serviceEntries": {
+      "overrides": {
+        "name": {
+          "ui:readOnly": true
+        }
+      }
+    },
+    "networkPolicies": {},
+    "authorizationPolicies": {
+      "include": [
+        "authorizationPolicy"
+      ]
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "egress",
+      "label": "Настроить выход"
+    },
+    {
+      "in": "info",
+      "view": "waypoint",
+      "label": "Настроить гейтвей"
+    },
+    {
+      "in": "tab:networkRules",
+      "view": "authorizationPolicies",
+      "label": "Настроить доступ к гейтвею"
+    }
+  ],
+  "defaults": {
+    "/global/identity/cluster": "dev",
+    "/global/identity/instance": "id",
+    "/global/identity/project": "{{.Team}}",
+    "/waypointNamespace/namespace/creator": "console",
+    "/vegNamespace/namespace/creator": "console"
+  },
+  "initial": {
+    "/global/namespacePurpose": "egw-eg",
+    "/vegNamespace/namespace/name": "veg-vip"
+  }
+}

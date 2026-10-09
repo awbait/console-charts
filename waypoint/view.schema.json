@@ -1,0 +1,105 @@
+{
+  "views": {
+    "order": {
+      "$comment": "Заказ: один вейпоинт. Теги окружения и проекта проставляет блок defaults, проект берётся из команды заказа. Namespace вейпоинта - это namespace заказа: поля namespaceOverride и namespacePurpose нужны чарту только под родителем и схемой скрыты. Автомасштабирование и ресурсы в заказе не спрашиваются, их правят из меню «Действия».",
+      "include": [
+        "waypoints"
+      ],
+      "identity": "/waypoints/0/name",
+      "overrides": {
+        "waypoints": {
+          "title": "Вейпоинт",
+          "ui:widget": "single",
+          "ui:view": {
+            "exclude": [
+              "hpa"
+            ],
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "waypoint": {
+      "$comment": "Правка вейпоинта из карточки: область перехвата и namespace, которым разрешено привязываться. Имя не меняется - по нему сервисы находят вейпоинт лейблом istio.io/use-waypoint.",
+      "include": [
+        "waypoints"
+      ],
+      "overrides": {
+        "waypoints": {
+          "title": "Вейпоинт",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "for",
+              "allowedNamespaces"
+            ]
+          }
+        }
+      }
+    },
+    "hpa": {
+      "include": [
+        "waypoints"
+      ],
+      "overrides": {
+        "waypoints": {
+          "title": "Вейпоинт",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "hpa"
+            ]
+          }
+        }
+      }
+    },
+    "resources": {
+      "$comment": "Ресурсы схема чарта прячет, поэтому здесь их приходится раскрывать виджетом edit.",
+      "include": [
+        "waypoints"
+      ],
+      "overrides": {
+        "waypoints": {
+          "title": "Вейпоинт",
+          "ui:widget": "single",
+          "ui:view": {
+            "include": [
+              "resources"
+            ],
+            "overrides": {
+              "resources": {
+                "ui:widget": "edit"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "waypoint",
+      "label": "Изменить вейпоинт"
+    },
+    {
+      "in": "info",
+      "view": "hpa",
+      "label": "Настроить автомасштабирование"
+    },
+    {
+      "in": "info",
+      "view": "resources",
+      "label": "Изменить ресурсы"
+    }
+  ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}"
+  }
+}

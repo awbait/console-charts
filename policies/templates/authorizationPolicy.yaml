@@ -57,7 +57,13 @@ spec:
     {{- end }}
 {{- end }}
 
-{{/* Mirror AuthorizationPolicy in each target namespace (from egress rules). */}}
+{{/*
+Mirror AuthorizationPolicy in each target namespace (from egress rules).
+
+Targets are grouped by namespace and pod selector the same way the NetworkPolicy
+mirrors are, so a target namespace named with two different selectors gets two
+mirrors, and the ordinal in the name of each one matches its NetworkPolicy twin.
+*/}}
 {{- if gt (len $egress) 0 }}
 {{- $ownerSA := required (printf "policies[%d] (%s): serviceAccount is required when egress rules are defined" $index $policy.name) $policy.serviceAccount }}
 {{- $targets := dict }}
@@ -65,44 +71,42 @@ spec:
 {{- range $peer := default (list) $rule.to }}
 {{- if not $peer.ipBlock }}
 {{- $targetNs := required (printf "policies[%d].egress[%d].to.namespace is required for mirroring" $index $ruleIndex) $peer.namespace }}
-{{- $peerSelector := default (dict) $peer.selector }}
-{{- $existing := index $targets $targetNs }}
-{{- if $existing }}
-{{- $mergedPorts := concat $existing.ports (default (list) $rule.ports) }}
-{{- $_ := set $targets $targetNs (dict "selector" $peerSelector "ports" $mergedPorts) }}
-{{- else }}
-{{- $_ := set $targets $targetNs (dict "selector" $peerSelector "ports" (default (list) $rule.ports)) }}
-{{- end }}
+{{- include "security-policies.registerMirror" (dict "mirrors" $targets "namespace" $targetNs "selector" (default (dict) $peer.selector) "direction" "inPorts" "ports" $rule.ports) }}
 {{- end }}
 {{- end }}
 {{- end }}
 {{- $ownerPrincipal := include "security-policies.istioPrincipal" (dict "root" $root "serviceAccount" (dict "namespace" $namespace "name" $ownerSA)) }}
-{{- range $targetNs, $info := $targets }}
+{{- range $targetNs, $ns := $targets }}
+{{- range $ordinal, $key := index $ns "order" }}
+{{- $info := index (index $ns "entries") $key }}
+{{- $targetSelector := index $info "selector" }}
+{{- $targetPorts := index $info "inPorts" }}
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
-  name: {{ include "security-policies.resourceName" (dict "name" $policy.name "shortkind" "ap" "context" $root) }}
+  name: {{ include "security-policies.mirrorName" (dict "name" $policy.name "shortkind" "ap" "context" $root "ordinal" $ordinal) }}
   namespace: {{ $targetNs | quote }}
   {{- include "security-policies.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   action: ALLOW
-  {{- if gt (len $info.selector) 0 }}
+  {{- if gt (len $targetSelector) 0 }}
   selector:
     matchLabels:
-      {{- toYaml $info.selector | nindent 6 }}
+      {{- toYaml $targetSelector | nindent 6 }}
   {{- end }}
   rules:
     - from:
         - source:
             principals:
               - {{ $ownerPrincipal | quote }}
-      {{- if gt (len $info.ports) 0 }}
+      {{- if gt (len $targetPorts) 0 }}
       to:
         - operation:
             ports:
-{{ include "security-policies.authzPorts" (dict "root" $root "ports" $info.ports) | trim | indent 14 }}
+{{ include "security-policies.authzPorts" (dict "root" $root "ports" $targetPorts) | trim | indent 14 }}
       {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

@@ -3,9 +3,11 @@ Ingress Gateway (Gateway API, istio class): one per element of the
 gateways list. infrastructure.parametersRef references a ConfigMap (see
 configmap.yaml), which has the same name as the Gateway (kindShort cm).
 For HTTPS/TLS listeners the tls block is added automatically. Terminate
-points at the Secret of the certificate that covers the listener hostname
-(see tls in values and externalSecret.yaml), or at certificateRefs when the
-certificate already lies in the cluster under its own name.
+points at the Secret the listener takes its certificate from: an entry of
+tls.certificates covering the hostname, or, when no entry does, the Secret of
+the certificate issued automatically by the platform issuer (see
+ingress-gateway.helpers.app.listenerCertificate, externalSecret.yaml and
+certificate.yaml). Explicit certificateRefs win over both.
 The element is skipped when enabled: false.
 */}}
 {{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
@@ -51,11 +53,8 @@ spec:
           {{- if $listener.certificateRefs }}
           {{- toYaml $listener.certificateRefs | nindent 10 }}
           {{- else }}
-          {{- $cert := fromJson (include "ingress-gateway.helpers.app.certificate" (dict "hostname" $listener.hostname "context" $root)) }}
-          {{- if not $cert }}
-          {{- fail (printf "gateways[%d].listeners[%d]: no certificate covers hostname %q - add an entry to tls.certificates with a domain that covers it" $index $listenerIndex ($listener.hostname | default "" | toString)) }}
-          {{- end }}
-          - name: {{ include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "parent" $gatewayName "context" $root) | quote }}
+          {{- $selected := fromJson (include "ingress-gateway.helpers.app.listenerCertificate" (dict "gateway" $gateway "listener" $listener "gIndex" $index "lIndex" $listenerIndex "context" $root)) }}
+          - name: {{ $selected.secretName | quote }}
             kind: Secret
             group: ""
           {{- end }}

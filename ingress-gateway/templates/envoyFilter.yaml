@@ -1,0 +1,66 @@
+{{/*
+EnvoyFilter (Istio) for the workload of a Gateway: one per element of the
+gateways list that sets something under proxy. The Gateway API has no field
+for these two knobs, and the Istio Gateway controller sets neither, so the
+proxy of the gateway runs with the Envoy defaults: a stream idle timeout of
+5 minutes, which cuts a request that goes quiet for longer (a long report, an
+upload, a streamed response), and 60 KiB of request headers, past which the
+client gets 431. proxy.streamIdleTimeout and proxy.maxRequestHeadersKb go
+into the HTTP connection manager of every listener of this gateway with a
+MERGE patch, so the rest of the Istio configuration stays as it was.
+The workload is selected by the label gateway.networking.k8s.io/gateway-name,
+the same way authorizationPolicy.yaml and networkPolicy.yaml do it.
+The element is skipped when enabled: false or when proxy is empty.
+*/}}
+{{- if eq (include "ingress-gateway.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- range $index, $gateway := $root.Values.gateways }}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $gateway) "true" }}
+{{- $proxy := $gateway.proxy | default dict -}}
+{{- $idle := "" -}}
+{{- if hasKey $proxy "streamIdleTimeout" -}}{{- $idle = $proxy.streamIdleTimeout | toString -}}{{- end -}}
+{{- $headersKb := "" -}}
+{{- if hasKey $proxy "maxRequestHeadersKb" -}}{{- $headersKb = $proxy.maxRequestHeadersKb | toString -}}{{- end -}}
+{{- if and $idle (not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $idle)) -}}
+{{- fail (printf "gateways[%d].proxy.streamIdleTimeout must be a number of seconds with the s suffix, for example 18000s, got %q" $index $idle) -}}
+{{- end -}}
+{{- if and $headersKb (or (not (regexMatch "^[0-9]+$" $headersKb)) (lt (int $headersKb) 1) (gt (int $headersKb) 8192)) -}}
+{{- fail (printf "gateways[%d].proxy.maxRequestHeadersKb must be a whole number of KiB from 1 to 8192, got %q" $index $headersKb) -}}
+{{- end -}}
+{{- if or $idle $headersKb }}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $index) $gateway.name }}
+{{- $gatewayFullname := include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Gateway" "name" $gatewayName "context" $root) }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ include "ingress-gateway.helpers.app.resourceName" (dict "kind" "EnvoyFilter" "name" $gatewayName "context" $root) }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  {{- include "ingress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+spec:
+  workloadSelector:
+    labels:
+      {{- include "ingress-gateway.helpers.app.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" $gatewayFullname) | nindent 6 }}
+  configPatches:
+    - applyTo: NETWORK_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: MERGE
+        value:
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+            {{- with $idle }}
+            stream_idle_timeout: {{ . | quote }}
+            {{- end }}
+            {{- with $headersKb }}
+            max_request_headers_kb: {{ . }}
+            {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

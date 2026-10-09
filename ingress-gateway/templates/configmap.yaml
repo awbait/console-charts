@@ -3,7 +3,12 @@ Infrastructure ConfigMap for the Istio Gateway controller: one per element
 of the gateways list. It has the same name as the Gateway (kindShort cm); the
 Gateway references it via parametersRef (see gateway.yaml).
 data.deployment - a patch for the auto-created Deployment (securityContext, resources
-of the istio-proxy container). data.service - a patch for the Service (LoadBalancer, disabling
+of the istio-proxy container, and the scheduling of the pod: nodeSelector,
+tolerations and affinity. Which nodes announce the VIP is decided by where
+this pod lands, so the chart carries a default for every gateway in
+gatewayScheduling, and a gateway that names the field itself replaces that
+default as a whole - an explicit empty value switches it off).
+data.service - a patch for the Service (LoadBalancer, disabling
 NodePort, single-stack IPv4, removing port 15021; when ipAddress is set - a MetalLB annotation).
 data.horizontalPodAutoscaler - added when hpa.enabled.
 The element is skipped when enabled: false.
@@ -50,6 +55,25 @@ data:
           securityContext:
             seccompProfile:
               type: RuntimeDefault
+          {{- $scheduling := $root.Values.gatewayScheduling | default dict }}
+          {{- $nodeSelector := $scheduling.nodeSelector }}
+          {{- if hasKey $gateway "nodeSelector" }}{{ $nodeSelector = $gateway.nodeSelector }}{{ end }}
+          {{- $tolerations := $scheduling.tolerations }}
+          {{- if hasKey $gateway "tolerations" }}{{ $tolerations = $gateway.tolerations }}{{ end }}
+          {{- $affinity := $scheduling.affinity }}
+          {{- if hasKey $gateway "affinity" }}{{ $affinity = $gateway.affinity }}{{ end }}
+          {{- with $nodeSelector }}
+          nodeSelector:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
+          {{- with $tolerations }}
+          tolerations:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
+          {{- with $affinity }}
+          affinity:
+            {{- include "ingress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 12 }}
+          {{- end }}
           {{- if $resources }}
           containers:
             - name: istio-proxy

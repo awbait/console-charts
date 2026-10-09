@@ -2,41 +2,109 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/egress-gateway/values.schema.json",
   "title": "egress-gateway Helm chart values",
-  "description": "Editor-oriented schema for the egress-gateway chart (Istio ambient egress waypoint + kube-ovn VpcEgressGateway). A single Gateway of class istio-waypoint with one HBONE listener; each external service gets a ServiceEntry bound to the waypoint via the istio.io/use-waypoint label, and ztunnel tunnels the traffic in.",
+  "description": "Editor-oriented schema for the egress-gateway chart: an egress with a fixed external address in one of two modes. mesh: the senders sit in ambient, a waypoint (subchart waypoint under the namespace subchart waypointNamespace) lets the hosts named in serviceEntries out through a kube-ovn VpcEgressGateway. direct: the senders are outside the mesh, the whole external traffic of their subnet leaves through the VpcEgressGateway. The VpcEgressGateway always gets a namespace of its own (subchart vegNamespace), never in the mesh.",
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
-    "identity",
+    "global",
     "generic",
-    "egressGateway",
+    "mode",
+    "senders",
     "serviceEntries",
+    "vpcEgressGateway",
     "networkPolicy",
     "authorizationPolicy",
-    "vpcEgressGateway"
+    "waypointNamespace",
+    "vegNamespace",
+    "gatewayScheduling",
+    "enabled"
   ],
   "required": [
-    "identity"
+    "global",
+    "senders",
+    "vpcEgressGateway"
+  ],
+  "$comment": "allOf связывает режим с namespace гейтвея. В режиме direct waypointNamespace.enabled обязан быть false: шаблоны и так останавливают выпуск (mode direct has no waypoint), но там это выясняется в кластере, через несколько минут после заказа. В схеме то же правило отвечает сразу: форма портала проверяет values схемой чарта до отправки. В режиме mesh оба значения допустимы: true - гейтвей в своём неймспейсе, false - в неймспейсе отправителей.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "direct"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "waypointNamespace": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
   ],
   "properties": {
-    "identity": {
-      "title": "Окружение и проект",
-      "description": "Куда встанет заказ и к какому проекту он относится. Задаётся один раз на весь заказ.",
-      "$ref": "#/definitions/identity"
+    "global": {
+      "title": "Общие настройки",
+      "description": "Задайте теги окружения и назначение неймспейса гейтвея для всех ресурсов заказа.",
+      "type": "object",
+      "propertyOrder": [
+        "identity",
+        "namespacePurpose"
+      ],
+      "properties": {
+        "identity": {
+          "title": "Окружение и проект",
+          "description": "Выберите место размещения и владельца заказа один раз для всех его ресурсов.",
+          "$ref": "#/definitions/identity"
+        },
+        "namespacePurpose": {
+          "title": "Назначение неймспейса гейтвея",
+          "description": "Укажите слово для общей части имени неймспейса гейтвея, например egw-eg в nbox-dev-ns-egw-eg.",
+          "$ref": "#/definitions/purposeToken",
+          "default": "egw-eg"
+        }
+      },
+      "required": [
+        "identity",
+        "namespacePurpose"
+      ]
     },
     "generic": {
-      "title": "Generic settings",
-      "description": "Common labels/annotations applied to all chart resources.",
+      "title": "Метки и аннотации",
+      "description": "Применяются к ресурсам выхода и правилам доступа, но не к неймспейсам и гейтвею. В форме скрыто.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
     },
-    "egressGateway": {
-      "title": "Гейтвей",
-      "description": "Одна контролируемая точка, через которую ваши сервисы ходят наружу.",
-      "$ref": "#/definitions/egressGateway"
+    "mode": {
+      "title": "Режим выхода",
+      "description": "Выберите, как ваши сервисы ходят наружу, в зависимости от того, подключены ли они к сетке.",
+      "type": "string",
+      "enum": [
+        "mesh",
+        "direct"
+      ],
+      "enumNames": [
+        "В сетке, выход только к указанным доменам (mesh)",
+        "Без сетки, выход для всего внешнего трафика (direct)"
+      ],
+      "default": "mesh"
+    },
+    "senders": {
+      "title": "Ваши сервисы",
+      "description": "Укажите, откуда нужен выход наружу: неймспейс должен быть создан отдельным заказом.",
+      "$ref": "#/definitions/senders"
     },
     "serviceEntries": {
       "title": "Внешние сервисы",
-      "description": "На каждый внешний сервис - одна запись. Через них гейтвей выпускает трафик наружу.",
+      "description": "Только в режиме mesh. Добавьте по записи на внешний домен: через выход пойдёт трафик только к этим доменам.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/serviceEntry"
@@ -53,47 +121,59 @@
         }
       ]
     },
+    "vpcEgressGateway": {
+      "title": "Выход наружу",
+      "description": "На заказ создаётся один выход с адресами, с которых ваши сервисы видны снаружи.",
+      "$ref": "#/definitions/vpcEgressGateway"
+    },
     "networkPolicy": {
       "title": "Сетевые правила",
-      "description": "Ограничивают, куда гейтвей может ходить и кто может ходить к нему.",
+      "description": "Настройте ограничения входящего и исходящего трафика гейтвея только в режиме mesh.",
       "$ref": "#/definitions/networkPolicy"
     },
     "authorizationPolicy": {
-      "title": "Правило доступа к гейтвею",
-      "description": "Пускает к гейтвею только ваши сервисы, а не весь кластер.",
+      "title": "Доступ к гейтвею",
+      "description": "Только в режиме mesh. Разрешает доступ к гейтвею только вашим сервисам, а не всему кластеру.",
       "$ref": "#/definitions/authorizationPolicy"
     },
-    "vpcEgressGateway": {
-      "title": "Выход с известного адреса",
-      "description": "Заполняйте, если внешняя система пускает только с согласованных IP.",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/vpcEgressGateway"
-      },
-      "defaultSnippets": [
-        {
-          "label": "Выход с известного адреса",
-          "body": [
-            {
-              "name": "core",
-              "externalIPs": [
-                "10.193.101.10",
-                "10.193.101.11"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "global": {
-      "title": "Global values",
-      "description": "Helm global values, injected automatically when the chart is used as a subchart. Not used by the chart templates.",
+    "waypointNamespace": {
+      "title": "Неймспейс гейтвея",
+      "description": "В mesh включите для отдельного неймспейса, выключите для неймспейса сервисов. В direct выключите. В форме скрыто.",
       "type": "object",
       "ui:widget": "hidden"
     },
+    "vegNamespace": {
+      "title": "Неймспейс выхода",
+      "description": "Настройки окружения VpcEgressGateway: всегда вне сетки, с уровнем безопасности privileged. В форме скрыто.",
+      "type": "object",
+      "ui:widget": "hidden"
+    },
+    "gatewayScheduling": {
+      "title": "Размещение выхода",
+      "description": "Платформа задаёт правила для подов выхода, без них узлы выбирает планировщик. В форме скрыто.",
+      "ui:widget": "hidden",
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "nodeSelector",
+        "tolerations"
+      ],
+      "properties": {
+        "nodeSelector": {
+          "title": "Выбор узлов",
+          "description": "Платформа задаёт условия размещения подов выхода, по умолчанию поле пусто и выбор не ограничен.",
+          "$ref": "#/definitions/vegNodeSelector"
+        },
+        "tolerations": {
+          "title": "Допуски размещения",
+          "description": "Разрешают размещать поды выхода на узлах с ограничениями. По умолчанию пусто, допуски задаёт платформа.",
+          "$ref": "#/definitions/podTolerations"
+        }
+      }
+    },
     "enabled": {
-      "title": "Enabled",
-      "description": "Render the chart resources. Set to false when the chart is a subchart that must stay silent.",
+      "title": "Создание ресурсов",
+      "description": "Управляет ресурсами выхода и правилами доступа, неймспейсы включаются отдельно. В форме скрыто.",
       "type": "boolean",
       "default": true,
       "ui:widget": "hidden"
@@ -104,13 +184,19 @@
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
-      "maxLength": 6
+      "maxLength": 9
     },
     "projectToken": {
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 2,
       "maxLength": 9
+    },
+    "purposeToken": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 2,
+      "maxLength": 12
     },
     "port": {
       "type": "integer",
@@ -119,13 +205,130 @@
     },
     "namespaceName": {
       "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "subnetName": {
+      "type": "string",
       "pattern": "^$|^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "maxLength": 63
+    },
+    "labelKey": {
+      "type": "string",
+      "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?[A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$"
     },
     "tplStringMap": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      }
+    },
+    "resourceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "memory": {
+          "type": "string"
+        }
+      }
+    },
+    "nodeSelectorRequirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "In",
+            "NotIn",
+            "Exists",
+            "DoesNotExist",
+            "Gt",
+            "Lt"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator"
+      ]
+    },
+    "vegNodeSelector": {
+      "$comment": "kube-ovn VpcEgressGateway.spec.nodeSelector: a list of terms ORed together, the matchers inside one term are ANDed.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "matchLabels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "matchExpressions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/nodeSelectorRequirement"
+            }
+          },
+          "matchFields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/nodeSelectorRequirement"
+            }
+          }
+        }
+      }
+    },
+    "podTolerations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string",
+            "enum": [
+              "Equal",
+              "Exists"
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "NoSchedule",
+              "PreferNoSchedule",
+              "NoExecute"
+            ]
+          },
+          "tolerationSeconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     },
     "identity": {
@@ -138,8 +341,8 @@
       ],
       "properties": {
         "instance": {
-          "title": "Инстанс",
-          "description": "Выбирайте вместе с кластером: пара инстанс и кластер задаёт окружение.",
+          "title": "Инстанс платформы",
+          "description": "Выберите вместе с кластером: эта пара определяет окружение заказа.",
           "type": "string",
           "enum": [
             "in",
@@ -150,8 +353,8 @@
           "enumNames": [
             "Infra-dev-ecpk (in)",
             "dev-ecpk (id)",
-            "techsec-dev, dev-common, test-common (ed)",
-            "global, observability, techsec, int-common, ML, ext-common (pr)"
+            "techsec-dev, dev-common и test-common (ed)",
+            "global, observability, techsec, int-common, ML и ext-common (pr)"
           ]
         },
         "cluster": {
@@ -184,8 +387,8 @@
           ]
         },
         "project": {
-          "title": "Проект",
-          "description": "Короткий код проекта. Попадает в имена ресурсов и в метки.",
+          "title": "Код проекта",
+          "description": "Укажите короткий код проекта: он попадёт в имена ресурсов и в метки.",
           "$ref": "#/definitions/projectToken"
         }
       },
@@ -204,142 +407,59 @@
       ],
       "properties": {
         "labels": {
-          "title": "Common labels",
-          "description": "Common labels for all chart resources. Result: metadata.labels.",
+          "title": "Общие метки",
+          "description": "Укажите пары ключей и значений для metadata.labels.",
           "$ref": "#/definitions/tplStringMap"
         },
         "annotations": {
-          "title": "Common annotations",
-          "description": "Common annotations for all chart resources. Result: metadata.annotations.",
+          "title": "Общие аннотации",
+          "description": "Укажите пары ключей и значений для metadata.annotations.",
           "$ref": "#/definitions/tplStringMap"
         }
       }
     },
-    "egressGateway": {
+    "senders": {
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
-        "name",
-        "enabled",
-        "hpa",
-        "resources"
+        "namespace",
+        "additionalNamespaces",
+        "subnet",
+        "additionalSubnets"
       ],
       "properties": {
-        "name": {
-          "title": "Имя гейтвея",
-          "description": "Короткое имя, по которому вы отличите этот гейтвей от других.",
-          "$ref": "#/definitions/shortToken"
+        "namespace": {
+          "title": "Неймспейс сервисов",
+          "description": "Укажите существующий неймспейс, из которого сервисы будут выходить наружу, например nbox-dev-ns-app. Если гейтвей размещается рядом с сервисами, он будет создан в этом неймспейсе.",
+          "$ref": "#/definitions/namespaceName"
         },
-        "enabled": {
-          "title": "enabled",
-          "description": "Set to false to keep the settings in values without creating the Gateway and its ConfigMap.",
-          "type": "boolean",
-          "default": true,
-          "ui:widget": "hidden"
+        "additionalNamespaces": {
+          "title": "Другие неймспейсы сервисов",
+          "description": "Добавьте существующие неймспейсы, сервисам из которых нужен выход через этот гейтвей. Не указывайте основной неймспейс и не повторяйте значения.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/namespaceName"
+          }
         },
-        "hpa": {
-          "title": "Автомасштабирование",
-          "description": "Сколько экземпляров гейтвея держать под нагрузкой.",
-          "$ref": "#/definitions/gatewayHpa"
+        "subnet": {
+          "title": "Подсеть сервисов",
+          "description": "Только без сетки. Укажите подсеть, например nbox-dev-subnet-app: весь её внешний трафик пойдёт через выход.",
+          "$ref": "#/definitions/subnetName"
         },
-        "resources": {
-          "title": "Gateway resources",
-          "description": "Resources for the istio-proxy container in the automatically created Deployment. Rendered into ConfigMap.data.deployment. Hidden in the new order form: created with a default value, edited later from the product card.",
-          "ui:widget": "hidden",
-          "$ref": "#/definitions/containerResources",
-          "default": {
-            "requests": {
-              "cpu": "100m",
-              "memory": "128Mi"
-            },
-            "limits": {
-              "cpu": "2000m",
-              "memory": "1024Mi"
-            }
+        "additionalSubnets": {
+          "title": "Другие подсети сервисов",
+          "description": "Без сетки при выборе всей подсети здесь указываются подсети остальных неймспейсов сервисов, если они не входят в основную подсеть.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/namespaceName"
           }
         }
       },
       "required": [
-        "name"
+        "namespace"
       ]
-    },
-    "gatewayHpa": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "enabled",
-        "minReplicas",
-        "maxReplicas",
-        "averageUtilization"
-      ],
-      "properties": {
-        "enabled": {
-          "title": "Включить",
-          "description": "Гейтвей будет сам добавлять экземпляры под нагрузкой.",
-          "type": "boolean",
-          "default": false
-        },
-        "minReplicas": {
-          "title": "Минимум экземпляров",
-          "description": "Столько работает всегда.",
-          "type": "integer",
-          "minimum": 1,
-          "default": 2
-        },
-        "maxReplicas": {
-          "title": "Максимум экземпляров",
-          "description": "Выше этого числа не поднимется.",
-          "type": "integer",
-          "minimum": 1,
-          "default": 5
-        },
-        "averageUtilization": {
-          "title": "Целевая загрузка CPU",
-          "description": "Процент, выше которого добавляется экземпляр.",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 80
-        }
-      }
-    },
-    "containerResources": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "requests",
-        "limits"
-      ],
-      "properties": {
-        "requests": {
-          "title": "requests",
-          "description": "Requested resources of the istio-proxy container. For CPU-based HPA it is mandatory to set requests.cpu.",
-          "$ref": "#/definitions/resourceQuantityMap"
-        },
-        "limits": {
-          "title": "limits",
-          "description": "Resource limits of the istio-proxy container.",
-          "$ref": "#/definitions/resourceQuantityMap"
-        }
-      }
-    },
-    "resourceQuantityMap": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "cpu": {
-          "title": "cpu",
-          "description": "Amount of CPU, for example 100m, 500m, 1.",
-          "type": "string",
-          "minLength": 1
-        },
-        "memory": {
-          "title": "memory",
-          "description": "Amount of memory, for example 128Mi, 512Mi, 1Gi.",
-          "type": "string",
-          "minLength": 1
-        }
-      }
     },
     "serviceEntry": {
       "type": "object",
@@ -347,29 +467,23 @@
       "propertyOrder": [
         "name",
         "hostname",
-        "namespace",
         "enabled"
       ],
       "properties": {
         "name": {
           "title": "Имя сервиса",
-          "description": "Короткое имя, по которому вы отличите этот сервис от других.",
+          "description": "Выберите короткое название, чтобы отличать запись от других.",
           "$ref": "#/definitions/shortToken"
         },
         "hostname": {
-          "title": "Домен внешнего сервиса",
-          "description": "Домен, по которому ваши сервисы обращаются наружу. Первый уровень домена станет именем точки выхода на гейтвее.",
+          "title": "Домен сервиса",
+          "description": "Укажите, куда ваши сервисы обращаются за пределами кластера.",
           "type": "string",
           "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
         },
-        "namespace": {
-          "title": "Namespace вашего сервиса",
-          "description": "Заполните, если сервис, который ходит наружу, живёт не рядом с гейтвеем. Пустое поле - тот же namespace, что и у гейтвея.",
-          "$ref": "#/definitions/namespaceName"
-        },
         "enabled": {
-          "title": "enabled",
-          "description": "Set to false to keep the entry in values without creating the ServiceEntry.",
+          "title": "Создание записи",
+          "description": "Отключите, чтобы сохранить запись в значениях без создания ServiceEntry. В форме скрыто.",
           "type": "boolean",
           "default": true,
           "ui:widget": "hidden"
@@ -380,23 +494,121 @@
         "hostname"
       ]
     },
+    "vpcEgressGateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "name",
+        "externalIPs",
+        "scope",
+        "label",
+        "nodeSelector",
+        "tolerations",
+        "limitRange"
+      ],
+      "properties": {
+        "name": {
+          "title": "Имя выхода",
+          "description": "Короткое имя выхода войдёт в имя ресурса и станет значением метки на подах, если вы выбираете их по метке.",
+          "$ref": "#/definitions/shortToken",
+          "default": "vip"
+        },
+        "externalIPs": {
+          "title": "Внешние IP-адреса",
+          "description": "Укажите, с каких IP трафик будет виден снаружи: на каждый адрес создаётся экземпляр выхода.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "title": "IP-адрес",
+            "type": "string"
+          }
+        },
+        "scope": {
+          "title": "Источники трафика",
+          "description": "Только без сетки. Выберите, что направить через выход: всю подсеть ваших сервисов или только поды с меткой.",
+          "type": "string",
+          "enum": [
+            "namespace",
+            "label"
+          ],
+          "enumNames": [
+            "Вся подсеть сервисов (namespace)",
+            "Поды с меткой (label)"
+          ],
+          "default": "namespace"
+        },
+        "label": {
+          "title": "Ключ метки",
+          "description": "Только без сетки при выборе подов по метке. Ключ метки на подах, например ecpk/egress, значение - имя выхода.",
+          "$ref": "#/definitions/labelKey",
+          "default": "ecpk/egress"
+        },
+        "nodeSelector": {
+          "title": "Выбор узлов",
+          "description": "Целиком заменяет правило платформы для этого выхода, пустой список отключает его. В форме скрыто.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/vegNodeSelector"
+        },
+        "tolerations": {
+          "title": "Допуски размещения",
+          "description": "Целиком заменяют правило платформы для этого выхода, пустой список отключает его. В форме скрыто.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/podTolerations"
+        },
+        "limitRange": {
+          "title": "Ресурсы по умолчанию",
+          "description": "Подставляет ресурсы контейнерам без своих значений в неймспейсе выхода. В форме скрыто.",
+          "ui:widget": "hidden",
+          "type": "object",
+          "additionalProperties": false,
+          "propertyOrder": [
+            "enabled",
+            "defaultRequest",
+            "default"
+          ],
+          "properties": {
+            "enabled": {
+              "title": "Создание LimitRange",
+              "description": "Включает LimitRange в неймспейсе выхода. По умолчанию включено.",
+              "type": "boolean",
+              "default": true
+            },
+            "defaultRequest": {
+              "title": "Запросы по умолчанию",
+              "description": "Запросы для контейнеров без своих значений: по умолчанию 100m процессора и 128Mi памяти.",
+              "$ref": "#/definitions/resourceList"
+            },
+            "default": {
+              "title": "Лимиты по умолчанию",
+              "description": "Лимиты для контейнеров без своих значений: по умолчанию 500m процессора и 256Mi памяти.",
+              "$ref": "#/definitions/resourceList"
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "externalIPs"
+      ]
+    },
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
         "enabled",
-        "endpoints"
+        "endpoints",
+        "senders"
       ],
       "properties": {
         "enabled": {
-          "title": "Включить",
-          "description": "Гейтвей будет ходить только к перечисленным адресам, а принимать - только от ваших сервисов.",
+          "title": "Ограничение трафика",
+          "description": "Гейтвей сможет обращаться только к указанным адресам и принимать трафик только из неймспейсов ваших сервисов.",
           "type": "boolean",
           "default": false
         },
         "endpoints": {
-          "title": "Внешние адреса и порты",
-          "description": "Куда гейтвею разрешено ходить. Заполняется, когда сетевые правила включены.",
+          "title": "Адреса и порты",
+          "description": "Укажите разрешённые внешние точки назначения, если сетевые правила включены.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -413,6 +625,13 @@
               ]
             }
           ]
+        },
+        "senders": {
+          "title": "Выход к гейтвею",
+          "description": "Разрешает вашим сервисам выход к гейтвею при правилах платформы по умолчанию в их неймспейсе. В форме скрыто.",
+          "type": "boolean",
+          "default": true,
+          "ui:widget": "hidden"
         }
       }
     },
@@ -425,14 +644,14 @@
       ],
       "properties": {
         "address": {
-          "title": "Адрес",
-          "description": "IP внешней точки или подсеть в формате CIDR.",
+          "title": "Адрес назначения",
+          "description": "Укажите IP внешней точки или подсеть в формате CIDR.",
           "type": "string",
           "minLength": 1
         },
         "port": {
-          "title": "Порт",
-          "description": "Порт, на который гейтвей ходит по этому адресу.",
+          "title": "Порт назначения",
+          "description": "Укажите порт, на который гейтвей обращается по этому адресу.",
           "$ref": "#/definitions/port"
         }
       },
@@ -449,49 +668,12 @@
       ],
       "properties": {
         "enabled": {
-          "title": "Включить",
-          "description": "К гейтвею будут допущены только namespace ваших сервисов.",
+          "title": "Ограничение доступа",
+          "description": "Разрешает обращаться к гейтвею только из указанных неймспейсов сервисов.",
           "type": "boolean",
           "default": false
         }
       }
-    },
-    "vpcEgressGateway": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "name",
-        "enabled",
-        "externalIPs"
-      ],
-      "properties": {
-        "name": {
-          "title": "Имя выхода",
-          "description": "Короткое имя, по которому вы отличите этот выход от других.",
-          "$ref": "#/definitions/shortToken"
-        },
-        "enabled": {
-          "title": "enabled",
-          "description": "Set to false to keep the entry in values without creating the VpcEgressGateway.",
-          "type": "boolean",
-          "default": true,
-          "ui:widget": "hidden"
-        },
-        "externalIPs": {
-          "title": "Внешние адреса",
-          "description": "Адреса, с которых трафик выйдет наружу. Сколько адресов, столько и экземпляров шлюза.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "title": "IP-адрес",
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "name",
-        "externalIPs"
-      ]
     }
   }
 }

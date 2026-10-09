@@ -59,24 +59,242 @@ Returns the value in lower-case.
 Short resource type code (kindShort) by k8s kind. Parameter: kind (string).
 Allowed: igw (Gateway), cm (ConfigMap), ap (AuthorizationPolicy),
 np (NetworkPolicy), hr (HTTPRoute), gr (GRPCRoute), tr (TLSRoute),
-tcr (TCPRoute), ur (UDPRoute), secret (Secret), es (ExternalSecret).
+tcr (TCPRoute), ur (UDPRoute), rg (ReferenceGrant), secret (Secret),
+es (ExternalSecret), cert (Certificate), ef (EnvoyFilter),
+dr (DestinationRule).
 Unknown kind -> fail.
 */}}
 {{- define "ingress-gateway.helpers.app.kindShort" -}}
 {{- $kind := required "kind is required" . | toString | lower -}}
 {{- if eq $kind "gateway" -}}igw
 {{- else if eq $kind "externalsecret" -}}es
+{{- else if eq $kind "certificate" -}}cert
 {{- else if eq $kind "configmap" -}}cm
 {{- else if eq $kind "authorizationpolicy" -}}ap
 {{- else if eq $kind "networkpolicy" -}}np
+{{- else if eq $kind "envoyfilter" -}}ef
+{{- else if eq $kind "destinationrule" -}}dr
 {{- else if eq $kind "httproute" -}}hr
 {{- else if eq $kind "grpcroute" -}}gr
 {{- else if eq $kind "tlsroute" -}}tr
 {{- else if eq $kind "tcproute" -}}tcr
 {{- else if eq $kind "udproute" -}}ur
+{{- else if eq $kind "referencegrant" -}}rg
 {{- else if eq $kind "secret" -}}secret
 {{- else -}}{{- fail (printf "unsupported kind for resourceName: %q" $kind) -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+ReferenceGrants the routes need, as JSON: a map keyed "gateway|namespace" of
+{gateway, namespace, kinds: {RouteKind: true}, services: {name: true}}.
+One entry per gateway and target namespace, collected from every enabled route
+whose backendRefs name a namespace other than the one of the release. A
+backendRef with referenceGrant: false is left out: the person ordering may
+have no rights in that namespace, and then the grant is somebody else's to
+create. Shared by referenceGrant.yaml (renders them) and NOTES.txt (lists
+them), so the two cannot disagree.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.referenceGrants" -}}
+{{- $root := . -}}
+{{- $grants := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- $routeName := $route.name | default "" | toString -}}
+{{- $routeKind := include "ingress-gateway.helpers.app.xRouteKind" (dict "kind" ($route.kind | default "HTTPRoute") "name" $routeName) -}}
+{{- $parent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) -}}
+{{- range $rule := $route.rules | default list -}}
+{{- range $backend := $rule.backendRefs | default list -}}
+{{- $namespace := $backend.namespace | default "" | toString -}}
+{{- /* Not `default true`: to a template false is empty, and the default would swallow the very value that opts out. */ -}}
+{{- $wanted := true -}}
+{{- if hasKey $backend "referenceGrant" -}}{{- $wanted = ne (toString $backend.referenceGrant) "false" -}}{{- end -}}
+{{- if and $namespace (ne $namespace $root.Release.Namespace) $wanted -}}
+{{- $key := printf "%s|%s" $parent $namespace -}}
+{{- $grant := index $grants $key -}}
+{{- if not $grant -}}
+{{- $grant = dict "gateway" $parent "namespace" $namespace "kinds" (dict) "services" (dict) -}}
+{{- $_ := set $grants $key $grant -}}
+{{- end -}}
+{{- $_ := set (index $grant "kinds") $routeKind true -}}
+{{- with $backend.name -}}
+{{- $_ := set (index $grant "services") (toString .) true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $grants | toJson -}}
+{{- end -}}
+
+{{/*
+Whether the policies of the release are on: policies.enabled, default false.
+Returns "true" or "" (for if-tests). The two switches it replaced,
+networkPolicy and authorizationPolicy, are refused with a message rather than
+read: the egress rules the first one carried are generated now, and a value
+that still names them would otherwise be ignored in silence.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.policiesEnabled" -}}
+{{- if hasKey .Values "networkPolicy" -}}
+{{- fail "networkPolicy moved to policies.enabled: the egress rules are generated from the routes now, remove networkPolicy (and its egress) and set policies.enabled instead" -}}
+{{- end -}}
+{{- if hasKey .Values "authorizationPolicy" -}}
+{{- fail "authorizationPolicy merged into policies.enabled: one switch creates the NetworkPolicies and the AuthorizationPolicies together, remove authorizationPolicy and set policies.enabled instead" -}}
+{{- end -}}
+{{- include "ingress-gateway.helpers.app.enabled" (dict "enabled" ((.Values.policies | default dict).enabled | default false)) -}}
+{{- end -}}
+
+{{/*
+Istio principal of the workload of a Gateway: the ServiceAccount the Istio
+gateway controller creates for it, named {gateway}-{gatewayClass}, under the
+trust domain of the mesh (policies.trustDomain, default cluster.local).
+Parameters: .gatewayFullname, .context.
+*/}}
+{{- define "ingress-gateway.helpers.app.gatewayPrincipal" -}}
+{{- $trustDomain := (.context.Values.policies | default dict).trustDomain | default "cluster.local" | toString -}}
+{{- printf "%s/ns/%s/sa/%s-istio" $trustDomain .context.Release.Namespace .gatewayFullname -}}
+{{- end -}}
+
+{{/*
+Where the routes send traffic, as JSON: a map keyed "gateway|namespace" of
+{gateway, namespace, foreign, services: {name: true}, ports: {"port/PROTO":
+{port, protocol}}, granted: {"port/PROTO": {port, protocol}}}. One entry per
+gateway and backend namespace, collected from every enabled route whose rules
+name backendRefs; a backendRef without a namespace points at the namespace of
+the release (foreign: false). The protocol is that of the route: UDP for a
+UDPRoute, TCP for every other kind.
+ports holds every backend of the entry: what the workload of the gateway is
+allowed to reach. granted leaves out the backends with referenceGrant: false,
+the same opt-out the ReferenceGrant honours: the person ordering may have no
+rights in that namespace, and then the policies there are somebody else's to
+create, like the grant. Shared by networkPolicy.yaml, authorizationPolicy.yaml
+and NOTES.txt, so the three cannot disagree.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.backends" -}}
+{{- $root := . -}}
+{{- $backends := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- $routeName := $route.name | default "" | toString -}}
+{{- $routeKind := include "ingress-gateway.helpers.app.xRouteKind" (dict "kind" ($route.kind | default "HTTPRoute") "name" $routeName) -}}
+{{- $protocol := ternary "UDP" "TCP" (eq $routeKind "UDPRoute") -}}
+{{- $parent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) -}}
+{{- range $ruleIndex, $rule := $route.rules | default list -}}
+{{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
+{{- $foreign := ne $namespace $root.Release.Namespace -}}
+{{- $wanted := true -}}
+{{- if hasKey $backend "referenceGrant" -}}{{- $wanted = ne (toString $backend.referenceGrant) "false" -}}{{- end -}}
+{{- $port := required (printf "xroutes[%d].rules[%d].backendRefs[%d].port is required" $index $ruleIndex $backendIndex) $backend.port | int -}}
+{{- $key := printf "%s|%s" $parent $namespace -}}
+{{- $entry := index $backends $key -}}
+{{- if not $entry -}}
+{{- $entry = dict "gateway" $parent "namespace" $namespace "foreign" $foreign "services" (dict) "ports" (dict) "granted" (dict) -}}
+{{- $_ := set $backends $key $entry -}}
+{{- end -}}
+{{- with $backend.name -}}
+{{- $_ := set (index $entry "services") (toString .) true -}}
+{{- end -}}
+{{- $portKey := printf "%d/%s" $port $protocol -}}
+{{- $portEntry := dict "port" $port "protocol" $protocol -}}
+{{- $_ := set (index $entry "ports") $portKey $portEntry -}}
+{{- if $wanted -}}
+{{- $_ := set (index $entry "granted") $portKey $portEntry -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $backends | toJson -}}
+{{- end -}}
+
+{{/*
+The ports of a NetworkPolicy rule towards the backends of one entry of
+ingress-gateway.helpers.app.backends: every port of the given map, plus 15008
+over TCP when any of them is TCP. In ambient, traffic to a pod of the mesh
+arrives over HBONE on 15008, traffic to a pod outside the mesh on the port of
+the service; both are allowed, so the rule holds whichever the namespace is.
+Parameters: .ports (the map). Renders the list items.
+*/}}
+{{- define "ingress-gateway.helpers.app.backendPorts" -}}
+{{- $hbone := false -}}
+{{- range $key, $p := .ports }}
+- port: {{ $p.port }}
+  protocol: {{ $p.protocol }}
+{{- if eq $p.protocol "TCP" }}{{ $hbone = true }}{{ end }}
+{{- end }}
+{{- if $hbone }}
+- port: 15008
+  protocol: TCP
+{{- end }}
+{{- end -}}
+
+{{/*
+DestinationRules the routes ask for, as JSON: a map keyed by the Service the
+rule is for ("name.namespace") of {name, namespace, cookieName, ttl,
+h2UpgradePolicy}, with a setting left out when no reference set it.
+These settings are properties of the Service, not of a route: Istio applies
+them with a DestinationRule on the host, and every route of the release that
+sends to that host is affected. So one entry per Service, collected from every
+enabled route whose backendRefs carry sessionAffinity or h2UpgradePolicy.
+References to one Service merge: one may pin the cookie and another the
+protocol. Two that set the same setting differently stop the render: the
+second would silently win otherwise. Rendered by destinationRule.yaml.
+Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.destinationRules" -}}
+{{- $root := . -}}
+{{- $rules := dict -}}
+{{- range $index, $route := $root.Values.xroutes -}}
+{{- if eq (include "ingress-gateway.helpers.app.enabled" $route) "true" -}}
+{{- range $ruleIndex, $rule := $route.rules | default list -}}
+{{- range $backendIndex, $backend := $rule.backendRefs | default list -}}
+{{- $label := printf "xroutes[%d].rules[%d].backendRefs[%d]" $index $ruleIndex $backendIndex -}}
+{{- $wanted := dict -}}
+{{- with $backend.sessionAffinity -}}
+{{- $cookie := required (printf "%s.sessionAffinity.cookieName is required" $label) .cookieName | toString -}}
+{{- $ttl := .ttl | default "0s" | toString -}}
+{{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
+{{- fail (printf "%s.sessionAffinity.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
+{{- end -}}
+{{- $_ := set $wanted "cookieName" $cookie -}}
+{{- $_ := set $wanted "ttl" $ttl -}}
+{{- end -}}
+{{- with $backend.h2UpgradePolicy -}}
+{{- $policy := toString . -}}
+{{- if not (has $policy (list "DO_NOT_UPGRADE" "UPGRADE")) -}}
+{{- fail (printf "%s.h2UpgradePolicy must be DO_NOT_UPGRADE or UPGRADE, got %q" $label $policy) -}}
+{{- end -}}
+{{- $_ := set $wanted "h2UpgradePolicy" $policy -}}
+{{- end -}}
+{{- if $wanted -}}
+{{- $service := required (printf "%s.name is required" $label) $backend.name | toString -}}
+{{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
+{{- $key := printf "%s.%s" $service $namespace -}}
+{{- $entry := index $rules $key | default (dict "name" $service "namespace" $namespace) -}}
+{{- range $setting, $value := $wanted -}}
+{{- if and (hasKey $entry $setting) (ne (index $entry $setting) $value) -}}
+{{- fail (printf "%s.%s %q disagrees with an earlier %q for service %s in namespace %s: one Service gets one DestinationRule" $label $setting $value (index $entry $setting) $service $namespace) -}}
+{{- end -}}
+{{- $_ := set $entry $setting $value -}}
+{{- end -}}
+{{- /* The DestinationRule is named after the Service alone, so two Services of one name in different namespaces would share it. */ -}}
+{{- range $otherKey, $other := $rules -}}
+{{- if and (eq $other.name $service) (ne $other.namespace $namespace) -}}
+{{- fail (printf "%s names service %s in namespace %s, but an earlier reference already asks a DestinationRule for %s in namespace %s: the two would share one name" $label $service $namespace $service $other.namespace) -}}
+{{- end -}}
+{{- end -}}
+{{- $_ := set $rules $key $entry -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $rules | toJson -}}
 {{- end -}}
 
 {{/*
@@ -105,12 +323,18 @@ Returns "true", or nothing at all (an empty string is false at the call site).
 Certificate for a listener with tlsMode: Terminate. Parameters: .hostname, .context.
 The hostname is looked up in tls.certificates (the certificates of this order),
 first match wins. Returns a JSON object, empty when no certificate covers the
-hostname:
+hostname. Common fields:
+  source      - "vault" (read from a store) or "existing" (Secret the order
+                already has). An entry without source is a vault entry.
+  domain      - domain of the entry, as written
+For source: vault
   name        - short name of the entry, the {name} part of the Secret name
   path        - where the certificate lies in the store
   storeName   - name of the SecretStore, always in the namespace of the release
   crtProperty - key of the certificate inside the stored entry
   keyProperty - key of its private key
+For source: existing
+  secretName  - name of the Secret the order brings itself
 */}}
 {{- define "ingress-gateway.helpers.app.certificate" -}}
 {{- $tls := .context.Values.tls | default dict -}}
@@ -118,8 +342,19 @@ hostname:
 {{- $found := dict -}}
 {{- range $entry := $tls.certificates | default list -}}
 {{- if and (not $found) (eq (include "ingress-gateway.helpers.app.hostCovered" (dict "domain" $entry.domain "hostname" $hostname)) "true") -}}
+{{- $domain := $entry.domain | toString -}}
+{{- $source := $entry.source | default "vault" | toString -}}
+{{- if eq $source "existing" -}}
+{{- $found = dict
+      "source" "existing"
+      "domain" $domain
+      "secretName" (required (printf "tls certificate for %q: secretName is required" $domain) $entry.secretName | toString)
+-}}
+{{- else -}}
 {{- $name := required "tls certificate: name is required" $entry.name | toString -}}
 {{- $found = dict
+      "source" "vault"
+      "domain" $domain
       "name" $name
       "path" (required (printf "tls certificate %q: path is required" $name) $entry.path | toString)
       "storeName" (required (printf "tls certificate %q: store is required (set it on the entry or in tls.store)" $name) ($entry.store | default $tls.store) | toString)
@@ -128,7 +363,91 @@ hostname:
 -}}
 {{- end -}}
 {{- end -}}
+{{- end -}}
 {{- $found | toJson -}}
+{{- end -}}
+
+{{/*
+Is automatic issuing on? tls.issuer.enabled, true unless values say otherwise.
+Returns "true" or "" (for if-tests). Parameter: the root context.
+*/}}
+{{- define "ingress-gateway.helpers.app.issuerEnabled" -}}
+{{- $issuer := ((.Values.tls | default dict).issuer) | default dict -}}
+{{- if hasKey $issuer "enabled" -}}
+{{- ternary "true" "" (eq (toString $issuer.enabled | lower) "true") -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Does the platform issuer cover .hostname? Parameters: .hostname, .context.
+tls.issuer.domains lists the suffixes its PKI role is allowed to sign; an empty
+list means the chart does not check and leaves the decision to the issuer. A
+listed domain covers itself and everything under it, at any depth, which is how
+a PKI role with allow_subdomains behaves:
+  idp.ecpk.test covers idp.ecpk.test, app.idp.ecpk.test, *.a.idp.ecpk.test
+A leading "*." in the list is ignored: the suffix is what matters.
+Returns "true", or nothing at all.
+*/}}
+{{- define "ingress-gateway.helpers.app.issuerCovers" -}}
+{{- $issuer := ((.context.Values.tls | default dict).issuer) | default dict -}}
+{{- $domains := $issuer.domains | default list -}}
+{{- $hostname := .hostname | default "" | toString | lower -}}
+{{- if not $domains -}}true
+{{- else -}}
+{{- $covered := "" -}}
+{{- range $item := $domains -}}
+{{- $domain := $item | toString | lower | trimPrefix "*." -}}
+{{- if and $domain $hostname -}}
+{{- if or (eq $hostname $domain) (hasSuffix (printf ".%s" $domain) $hostname) -}}
+{{- $covered = "true" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $covered -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Where a listener with tlsMode: Terminate takes its certificate from. Parameters:
+.gateway, .listener, .gIndex, .lIndex, .context. This is the single place the
+Gateway, the ExternalSecret and the Certificate agree on, so they can never
+disagree about the name of the Secret. Returns a JSON object:
+  mode       - "vault", "existing" or "auto"
+  secretName - Secret the listener references
+  cert       - the matching tls.certificates entry (vault only)
+The mode follows the certificates of the order: an entry covering the hostname
+decides, and a hostname no entry covers is issued automatically by the platform
+issuer. Fails when nothing can serve the listener.
+*/}}
+{{- define "ingress-gateway.helpers.app.listenerCertificate" -}}
+{{- $root := .context -}}
+{{- $gIndex := .gIndex | int -}}
+{{- $lIndex := .lIndex | int -}}
+{{- $listener := .listener -}}
+{{- $hostname := $listener.hostname | default "" | toString -}}
+{{- $gatewayName := required (printf "gateways[%d].name is required" $gIndex) .gateway.name -}}
+{{- $cert := fromJson (include "ingress-gateway.helpers.app.certificate" (dict "hostname" $hostname "context" $root)) -}}
+{{- if $cert -}}
+{{- if eq $cert.source "existing" -}}
+{{- dict "mode" "existing" "secretName" $cert.secretName | toJson -}}
+{{- else -}}
+{{- dict "mode" "vault" "cert" $cert "secretName" (include "ingress-gateway.helpers.app.tlsSecretName" (dict "name" $cert.name "parent" $gatewayName "context" $root)) | toJson -}}
+{{- end -}}
+{{- else -}}
+{{- if not (eq (include "ingress-gateway.helpers.app.issuerEnabled" $root) "true") -}}
+{{- fail (printf "gateways[%d].listeners[%d]: no certificate covers hostname %q - add an entry to tls.certificates with a domain that covers it" $gIndex $lIndex $hostname) -}}
+{{- end -}}
+{{- if not $hostname -}}
+{{- fail (printf "gateways[%d].listeners[%d]: hostname is required to issue a certificate automatically" $gIndex $lIndex) -}}
+{{- end -}}
+{{- if not (include "ingress-gateway.helpers.app.issuerCovers" (dict "hostname" $hostname "context" $root)) -}}
+{{- fail (printf "gateways[%d].listeners[%d]: hostname %q is not issued by the platform issuer - add an entry to tls.certificates with a certificate for it" $gIndex $lIndex $hostname) -}}
+{{- end -}}
+{{- $listenerName := required (printf "gateways[%d].listeners[%d].name is required to issue a certificate automatically" $gIndex $lIndex) $listener.name -}}
+{{- dict "mode" "auto" "secretName" (include "ingress-gateway.helpers.app.resourceName" (dict "kind" "Secret" "name" $listenerName "parent" $gatewayName "nameMax" 9 "context" $root)) | toJson -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
@@ -148,7 +467,10 @@ Resource name by convention:
   with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
 Parameters: .context, .kind (k8s kind), .name (2..6 characters, 2..9 for the
 kinds named after a gateway), .parent (optional gateway name, 2..9; routes use
-it, so two routes of one kind may carry one name under different gateways).
+it, so two routes of one kind may carry one name under different gateways),
+.nameMax (optional upper bound for .name, for a resource named after something
+other than its own entry: an automatically issued certificate is named after a
+listener, which is allowed 9).
 kindShort is derived from .kind (see ingress-gateway.helpers.app.kindShort).
 The result is truncated to 63 characters.
 Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
@@ -160,8 +482,8 @@ Examples: ed-dev-igw-nbox-main, ed-dev-hr-main-nbox-app.
 {{- $project := include "ingress-gateway.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "resourceName.kind is required" .kind | toString | lower -}}
 {{- $kindShort := include "ingress-gateway.helpers.app.kindShort" $kind -}}
-{{/* These four are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
-{{- $nameMax := ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy")) -}}
+{{/* These five are named after gateways[].name, which is allowed 9 characters; everything else is named after a route or a certificate and stays at 6. */}}
+{{- $nameMax := .nameMax | default (ternary 9 6 (has $kind (list "gateway" "configmap" "authorizationpolicy" "networkpolicy" "envoyfilter"))) -}}
 {{- $name := include "ingress-gateway.helpers.shortToken" (dict "label" "name" "value" .name "max" $nameMax) -}}
 {{- if .parent -}}
 {{- $parent := include "ingress-gateway.helpers.shortToken" (dict "label" "parentGatewayName" "value" .parent "max" 9) -}}
@@ -218,6 +540,17 @@ Parameter: the root context.
 {{- fail (printf "gateways[%d].name %q is already taken by another Gateway; the two would share every resource name" $index $name) -}}
 {{- end -}}
 {{- $_ := set $seen $name true -}}
+{{- /* A listener name reaches the name of an automatically issued certificate, so two of them under one gateway would share it. */ -}}
+{{- $listeners := dict -}}
+{{- range $lIndex, $listener := $gateway.listeners -}}
+{{- $listenerName := $listener.name | default "" | toString | lower -}}
+{{- if $listenerName -}}
+{{- if hasKey $listeners $listenerName -}}
+{{- fail (printf "gateways[%d].listeners[%d].name %q is already taken by another listener of gateway %q" $index $lIndex $listenerName $name) -}}
+{{- end -}}
+{{- $_ := set $listeners $listenerName true -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- $routes := dict -}}
@@ -234,11 +567,14 @@ Parameter: the root context.
 {{- end -}}
 {{- $certs := dict -}}
 {{- range $index, $cert := ((.Values.tls | default dict).certificates | default list) -}}
-{{- $name := $cert.name | toString | lower -}}
-{{- if hasKey $certs $name -}}
+{{- $name := $cert.name | default "" | toString | lower -}}
+{{- if not $name -}}
+{{- /* An entry pointing at a Secret the order already has carries no name: the Secret is named by the user, and nothing is derived from it. */ -}}
+{{- else if hasKey $certs $name -}}
 {{- fail (printf "tls.certificates[%d].name %q is already taken by another certificate; a listener would get whichever of them was found first" $index $name) -}}
-{{- end -}}
+{{- else -}}
 {{- $_ := set $certs $name true -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -375,7 +711,8 @@ Parameters: .kind (canonical), .name.
 {{- $name := .name | default "<unknown>" -}}
 {{- $kind := required (printf "xroutes.%s.kind is required" $name) .kind | toString | trim -}}
 {{- if or (eq $kind "HTTPRoute") (eq $kind "GRPCRoute") -}}gateway.networking.k8s.io/v1
-{{- else if or (eq $kind "TLSRoute") (eq $kind "TCPRoute") (eq $kind "UDPRoute") -}}gateway.networking.k8s.io/v1alpha2
+{{- else if eq $kind "TLSRoute" -}}gateway.networking.k8s.io/v1
+{{- else if or (eq $kind "TCPRoute") (eq $kind "UDPRoute") -}}gateway.networking.k8s.io/v1alpha2
 {{- else -}}{{- fail (printf "xroutes.%s.kind must be one of HTTPRoute, GRPCRoute, TLSRoute, TCPRoute, UDPRoute" $name) -}}
 {{- end -}}
 {{- end -}}

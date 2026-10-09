@@ -5,9 +5,10 @@
         "global",
         "namespace",
         "resourceQuotas",
-        "serviceMesh"
+        "serviceMesh",
+        "waypoint/waypoints"
       ],
-      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults.",
+      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults. Поле \"waypoint/waypoints\" - это список вейпоинтов из сабчарта waypoint: он лежит в values под ключом waypoint, и без имени с косой чертой его поля назвать нельзя.",
       "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
@@ -35,6 +36,9 @@
             }
           },
           "ui:widget": "edit"
+        },
+        "waypoint/waypoints": {
+          "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
         }
       }
     },
@@ -44,8 +48,10 @@
       ]
     },
     "serviceMesh": {
+      "$comment": "Форма пункта «Действия»: включает сетку и тут же даёт поправить список вейпоинтов, иначе включить вейпоинт можно, а настроить его нечем.",
       "include": [
-        "serviceMesh"
+        "serviceMesh",
+        "waypoint/waypoints"
       ],
       "overrides": {
         "serviceMesh": {
@@ -60,30 +66,35 @@
             }
           },
           "ui:widget": "edit"
+        },
+        "waypoint/waypoints": {
+          "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
         }
       }
     }
   },
   "defaults": {
-    "/identity/instance": "ed",
+    "/identity/instance": "id",
     "/identity/cluster": "dev",
-    "/identity/project": "nbox",
+    "/identity/project": "{{.Team}}",
     "/namespace/role": "other",
     "/namespace/creator": "console",
-    "/waypoint/identity/instance": "ed",
+    "/namespace/cpaas/cluster": "global",
+    "/namespace/cpaas/project": "dev",
+    "/waypoint/identity/instance": "id",
     "/waypoint/identity/cluster": "dev",
-    "/waypoint/identity/project": "nbox"
+    "/waypoint/identity/project": "{{.Team}}"
   },
   "actions": [
     {
       "in": "info",
       "view": "resources",
-      "label": "Редактировать ресурсы"
+      "label": "Изменить квоты ресурсов"
     },
     {
       "in": "info",
       "view": "serviceMesh",
-      "label": "Вкл/Выкл сервисную сетку"
+      "label": "Настроить сервисную сетку"
     }
   ]
 }

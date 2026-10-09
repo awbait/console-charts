@@ -1,5 +1,5 @@
 {{- if eq (include "waypoint.helpers.chartEnabled" .) "true" }}
-waypoint ({{ .Chart.Version }}) deployed in namespace {{ .Release.Namespace | quote }}.
+waypoint ({{ .Chart.Version }}) deployed, resources land in namespace {{ include "waypoint.helpers.targetNamespace" . | quote }}.
 Naming convention: {instance}-{cluster}-{kindShort}-{project}-{name}
 Identity labels on every resource: {{ include "waypoint.helpers.identityLabels" . | trim | replace "\n" ", " | replace "\"" "" }}
 
@@ -7,11 +7,19 @@ Identity labels on every resource: {{ include "waypoint.helpers.identityLabels" 
 {{- range .Values.waypoints }}{{ if eq (include "waypoint.helpers.app.enabled" .) "true" }}{{ $hasWp = true }}{{ end }}{{ end -}}
 {{- if $hasWp }}
 Waypoint proxies (Gateway, class istio-waypoint):
-{{- range $wp := .Values.waypoints }}
+{{- range $index, $wp := .Values.waypoints }}
 {{- if eq (include "waypoint.helpers.app.enabled" $wp) "true" }}
 {{- $name := include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $wp.name "context" $) }}
+{{- $allowed := include "waypoint.helpers.app.allowedNamespaces" (dict "waypoint" $wp "index" $index "context" $) | fromJsonArray }}
   - {{ $name }} (waypoint-for: {{ $wp.for | default "service" }})
-    binding: label the namespace with istio.io/use-waypoint={{ $name }}
+    binding: label the namespace, service or pod with istio.io/use-waypoint={{ $name }}
+{{- if $allowed }}
+    also admitted from: {{ join ", " $allowed }} (bind there with istio.io/use-waypoint-namespace as well)
+{{- end }}
+{{- if eq (include "waypoint.helpers.app.hasInfrastructure" $wp) "true" }}
+{{- $hpa := $wp.hpa | default dict }}
+    infrastructure ConfigMap {{ $name }}: {{ if $hpa.enabled }}autoscaling {{ $hpa.minReplicas | default 2 }}..{{ $hpa.maxReplicas | default 5 }} replicas at {{ $hpa.averageUtilization | default 80 }}% CPU{{ else }}no autoscaling{{ end }}{{ if $wp.resources }}, proxy resources set{{ end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- else }}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none">
+  <title>Secret Store</title>
+  <g stroke="#328BAF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 2 9 5v10l-9 5-9-5V7Zm-9 5h18L12 22Z"/>
+  </g>
+</svg>

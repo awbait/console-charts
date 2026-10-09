@@ -1,0 +1,55 @@
+{{/*
+Infrastructure ConfigMap for the Istio Gateway controller - one per waypoint
+that autoscales (hpa.enabled) or sets the resources of its proxy container.
+Shares the name of the Gateway (kindShort wp); the Gateway references it via
+infrastructure.parametersRef (see waypoint.yaml).
+data.deployment - a patch for the auto-created Deployment: the seccomp profile
+and, when set, the resources of the istio-proxy container.
+data.horizontalPodAutoscaler - added when hpa.enabled.
+Skipped for a waypoint that sets neither, so a plain waypoint renders exactly
+as before.
+*/}}
+{{- if eq (include "waypoint.helpers.chartEnabled" .) "true" }}
+{{- $root := . -}}
+{{- range $index, $waypoint := $root.Values.waypoints }}
+{{- if and (eq (include "waypoint.helpers.app.enabled" $waypoint) "true") (eq (include "waypoint.helpers.app.hasInfrastructure" $waypoint) "true") }}
+{{- $waypointName := required (printf "waypoints[%d].name is required" $index) $waypoint.name }}
+{{- $hpa := $waypoint.hpa | default dict }}
+{{- $hpaEnabled := eq (toString ($hpa.enabled | default false) | lower) "true" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "waypoint.helpers.app.resourceName" (dict "kindShort" "wp" "name" $waypointName "context" $root) }}
+  namespace: {{ include "waypoint.helpers.targetNamespace" $root | quote }}
+  {{- include "waypoint.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
+data:
+  {{- if $hpaEnabled }}
+  horizontalPodAutoscaler: |
+    spec:
+      minReplicas: {{ $hpa.minReplicas | default 2 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 5 }}
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: {{ $hpa.averageUtilization | default 80 }}
+  {{- end }}
+  deployment: |
+    spec:
+      template:
+        spec:
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          {{- with $waypoint.resources }}
+          containers:
+            - name: istio-proxy
+              resources:
+                {{- include "waypoint.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 16 }}
+          {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
