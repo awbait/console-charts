@@ -1,0 +1,7 @@
+{{- if eq (include "subnet.helpers.chartEnabled" .) "true" }}
+Subnet: {{ include "subnet.helpers.resourceName" (dict "context" . "kindShort" "subnet" "name" .Values.subnet.name) }}
+CIDR: {{ .Values.subnet.cidrBlock }}
+Gateway type: {{ .Values.subnet.gatewayType }}
+{{- else }}
+Subnet chart is disabled. No resources were created.
+{{- end }}

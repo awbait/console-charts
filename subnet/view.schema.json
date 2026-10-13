@@ -1,0 +1,37 @@
+{
+  "views": {
+    "order": {
+      "include": [
+        "identity",
+        "subnet"
+      ],
+      "identity": "/subnet/name"
+    },
+    "subnet": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "subnet",
+      "label": "Настроить подсеть"
+    }
+  ],
+  "initial": {
+    "/enabled": true
+  }
+}

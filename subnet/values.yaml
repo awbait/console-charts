@@ -1,0 +1,39 @@
+# subnet - значения по умолчанию (минимум, при котором проходит рендер).
+# При enabled=false чарт не создаёт ни одного ресурса.
+# Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
+
+enabled: false
+
+# Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
+# ecpk/project. Из project и cluster собирается имя подсети.
+# Когда родитель передаёт global.identity, используется он вместо identity.
+identity:
+  instance: id         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: demo        # тег проекта, 2..9 символов
+
+generic:
+  labels: {}           # общие labels на Subnet
+  annotations: {}      # общие annotations на Subnet
+
+subnet:
+  # Назначение подсети, 2..12 символов. Имя: demo-dev-subnet-app.
+  name: app
+
+  # Пример диапазона. Перед включением зарезервируйте свой CIDR.
+  cidrBlock: "10.24.8.0/24"
+  natOutgoing: false   # NAT исходящего трафика средствами kube-ovn
+  excludeIPs: []       # дополнительные исключения; шлюз шаблон добавляет сам
+  gatewayType: distributed
+  gatewayNodes: ""     # узлы для centralized через запятую; в форме скрыто
+  private: true        # изоляция: связность только с allowSubnets
+  allowSubnets: []     # дополнительные CIDR; 172.30.0.0/15 добавляется всегда
+  namespaces: []       # полные имена namespace, привязанных к подсети
+
+  # Служебные поля: значения как в чарте namespace, зафиксированы схемой.
+  default: false
+  protocol: IPv4
+  enableEcmp: false
+
+# Глобальные значения Helm. Родитель может передать общие теги в global.identity.
+global: {}

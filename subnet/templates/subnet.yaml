@@ -1,0 +1,31 @@
+{{/* One independently managed kube-ovn Subnet per release. */}}
+{{- if eq (include "subnet.helpers.chartEnabled" .) "true" }}
+{{- include "subnet.helpers.validate" . }}
+{{- $s := .Values.subnet }}
+apiVersion: kubeovn.io/v1
+kind: Subnet
+metadata:
+  name: {{ include "subnet.helpers.resourceName" (dict "context" . "kindShort" "subnet" "name" $s.name) }}
+  {{- include "subnet.helpers.metadata" (dict "context" . "annotations" (include "subnet.helpers.syncWave" "-2" | fromJson)) | nindent 2 }}
+spec:
+  default: {{ $s.default }}
+  protocol: {{ $s.protocol }}
+  cidrBlock: {{ $s.cidrBlock | quote }}
+  natOutgoing: {{ $s.natOutgoing }}
+  excludeIps: {{ prepend $s.excludeIPs (include "subnet.helpers.subnetGateway" $s.cidrBlock) | uniq | toJson }}
+  gateway: {{ include "subnet.helpers.subnetGateway" $s.cidrBlock | quote }}
+  gatewayType: {{ $s.gatewayType }}
+  {{- with $s.gatewayNodes }}
+  gatewayNode: {{ . | quote }}
+  {{- end }}
+  private: {{ $s.private }}
+  allowSubnets:
+    - 172.30.0.0/15
+    {{- range (uniq $s.allowSubnets) }}
+    {{- if ne . "172.30.0.0/15" }}
+    - {{ . | quote }}
+    {{- end }}
+    {{- end }}
+  enableEcmp: {{ $s.enableEcmp }}
+  namespaces: {{ $s.namespaces | toJson }}
+{{- end }}
