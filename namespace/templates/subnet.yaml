@@ -37,7 +37,7 @@ spec:
     - {{ . }}
     {{- end }}
   gateway: {{ include "namespace.helpers.subnetGateway" .cidrBlock }}
-  gatewayType: centralized
+  gatewayType: distributed
   private: {{ $private }}
   allowSubnets:
     - 172.30.0.0/15
