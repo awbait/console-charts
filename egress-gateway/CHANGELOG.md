@@ -23,9 +23,12 @@
 
 ### Changed
 
-- **BREAKING:** зависимости namespace обновлены до 7.0.0 с сабчартом Subnet 1.1.0.
-- Вложенные values подсетей переведены на subnet.enabled и subnet.subnet; привязка vegNamespace явно использует назначение veg-vip.
-- Инструкция по миграции добавлена в README.
+- **BREAKING:** чарт подключает `namespace` версии `7.0.0` с подсетью через чарт `subnet` версии `1.0.0`. В обеих секциях `waypointNamespace` и `vegNamespace` замените `subnet.enable` на `subnet.enabled`, а `subnet.subnets[0]` на `subnet.subnet`.
+- Поля `mask`, `reservedIps`, `allowSubnets`, `private`, `natOutgoing` и `cidrBlock` сохраняют прежний смысл. Маски по умолчанию остаются `/28` для неймспейса гейтвея и `/29` для неймспейса выхода.
+- **BREAKING:** каждый создаваемый неймспейс теперь управляет одной подсетью. Если раньше подсетей было несколько, до обновления перенесите дополнительные в отдельные заказы чарта `subnet` с сохранением имён. Иначе обновление удалит их.
+- **BREAKING:** метки и аннотации подсетей задаются в `waypointNamespace.subnet.generic` и `vegNamespace.subnet.generic`. Перенесите туда значения, которые подсети раньше получали из `generic` соответствующего неймспейса.
+- Для неймспейса выхода задано `vegNamespace.subnet.namespaceBinding.purpose: veg-vip`. Значение должно совпадать с `vegNamespace.namespace.name`.
+- Общие теги остаются в `global.identity`. При сохранении тегов и назначения имена существующих подсетей не меняются.
 
 ## [8.3.2] - 2026-10-08
 

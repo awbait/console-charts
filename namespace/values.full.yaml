@@ -208,11 +208,13 @@ subnet:
   # Сетевые параметры сабчарта. Полный справочник - subnet/values.full.yaml.
   subnet:
     name: ""                     # пусто - назначение namespace
-    cidrBlock: "10.24.8.0/24"     # предварительно зарезервированный диапазон
+    mask: 24                      # размер подсети, выбирает заказчик (/24 - 253 пода)
+    reservedIps: 0                # сколько адресов не выдавать подам, кроме шлюза
+    cidrBlock: "10.24.8.0/24"     # заполняет платформа: диапазон с маской mask
     natOutgoing: false            # NAT средствами kube-ovn
     excludeIPs: []                # дополнительные IP или диапазоны start..end
     gatewayType: distributed      # distributed или centralized
-    gatewayNodes: ""              # узлы centralized через запятую; скрыто в форме
+    gatewayNodes: ""              # узлы centralized через запятую
     private: true                 # изоляция подсети
     allowSubnets: []              # 172.30.0.0/15 шаблон добавляет всегда
     namespaces: []                # оставьте пустым: привязка вычисляется автоматически

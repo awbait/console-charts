@@ -7,10 +7,9 @@
         "resourceQuotas",
         "serviceMesh",
         "waypoint/waypoints",
-        "subnet/enabled",
         "subnet/subnet"
       ],
-      "$comment": "Теги родителя и сабчартов заполняются через global.identity. Назначение namespace общее через global.namespacePurpose. Подсеть включается только после резервирования CIDR.",
+      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из тегов. Теги лежат в global.identity, а назначение в global.namespacePurpose, чтобы их видели и сабчарты waypoint и subnet; теги проставляет блок defaults. Поля с косой чертой (waypoint/waypoints, subnet/subnet) принадлежат сабчартам. У подсети заказ называет маску, число резервируемых адресов и разрешённые подсети; диапазон и subnet.enabled проставляет платформа после брони в Netbox.",
       "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
@@ -42,18 +41,11 @@
         "waypoint/waypoints": {
           "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
         },
-        "subnet/enabled": {
-          "ui:widget": "edit",
-          "title": "Создавать подсеть"
-        },
         "subnet/subnet": {
           "ui:view": {
             "include": [
-              "cidrBlock",
-              "natOutgoing",
-              "excludeIPs",
-              "gatewayType",
-              "private",
+              "mask",
+              "reservedIps",
               "allowSubnets"
             ]
           }

@@ -212,62 +212,101 @@ resourceQuotas:
 
 ## Подсеть
 
-Subnet создаётся подключённым сабчартом `subnet` версии 1.1.0.
-Один релиз namespace управляет одной подсетью. Включайте `subnet.enabled`
-после резервирования CIDR. Общие теги передавайте через `global.identity`:
-их получат Namespace, Subnet и waypoint.
+Выделенную подсеть создаёт подключённый чарт `subnet` версии `1.0.0`. Один заказ неймспейса управляет одной подсетью.
+
+В Console и ЛК укажите маску, число резервируемых адресов и разрешённые подсети. Платформа забронирует диапазон в Netbox, заполнит `subnet.subnet.cidrBlock` и включит `subnet.enabled`.
+
+| Поле | Нужно указать | Что это |
+|---|---|---|
+| `subnet.subnet.mask` | Нет, по умолчанию `26` | Маска подсети: `29`, `28`, `27`, `26`, `25` или `24` |
+| `subnet.subnet.reservedIps` | Нет, по умолчанию `0` | Число адресов сразу за шлюзом, которые не будут выдаваться подам. От `0` до `16` |
+| `subnet.subnet.allowSubnets` | Если нужен обмен с другими сетями | Дополнительные разрешённые диапазоны IPv4 |
+| `subnet.subnet.cidrBlock` | Заполняет платформа | Забронированный диапазон с маской, совпадающей с `subnet.subnet.mask`. В форме скрыт |
+| `subnet.enabled` | Включает платформа | Создание подсети после бронирования диапазона. В форме скрыт |
+
+Общие теги передавайте через `global.identity`. Их используют неймспейс, подсеть и вейпоинт.
+
+Пример values после бронирования диапазона. Замените адресный диапазон и разрешённую сеть на значения вашего заказа.
 
 ```yaml
+enabled: true
+
 global:
   identity:
     instance: ed
     cluster: dev
     project: nbox
   namespacePurpose: app
+
 subnet:
   enabled: true
+  namespaceBinding:
+    enabled: true
   subnet:
-    cidrBlock: "10.24.8.0/24"
-    excludeIPs: ["10.24.8.2..10.24.8.4"]
+    name: ""
+    mask: 26
+    reservedIps: 2
+    cidrBlock: "10.24.8.0/26"
+    allowSubnets:
+      - "10.25.0.0/16"
 ```
 
-`subnet.subnet.name`, если пусто, наследует назначение namespace.
-`subnet.namespaceBinding.enabled` должен оставаться true. Список
-`subnet.subnet.namespaces` оставьте пустым: сабчарт сам привяжет подсеть
-к namespace. Если задано `namespace.name`, повторите его в
-`subnet.namespaceBinding.purpose`; если задано `namespace.namespaceOverride`,
-используйте общее `global.namespaceOverride` или повторите полное имя в
-`subnet.namespaceBinding.namespaceOverride`. Несовпадение привязки останавливает рендер.
+В этом примере создаётся подсеть `nbox-dev-subnet-app`, привязанная к неймспейсу `nbox-dev-ns-app`. Шлюз `10.24.8.1` исключается из выдачи подам всегда. Поле `reservedIps: 2` дополнительно резервирует адреса `10.24.8.2` и `10.24.8.3`.
 
-Сетевые параметры находятся в `subnet.subnet`: `cidrBlock`, `natOutgoing`,
-`excludeIPs`, `gatewayType`, `gatewayNodes`, `private`, `allowSubnets`.
-Шлюз вычисляется из CIDR и исключается из выдачи адресов. Диапазон
-`172.30.0.0/15` всегда включён в allowSubnets. `gatewayNodes` скрыт в форме
-и обязателен для centralized. Метки и аннотации Subnet задаются отдельно
-в `subnet.generic`: Helm не передаёт ему generic родителя.
+После резервирования должен оставаться хотя бы один адрес для подов. Диапазон `172.30.0.0/15` всегда добавляется к разрешённым сетям.
 
-При отключении родителя выключите также `subnet.enabled` и
-`serviceMesh.waypoint`: зависимости имеют собственные выключатели.
+Пустое `subnet.subnet.name` наследует назначение из `subnet.namespaceBinding.purpose` или `global.namespacePurpose`. Для существующей подсети сохраните прежнее назначение и теги, чтобы её имя не изменилось.
+
+Оставьте `subnet.namespaceBinding.enabled: true`, а список `subnet.subnet.namespaces` пустым. Подсеть привяжется к неймспейсу автоматически.
+
+Если вы задали `namespace.name`, повторите назначение в `subnet.namespaceBinding.purpose`. Если вы задали `namespace.namespaceOverride`, укажите то же полное имя в `global.namespaceOverride` или `subnet.namespaceBinding.namespaceOverride`. Несовпадение привязки останавливает рендер.
+
+Дополнительные сетевые параметры скрыты в форме и задаются через values.
+
+| Поле | Нужно указать | Что это |
+|---|---|---|
+| `subnet.subnet.private` | Нет, по умолчанию `true` | Изоляция подсети. Разрешает обмен только с разрешёнными диапазонами |
+| `subnet.subnet.natOutgoing` | Нет, по умолчанию `false` | NAT исходящего трафика средствами kube-ovn |
+| `subnet.subnet.excludeIPs` | Нет | Дополнительные исключённые адреса или диапазоны `start..end` внутри `cidrBlock` |
+| `subnet.subnet.gatewayType` | Нет, по умолчанию `distributed` | Тип шлюза: `distributed` или `centralized` |
+| `subnet.subnet.gatewayNodes` | При `gatewayType: centralized` | Имена узлов шлюза через запятую |
+| `subnet.generic.labels` | Нет | Дополнительные метки подсети |
+| `subnet.generic.annotations` | Нет | Дополнительные аннотации подсети |
+
+Поля `generic.labels` и `generic.annotations` неймспейса на подсеть не действуют.
+
+При отключении родительского чарта через `enabled: false` выключите также `subnet.enabled` и `serviceMesh.waypoint`.
 
 ## Переход с namespace 6.x
 
-Версия 7.0.0 меняет формат значений подсети:
+**BREAKING:** версия `7.0.0` создаёт подсеть через подключённый чарт `subnet` версии `1.0.0`. Перед обновлением измените values.
 
 | Раньше | Теперь |
 |---|---|
 | `subnet.enable` | `subnet.enabled` |
 | `subnet.subnets[0]` | `subnet.subnet` |
-| `subnet.subnets[0].mask` | Маска в `subnet.subnet.cidrBlock` |
-| `subnet.subnets[0].reservedIps` | Явные адреса или диапазон в `subnet.subnet.excludeIPs` |
-| `generic` для Subnet | `subnet.generic` |
+| `subnet.subnets[0].name` | `subnet.subnet.name` |
+| `subnet.subnets[0].mask` | `subnet.subnet.mask` |
+| `subnet.subnets[0].reservedIps` | `subnet.subnet.reservedIps` |
+| `subnet.subnets[0].allowSubnets` | `subnet.subnet.allowSubnets` |
+| `subnet.subnets[0].private` | `subnet.subnet.private` |
+| `subnet.subnets[0].natOutgoing` | `subnet.subnet.natOutgoing` |
+| `subnet.subnets[0].cidrBlock` | `subnet.subnet.cidrBlock` |
+| `identity` | `global.identity` для общих тегов неймспейса, подсети и вейпоинта |
+| `generic.labels` для подсети | `subnet.generic.labels` |
+| `generic.annotations` для подсети | `subnet.generic.annotations` |
 
-Для CIDR 10.24.8.0/24 прежнее reservedIps=3 соответствует диапазону
-`10.24.8.2..10.24.8.4`. Шлюз 10.24.8.1 добавляется автоматически.
-При нескольких прежних подсетях перенесите дополнительные в отдельные релизы
-Subnet с согласованным переносом Helm ownership; не удаляйте их простым обновлением values.
-Сохраните identity и назначение, чтобы имя существующего ресурса не изменилось.
-Прежние ключи enable и subnets[] отвергаются схемой, даже если зависимость выключена.
-Путь поля CIDR для интеграции с резервированием адресов теперь `subnet.subnet.cidrBlock`.
+Перенесите параметры подсети без изменения их смысла. `mask` по-прежнему задаёт размер бронируемого диапазона, а `reservedIps` задаёт число адресов сразу за шлюзом. Заменять `reservedIps` списком `excludeIPs` не нужно. Маска в `cidrBlock` должна совпадать с `mask`.
+
+Удалите старые ключи `subnet.enable` и `subnet.subnets` из values, в том числе если подсеть выключена. Они останавливают рендер с подсказкой по переходу.
+
+Сохраните прежние теги, назначение и диапазон подсети. Формат имени не изменился: `nbox-dev-subnet-app` останется `nbox-dev-subnet-app`. Существующая подсеть при таком переходе не пересоздаётся.
+
+Один заказ теперь управляет одной подсетью. Если в `subnet.subnets` было несколько элементов, до обновления перенесите управление дополнительными подсетями в отдельные заказы чарта `subnet`. Сохраните их имена и диапазоны. Без такого переноса обновление удалит дополнительные подсети.
+
+Общие теги задавайте в `global.identity`. Несовпадение тегов неймспейса и подсети останавливает рендер. Метки и аннотации, нужные подсети, укажите в `subnet.generic`. Настройки `generic` неймспейса больше на неё не распространяются.
+
+Оставьте `subnet.namespaceBinding.enabled: true` и пустой список `subnet.subnet.namespaces`. Если назначение задано в `namespace.name`, повторите его в `subnet.namespaceBinding.purpose`. Если полное имя задано в `namespace.namespaceOverride`, используйте то же значение в `global.namespaceOverride` или `subnet.namespaceBinding.namespaceOverride`.
 
 ## Сервисная сетка
 
@@ -329,15 +368,19 @@ ambient, и их трафик не перехватывается. На `Namespa
 - В `namespace.podSecurity` указано непустое значение, отличное от
   `restricted`, `baseline` и `privileged`.
 - Лимиты CPU или памяти не заданы в `resourceQuotas.limits`.
-- Подсеть включена, но её CIDR не задан.
-- CIDR подсети не соответствует формату «адрес/маска», маска выходит
-  за пределы от 16 до 30 либо адрес не совпадает с первым адресом блока.
-- Исключённые IP или диапазоны находятся вне CIDR либо заданы в обратном порядке.
-- У centralized не указаны gatewayNodes.
-- Теги namespace и сабчарта Subnet не совпадают; используйте global.identity.
-- Автоматическая привязка выключена, одновременно задан явный список namespaces,
-  либо подсеть вычисляет другое имя namespace.
-- Подсеть включена при enabled=false у родителя.
+- В values остались старые ключи `subnet.enable` или `subnet.subnets`. Замените их на `subnet.enabled` и `subnet.subnet`, даже если подсеть выключена.
+- Подсеть включена, но `subnet.subnet.cidrBlock` не задан.
+- CIDR подсети содержит неверный IPv4-адрес, записан не в формате `адрес/маска`, имеет маску вне диапазона от `/16` до `/30` или начинается не с первого адреса сети.
+- Маска в `subnet.subnet.cidrBlock` не совпадает с `subnet.subnet.mask`. Для `mask` допустимы только `29`, `28`, `27`, `26`, `25` и `24`.
+- Значение `subnet.subnet.reservedIps` не является целым числом от `0` до `16` либо после резервирования не остаётся хотя бы одного адреса для подов.
+- Поле `subnet.subnet.excludeIPs` содержит неверные адреса, диапазоны не в формате `start..end`, адреса вне CIDR или диапазоны в обратном порядке.
+- Поле `subnet.subnet.allowSubnets` содержит неверный IPv4 CIDR или маску вне диапазона от `/0` до `/32`.
+- Поле `subnet.subnet.gatewayType` отличается от `distributed` и `centralized` либо для `centralized` не задано `subnet.subnet.gatewayNodes`.
+- Назначение подсети не задано и не наследуется, содержит меньше 2 или больше 12 символов либо недопустимые символы. Собранное имя подсети не должно быть длиннее 63 символов.
+- Теги неймспейса и подсети не совпадают. Задайте общие теги в `global.identity`.
+- При включённой подсети отключён `subnet.namespaceBinding.enabled` или заполнен список `subnet.subnet.namespaces`. Для подсети неймспейса нужна автоматическая привязка и пустой список.
+- Полное имя в `subnet.namespaceBinding.namespaceOverride` недопустимо или подсеть привязывается к другому неймспейсу. Согласуйте назначение и полное имя с настройками создаваемого неймспейса.
+- Подсеть включена при `enabled: false` у родителя. Выключите также `subnet.enabled`.
 
 ## Файлы чарта
 

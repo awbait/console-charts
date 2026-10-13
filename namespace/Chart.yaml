@@ -5,7 +5,7 @@ type: application
 version: "7.0.0"
 dependencies:
   - name: subnet
-    version: "1.1.0"
+    version: "1.0.0"
     repository: "file://../subnet"
     condition: subnet.enabled
   - name: waypoint

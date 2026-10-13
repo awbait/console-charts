@@ -11,6 +11,7 @@ identity:
 
 subnet:
   name: app            # назначение подсети, 2..12 символов
-  cidrBlock: "10.24.8.0/24"
+  mask: 26             # размер подсети (/26 - 61 под)
+  cidrBlock: "10.24.8.0/26"   # заполняет платформа: диапазон с маской mask
   namespaces:
     - demo-dev-ns-app

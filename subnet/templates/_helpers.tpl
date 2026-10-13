@@ -193,11 +193,38 @@ annotations:
 {{- end -}}
 
 
+{{/*
+Addresses kept away from pods, comma-separated: the gateway, then as many
+addresses right behind it as reservedIps asks for. The order names a count
+rather than addresses, because it cannot know which block the platform will
+reserve for it. Parameter: the subnet values block.
+*/}}
+{{- define "subnet.helpers.reservedAddresses" -}}
+{{- $base := include "subnet.helpers.subnetBase" .cidrBlock | int64 -}}
+{{- $addresses := list (include "subnet.helpers.intToIp" (add $base 1)) -}}
+{{- range $i := until (.reservedIps | default 0 | int) -}}
+{{- $addresses = append $addresses (include "subnet.helpers.intToIp" (add $base 2 $i)) -}}
+{{- end -}}
+{{- join "," $addresses -}}
+{{- end -}}
+
+
 {{/* Validate addresses and ranges before rendering. */}}
 {{- define "subnet.helpers.validate" -}}
 {{- $s := .Values.subnet -}}
+{{- if not $s.cidrBlock -}}{{- fail "subnet.cidrBlock is required: fill in the reserved range before enabling the subnet" -}}{{- end -}}
+{{- $cidrMask := index (splitList "/" (toString $s.cidrBlock)) 1 | default "" -}}
+{{- /* The order asks for a mask and the platform reserves a block for it; a mismatch means the reservation went wrong. */ -}}
+{{- if and $s.mask (ne (toString $s.mask) (toString $cidrMask)) -}}
+{{- fail (printf "subnet.cidrBlock %q does not carry the ordered mask /%v" (toString $s.cidrBlock) $s.mask) -}}
+{{- end -}}
 {{- $base := include "subnet.helpers.subnetBase" $s.cidrBlock | int64 -}}
-{{- $size := include "subnet.helpers.subnetSize" (index (splitList "/" $s.cidrBlock) 1) | int64 -}}
+{{- $size := include "subnet.helpers.subnetSize" $cidrMask | int64 -}}
+{{- $reserved := $s.reservedIps | default 0 | int64 -}}
+{{- if lt $reserved (int64 0) -}}{{- fail (printf "subnet.reservedIps must not be negative, got %d" $reserved) -}}{{- end -}}
+{{- if ge (add $reserved 3) $size -}}
+{{- fail (printf "subnet.cidrBlock %s has no room for %d reserved addresses on top of the gateway" $s.cidrBlock $reserved) -}}
+{{- end -}}
 {{- if not (has $s.gatewayType (list "distributed" "centralized")) -}}{{- fail "subnet.gatewayType must be distributed or centralized" -}}{{- end -}}
 {{- if and (eq $s.gatewayType "centralized") (empty $s.gatewayNodes) -}}{{- fail "subnet.gatewayNodes is required for centralized gateways" -}}{{- end -}}
 {{- range $s.excludeIPs -}}

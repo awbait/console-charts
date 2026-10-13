@@ -79,4 +79,6 @@ subnet:
     enabled: true
   subnet:
     name: ""            # наследует global.namespacePurpose
-    cidrBlock: ""       # заполните зарезервированным IPv4 CIDR перед включением
+    mask: 26            # размер подсети, выбирает заказчик (/26 - 61 под)
+    reservedIps: 0      # сколько адресов не выдавать подам, кроме адреса шлюза
+    cidrBlock: ""       # заполняет платформа: диапазон с маской mask из Netbox

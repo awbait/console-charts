@@ -103,6 +103,8 @@ waypointNamespace:
   subnet:
     enabled: false
     subnet:
+      mask: 28
+      reservedIps: 0
       cidrBlock: ""
       excludeIPs: []
       allowSubnets: []
@@ -132,6 +134,8 @@ vegNamespace:
     namespaceBinding:
       purpose: veg-vip
     subnet:
+      mask: 29
+      reservedIps: 0
       cidrBlock: ""
       excludeIPs: []
       allowSubnets: []
