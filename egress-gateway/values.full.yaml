@@ -310,14 +310,13 @@ waypointNamespace:
       memory: "4Gi"
     podsAmount: 20
   subnet:
-    enable: true
-    subnets:
-      - mask: 28
-        cidrBlock: "10.24.9.0/28"
-        reservedIps: 0
-        allowSubnets: []
-        private: false
-        natOutgoing: false
+    enabled: true
+    subnet:
+      cidrBlock: "10.24.9.0/28"
+      excludeIPs: []
+      allowSubnets: []
+      private: false
+      natOutgoing: false
   waypoint:
     waypoints:
       - name: eg
@@ -367,14 +366,15 @@ vegNamespace:
       memory: "2Gi"
     podsAmount: 10
   subnet:
-    enable: true
-    subnets:
-      - mask: 29
-        cidrBlock: "10.24.9.16/29"
-        reservedIps: 0
-        allowSubnets: []
-        private: false
-        natOutgoing: false
+    enabled: true
+    namespaceBinding:
+      purpose: veg-vip
+    subnet:
+      cidrBlock: "10.24.9.16/29"
+      excludeIPs: []
+      allowSubnets: []
+      private: false
+      natOutgoing: false
 
 # ----------------------------------------------------------------------------
 # Служебные поля

@@ -1,5 +1,5 @@
 # namespace - значения по умолчанию (минимум, при котором проходит рендер).
-# При enabled=false чарт не создаёт ни одного ресурса.
+# При enabled=false также выключите subnet.enabled и serviceMesh.waypoint.
 # Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
 enabled: true
@@ -14,8 +14,8 @@ identity:
   project: nbox        # тег проекта, до 9 символов
 
 generic:
-  labels: {}           # общие labels на ВСЕ ресурсы чарта (Namespace/ResourceQuota/Subnet)
-  annotations: {}      # общие annotations на ВСЕ ресурсы чарта
+  labels: {}           # общие labels на Namespace и ResourceQuota
+  annotations: {}      # общие annotations на Namespace и ResourceQuota
 
 # Назначение неймспейса: одно слово, из которого собираются имена. Лежит в
 # global, потому что его же читает сабчарт waypoint - Helm раздаёт global всем
@@ -71,13 +71,12 @@ resourceQuotas:
     ceph-rgw: ""
     cephfs-hot: ""
 
+# Сабчарт Subnet. Включайте только после резервирования диапазона.
+# Общие identity передавайте через global.identity, чтобы теги совпадали.
 subnet:
-  enable: false
-  subnets:
-      # name не задан: подсеть возьмёт назначение неймспейса
-    - mask: 26         # размер подсети, выбирает заказчик (/26 - 61 под)
-      cidrBlock: ""    # заполняет платформа: диапазон с маской mask из Netbox
-      reservedIps: 0   # сколько адресов не выдавать подам, кроме адреса шлюза
-      allowSubnets: []
-      private: true    # изолированная подсеть: связность только с allowSubnets
-      natOutgoing: false
+  enabled: false
+  namespaceBinding:
+    enabled: true
+  subnet:
+    name: ""            # наследует global.namespacePurpose
+    cidrBlock: ""       # заполните зарезервированным IPv4 CIDR перед включением

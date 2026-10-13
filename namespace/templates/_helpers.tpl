@@ -77,7 +77,7 @@ Parameters: .label, .value and the optional bounds .min (default 2) and .max
 {{/*
 Resource name: {project}-{cluster}-{kindShort}-{purpose}.
 
-The order names only the purpose (namespace.name, subnet.subnets[].name); the
+The order names only the purpose (namespace.name); the
 project and the cluster come from identity, so a name can never disagree with
 the tags the same values put on the resource. Parameters: .context, .kindShort
 (ns|subnet), .name. Truncated to 63 characters, e.g. nbox-dev-ns-app.
@@ -341,106 +341,25 @@ instead.
 {{- end -}}
 {{- end -}}
 
-{{/*
-IPv4 address as a number, so addresses can be counted off without caring where
-the octet boundaries fall. Parameter: the dotted address.
-*/}}
-{{- define "namespace.helpers.ipToInt" -}}
-{{- $octets := splitList "." (toString .) -}}
-{{- if ne (len $octets) 4 -}}
-{{- fail (printf "IPv4 address must have 4 octets, got %q" .) -}}
+{{/* Guard the identity and target namespace of the subnet dependency. */}}
+{{- define "namespace.helpers.checkSubnet" -}}
+{{- if .Values.subnet.enabled -}}
+{{- if ne (include "namespace.helpers.chartEnabled" .) "true" -}}
+{{- fail "subnet.enabled requires namespace enabled=true; disable subnet.enabled too" -}}
 {{- end -}}
-{{- $value := 0 -}}
-{{- range $octets -}}
-{{- if not (regexMatch "^[0-9]{1,3}$" .) -}}
-{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- $child := index .Subcharts "subnet" -}}
+{{- if not $child.Values.namespaceBinding.enabled -}}
+{{- fail "namespace requires subnet.namespaceBinding.enabled=true" -}}
 {{- end -}}
-{{- $octet := int . -}}
-{{- if gt $octet 255 -}}
-{{- fail (printf "IPv4 octet must be a number 0..255, got %q" .) -}}
+{{- $parentIdentity := include "namespace.helpers.identity" . | fromJson -}}
+{{- $childIdentity := include "subnet.helpers.identity" $child | fromJson -}}
+{{- if not (deepEqual $parentIdentity $childIdentity) -}}
+{{- fail "namespace and subnet identity must match: set shared tags in global.identity" -}}
 {{- end -}}
-{{- $value = add (mul $value 256) $octet -}}
+{{- $wanted := include "namespace.helpers.namespaceName" . -}}
+{{- $actual := include "subnet.helpers.boundNamespace" $child -}}
+{{- if ne $wanted $actual -}}
+{{- fail (printf "subnet would bind to %q instead of %q: use global.namespacePurpose/global.namespaceOverride or subnet.namespaceBinding overrides" $actual $wanted) -}}
 {{- end -}}
-{{- $value -}}
 {{- end -}}
-
-{{/*
-The inverse of ipToInt: a number back into a dotted address.
-*/}}
-{{- define "namespace.helpers.intToIp" -}}
-{{- $value := int64 . -}}
-{{- printf "%d.%d.%d.%d" (div $value 16777216) (mod (div $value 65536) 256) (mod (div $value 256) 256) (mod $value 256) -}}
-{{- end -}}
-
-{{/*
-Number of addresses in a CIDR block. The mask is limited to 16..30: a wider
-block is never handed to one namespace, and a narrower one has no room for the
-gateway plus a single pod. Parameter: the mask as a string or number.
-*/}}
-{{- define "namespace.helpers.subnetSize" -}}
-{{- $mask := toString . -}}
-{{- if not (regexMatch "^[0-9]{1,2}$" $mask) -}}
-{{- fail (printf "subnet mask must be a number 16..30, got %q" $mask) -}}
-{{- end -}}
-{{- $bits := int $mask -}}
-{{- if or (lt $bits 16) (gt $bits 30) -}}
-{{- fail (printf "subnet mask must be 16..30, got %q" $mask) -}}
-{{- end -}}
-{{- $size := 1 -}}
-{{- range until (sub 32 $bits | int) -}}
-{{- $size = mul $size 2 -}}
-{{- end -}}
-{{- $size -}}
-{{- end -}}
-
-{{/*
-First address of a subnet as a number, with the CIDR block validated on the way.
-Parameter: the cidrBlock string, e.g. 10.24.8.0/22.
-*/}}
-{{- define "namespace.helpers.subnetBase" -}}
-{{- $parts := splitList "/" (toString .) -}}
-{{- if ne (len $parts) 2 -}}
-{{- fail (printf "cidrBlock must be written as address/mask, got %q" .) -}}
-{{- end -}}
-{{- $base := include "namespace.helpers.ipToInt" (index $parts 0) | int64 -}}
-{{- $size := include "namespace.helpers.subnetSize" (index $parts 1) | int64 -}}
-{{- if ne (mod $base $size) (int64 0) -}}
-{{- fail (printf "cidrBlock must start at the first address of the block, got %q" .) -}}
-{{- end -}}
-{{- $base -}}
-{{- end -}}
-
-{{/*
-Gateway address of a subnet: the first address after the network one.
-Parameter: the cidrBlock string.
-*/}}
-{{- define "namespace.helpers.subnetGateway" -}}
-{{- include "namespace.helpers.intToIp" (add (include "namespace.helpers.subnetBase" . | int64) 1) -}}
-{{- end -}}
-
-{{/*
-Addresses kept away from pods, as a comma-separated list: the gateway, then as
-many addresses right behind it as the order asked to reserve. The order names a
-count rather than addresses, because it has no way to know which addresses the
-block holds. Parameters: .cidrBlock, .count.
-
-The last address of the block is the broadcast one and the first is the network
-itself, so what is left for pods is size-2; reserving all of it leaves the
-subnet with no room and stops the render.
-*/}}
-{{- define "namespace.helpers.subnetExcludeIps" -}}
-{{- $base := include "namespace.helpers.subnetBase" .cidrBlock | int64 -}}
-{{- $size := include "namespace.helpers.subnetSize" (index (splitList "/" (toString .cidrBlock)) 1) | int64 -}}
-{{- $count := .count | default 0 | int64 -}}
-{{- if lt $count (int64 0) -}}
-{{- fail (printf "reservedIps must not be negative, got %d" $count) -}}
-{{- end -}}
-{{- if ge (add $count 3) $size -}}
-{{- fail (printf "cidrBlock %s has no room for %d reserved addresses on top of the gateway" .cidrBlock $count) -}}
-{{- end -}}
-{{- $addresses := list (include "namespace.helpers.intToIp" (add $base 1)) -}}
-{{- range $i := until (int $count) -}}
-{{- $addresses = append $addresses (include "namespace.helpers.intToIp" (add $base 2 $i)) -}}
-{{- end -}}
-{{- join "," $addresses -}}
 {{- end -}}

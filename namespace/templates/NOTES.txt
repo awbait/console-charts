@@ -16,15 +16,12 @@ Created:
                  service mesh: off
 {{- end }}
   ResourceQuota: {{ .Values.resourceQuotas.name | default "default" }}
-{{- if and .Values.subnet.enable .Values.subnet.subnets }}
-  Subnet(s):
-{{- $root := . }}
-{{- range .Values.subnet.subnets }}
-    - {{ include "namespace.helpers.resourceName" (dict "context" $root "kindShort" "subnet" "name" (.name | default (include "namespace.helpers.namespacePurpose" $root))) }} ({{ .cidrBlock }}{{ if and (hasKey . "private") (not .private) }}, not private{{ end }}{{ if .natOutgoing }}, NAT outgoing{{ end }})
-      addresses kept away from pods: {{ include "namespace.helpers.subnetExcludeIps" (dict "cidrBlock" .cidrBlock "count" .reservedIps) | replace "," ", " }}
-{{- end }}
+{{- if .Values.subnet.enabled }}
+{{- $child := index .Subcharts "subnet" }}
+  Subnet: {{ include "subnet.helpers.resourceName" (dict "context" $child "kindShort" "subnet" "name" (include "subnet.helpers.purpose" $child)) }}
+          CIDR {{ $child.Values.subnet.cidrBlock }}
 {{- else }}
-  Subnet:        not created (subnet.enable=false)
+  Subnet: not created (subnet.enabled=false)
 {{- end }}
 {{- else }}
 Resources not created: enabled=false.

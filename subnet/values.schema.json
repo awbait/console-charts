@@ -6,7 +6,8 @@
     "enabled",
     "global",
     "generic",
-    "subnet"
+    "subnet",
+    "namespaceBinding"
   ],
   "properties": {
     "identity": {
@@ -30,6 +31,11 @@
     "subnet": {
       "$ref": "#/definitions/subnet",
       "title": "Подсеть"
+    },
+    "namespaceBinding": {
+      "title": "Привязка к namespace",
+      "ui:widget": "hidden",
+      "$ref": "#/definitions/namespaceBinding"
     }
   },
   "required": [
@@ -148,9 +154,9 @@
         "name": {
           "type": "string",
           "title": "Назначение подсети",
-          "minLength": 2,
           "maxLength": 12,
-          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+          "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "description": "2..12 символов. Пусто допускается только при автоматической привязке к namespace."
         },
         "cidrBlock": {
           "type": "string",
@@ -256,6 +262,64 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+    "namespaceBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": [
+        "enabled",
+        "purpose",
+        "namespaceOverride"
+      ],
+      "required": [
+        "enabled",
+        "purpose",
+        "namespaceOverride"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "Автоматическая привязка"
+        },
+        "purpose": {
+          "type": "string",
+          "title": "Назначение namespace",
+          "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 12
+        },
+        "namespaceOverride": {
+          "type": "string",
+          "title": "Полное имя namespace",
+          "pattern": "^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "namespaceBinding": {
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "subnet": {
+            "properties": {
+              "name": {
+                "minLength": 2
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

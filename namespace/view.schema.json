@@ -6,9 +6,11 @@
         "namespace",
         "resourceQuotas",
         "serviceMesh",
-        "waypoint/waypoints"
+        "waypoint/waypoints",
+        "subnet/enabled",
+        "subnet/subnet"
       ],
-      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из identity. Назначение лежит в global, чтобы его видел и сабчарт waypoint. identity и роль неймспейса в форме скрыты, их проставляет блок defaults. Поле \"waypoint/waypoints\" - это список вейпоинтов из сабчарта waypoint: он лежит в values под ключом waypoint, и без имени с косой чертой его поля назвать нельзя.",
+      "$comment": "Теги родителя и сабчартов заполняются через global.identity. Назначение namespace общее через global.namespacePurpose. Подсеть включается только после резервирования CIDR.",
       "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
@@ -39,6 +41,22 @@
         },
         "waypoint/waypoints": {
           "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
+        },
+        "subnet/enabled": {
+          "ui:widget": "edit",
+          "title": "Создавать подсеть"
+        },
+        "subnet/subnet": {
+          "ui:view": {
+            "include": [
+              "cidrBlock",
+              "natOutgoing",
+              "excludeIPs",
+              "gatewayType",
+              "private",
+              "allowSubnets"
+            ]
+          }
         }
       }
     },
@@ -74,16 +92,13 @@
     }
   },
   "defaults": {
-    "/identity/instance": "id",
-    "/identity/cluster": "dev",
-    "/identity/project": "{{.Team}}",
     "/namespace/role": "other",
     "/namespace/creator": "console",
     "/namespace/cpaas/cluster": "global",
     "/namespace/cpaas/project": "dev",
-    "/waypoint/identity/instance": "id",
-    "/waypoint/identity/cluster": "dev",
-    "/waypoint/identity/project": "{{.Team}}"
+    "/global/identity/instance": "id",
+    "/global/identity/cluster": "dev",
+    "/global/identity/project": "{{.Team}}"
   },
   "actions": [
     {

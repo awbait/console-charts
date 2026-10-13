@@ -1,3 +1,4 @@
+{{/* Resolve the chart-wide enable switch. */}}
 {{- define "subnet.helpers.chartEnabled" -}}
 {{- $global := .Values.global | default dict -}}
 {{- if and (hasKey $global "enable") (not $global.enable) -}}
@@ -11,11 +12,13 @@ true
 {{- end -}}
 
 
+{{/* Chart name and version label. */}}
 {{- define "subnet.helpers.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 
+{{/* Prefer global identity when supplied by a parent. */}}
 {{- define "subnet.helpers.identity" -}}
 {{- $global := (.Values.global | default dict).identity | default dict -}}
 {{- if gt (len $global) 0 -}}
@@ -26,6 +29,7 @@ true
 {{- end -}}
 
 
+{{/* Validate a DNS tag. */}}
 {{- define "subnet.helpers.tag" -}}
 {{- $value := required (printf "%s is required" .label) .value | toString | lower -}}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) -}}
@@ -35,6 +39,7 @@ true
 {{- end -}}
 
 
+{{/* Validate a bounded DNS token. */}}
 {{- define "subnet.helpers.shortToken" -}}
 {{- $min := .min | default 2 | int -}}
 {{- $max := .max | default 12 | int -}}
@@ -49,6 +54,7 @@ true
 {{- end -}}
 
 
+{{/* Build the cpaas-style resource name. */}}
 {{- define "subnet.helpers.resourceName" -}}
 {{- $identity := include "subnet.helpers.identity" .context | fromJson -}}
 {{- $project := include "subnet.helpers.shortToken" (dict "label" "identity.project" "value" $identity.project "max" 9) -}}
@@ -64,6 +70,7 @@ true
 {{- end -}}
 
 
+{{/* Render identity labels. */}}
 {{- define "subnet.helpers.identityLabels" -}}
 {{- $identity := include "subnet.helpers.identity" . | fromJson -}}
 {{- with $identity.instance }}
@@ -78,6 +85,7 @@ ecpk/project: {{ . | toString | lower | quote }}
 {{- end }}
 
 
+{{/* Render standard and generic labels. */}}
 {{- define "subnet.helpers.labels" -}}
 helm.sh/chart: {{ include "subnet.helpers.chart" . }}
 app: {{ .Chart.Name }}
@@ -93,6 +101,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 
+{{/* Merge resource labels and annotations. */}}
 {{- define "subnet.helpers.metadata" -}}
 {{- $ctx := .context -}}
 {{- $labels := include "subnet.helpers.labels" $ctx | fromYaml -}}
@@ -111,11 +120,13 @@ annotations:
 
 {{/* Argo CD sync wave as an annotation dictionary. */}}
 
+{{/* Render syncWave. */}}
 {{- define "subnet.helpers.syncWave" -}}
 {{- dict "argocd.argoproj.io/sync-wave" (toString .) | toJson -}}
 {{- end -}}
 
 
+{{/* Convert an IPv4 address to an integer. */}}
 {{- define "subnet.helpers.ipToInt" -}}
 {{- $octets := splitList "." (toString .) -}}
 {{- if ne (len $octets) 4 -}}
@@ -136,12 +147,14 @@ annotations:
 {{- end -}}
 
 
+{{/* Convert an integer to an IPv4 address. */}}
 {{- define "subnet.helpers.intToIp" -}}
 {{- $value := int64 . -}}
 {{- printf "%d.%d.%d.%d" (div $value 16777216) (mod (div $value 65536) 256) (mod (div $value 256) 256) (mod $value 256) -}}
 {{- end -}}
 
 
+{{/* Count addresses for a /16 through /30 block. */}}
 {{- define "subnet.helpers.subnetSize" -}}
 {{- $mask := toString . -}}
 {{- if not (regexMatch "^[0-9]{1,2}$" $mask) -}}
@@ -159,6 +172,7 @@ annotations:
 {{- end -}}
 
 
+{{/* Validate and return the network address. */}}
 {{- define "subnet.helpers.subnetBase" -}}
 {{- $parts := splitList "/" (toString .) -}}
 {{- if ne (len $parts) 2 -}}
@@ -173,6 +187,7 @@ annotations:
 {{- end -}}
 
 
+{{/* Use the first address after the network address. */}}
 {{- define "subnet.helpers.subnetGateway" -}}
 {{- include "subnet.helpers.intToIp" (add (include "subnet.helpers.subnetBase" . | int64) 1) -}}
 {{- end -}}
@@ -201,5 +216,40 @@ annotations:
 {{- end -}}
 {{- range $s.namespaces -}}
 {{- if or (gt (len .) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" .)) -}}{{- fail "namespaces must contain DNS labels of at most 63 characters" -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+
+
+{{/* Resolve the subnet purpose, optionally inherited from the namespace. */}}
+{{- define "subnet.helpers.purpose" -}}
+{{- $name := .Values.subnet.name -}}
+{{- if and (not $name) .Values.namespaceBinding.enabled -}}
+{{- $name = .Values.namespaceBinding.purpose | default (.Values.global | default dict).namespacePurpose -}}
+{{- end -}}
+{{- include "subnet.helpers.shortToken" (dict "label" "subnet.name or namespace purpose" "value" $name) -}}
+{{- end -}}
+
+{{/* Resolve the exact namespace selected by the parent chart. */}}
+{{- define "subnet.helpers.boundNamespace" -}}
+{{- $binding := .Values.namespaceBinding -}}
+{{- $global := .Values.global | default dict -}}
+{{- $name := $binding.namespaceOverride | default $global.namespaceOverride -}}
+{{- if $name -}}
+{{- if or (gt (len $name) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name)) -}}
+{{- fail "namespaceBinding.namespaceOverride must be a DNS label of at most 63 characters" -}}
+{{- end -}}
+{{- $name -}}
+{{- else -}}
+{{- include "subnet.helpers.resourceName" (dict "context" . "kindShort" "ns" "name" ($binding.purpose | default $global.namespacePurpose)) -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Automatic parent binding and explicit namespaces are mutually exclusive. */}}
+{{- define "subnet.helpers.namespaces" -}}
+{{- if .Values.namespaceBinding.enabled -}}
+{{- if .Values.subnet.namespaces -}}{{- fail "subnet.namespaces must be empty when namespaceBinding.enabled=true" -}}{{- end -}}
+{{- list (include "subnet.helpers.boundNamespace" .) | toJson -}}
+{{- else -}}
+{{- .Values.subnet.namespaces | toJson -}}
 {{- end -}}
 {{- end -}}

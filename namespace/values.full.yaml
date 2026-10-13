@@ -4,7 +4,8 @@
 #  Ресурсы создаются только при enabled=true.
 # ============================================================================
 
-# Главный выключатель чарта. false -> не создаётся ни один ресурс.
+# Выключатель ресурсов namespace. При false также выключите зависимости:
+# subnet.enabled и serviceMesh.waypoint.
 # Служебное поле, в форме портала скрыто. По умолчанию true, поэтому заказ из
 # портала и обычный helm install создают ресурсы сразу. Ставь false, только
 # если чарт подключён сабчартом и должен молчать.
@@ -35,17 +36,17 @@ identity:
   project: nbox
 
 # ----------------------------------------------------------------------------
-# generic - общие labels/annotations на ВСЕ ресурсы чарта
-# (Namespace, ResourceQuota, Subnet). Задаются только глобально;
+# generic - общие labels/annotations на ресурсы самого чарта
+# (Namespace, ResourceQuota). Метки Subnet задаются в subnet.generic;
 # в форме портала секция скрыта (ui:widget: hidden).
 # ----------------------------------------------------------------------------
 generic:
-  # Общие labels для всех ресурсов чарта. Результат: metadata.labels.
+  # Общие labels для Namespace и ResourceQuota. Результат: metadata.labels.
   labels:
     environment: production
     team: platform
 
-  # Общие annotations для всех ресурсов чарта. Результат: metadata.annotations.
+  # Общие annotations для Namespace и ResourceQuota. Результат: metadata.annotations.
   annotations:
     owner: platform-team
     monitoring: "true"
@@ -177,58 +178,47 @@ resourceQuotas:
     cephfs-hot: "20Gi"
 
 # ----------------------------------------------------------------------------
-# subnet - подсети kube-ovn для namespace
+# subnet - значения сабчарта Subnet (одна подсеть на релиз namespace)
 # ----------------------------------------------------------------------------
-# Часть полей подсети зафиксирована в шаблоне и не настраивается:
-#   default=false           - пользовательские подсети никогда не по умолчанию;
-#   protocol=IPv4           - тип протокола (IPv6 и Dual не используются);
-#   gateway                 - адрес виртуального маршрутизатора, считается из cidrBlock;
-#   gatewayType=centralized - тип шлюза для исходящего трафика;
-#   enableEcmp=false        - балансировка ECMP исходящего трафика выключена;
-#   namespaces              - подсеть привязана ровно к одному namespace.
+# Namespace и подсеть используют общие теги из global.identity ниже.
+# Манифест Subnet рендерится только сабчартом; копии шаблона здесь нет.
 subnet:
-  # Включайте, только если CIDR точно зарезервирован в Netbox.
-  # Служебное поле, в форме портала скрыто.
-  enable: false
+  # Включайте после резервирования CIDR. При enabled=false у родителя
+  # также выключите subnet.enabled, иначе рендер остановится.
+  enabled: true
 
-  # Список подсетей (при enable=true нужна хотя бы одна).
-  subnets:
-    - # Назначение подсети: последняя часть имени, 2..12 символов.
-      # Пусто - берётся назначение неймспейса, то есть namespace.name.
-      # Полное имя собирается так же, как у namespace: nbox-dev-subnet-app.
-      name: app
+  # Автоматическая привязка к создаваемому namespace. Не выключайте.
+  namespaceBinding:
+    enabled: true
+    # Пусто - global.namespacePurpose. Повторите namespace.name, если оно задано.
+    purpose: ""
+    # Пусто - global.namespaceOverride. Повторите namespace.namespaceOverride,
+    # если полное имя задано только в секции namespace.
+    namespaceOverride: ""
 
-      # Маска подсети: размер, который вы заказываете. Маска 1:1 маппится в
-      # число подов (адреса сети, broadcast и шлюза подам не достаются):
-      #   /29 - 5 подов     /26 - 61 под
-      #   /28 - 13 подов    /25 - 125 подов
-      #   /27 - 29 подов    /24 - 253 пода
-      # В форме заказа выбирается из списка. Диапазон с этой маской платформа
-      # бронирует в Netbox; рендер падает, если cidrBlock пришёл с другой маской.
-      mask: 24
+  # Метки родителя generic не наследуются сабчартом автоматически.
+  generic:
+    labels:
+      environment: production
+      team: platform
+    annotations:
+      owner: platform-team
+      monitoring: "true"
 
-      # CIDR-блок, зарезервированный в Netbox (адрес/маска, маска 24..30).
-      # Обязательно. Заполняет платформа, в форме заказа поле скрыто.
-      cidrBlock: "10.24.8.0/24"
-
-      # Сколько адресов не выдавать подам, помимо адреса шлюза. Сами адреса
-      # чарт отсчитывает от начала блока сразу за шлюзом: при 10.24.8.0/24 и
-      # значении 3 это 10.24.8.2, 10.24.8.3 и 10.24.8.4.
-      reservedIps: 0
-
-      # Подсети, с которыми разрешена связность.
-      # ovn-default и Service-Subnet (172.30.0.0/15) шаблон добавляет сам.
-      allowSubnets: []
-
-      # Изолированная подсеть: трафик ходит только в allowSubnets, остальное
-      # отбрасывается на логическом свиче. По умолчанию true. Ставьте false
-      # неймспейсу, чьи поды сами ходят на внешние адреса: waypoint
-      # egress-шлюза, VpcEgressGateway, отправители в режиме direct.
-      private: true
-
-      # NAT исходящего трафика средствами kube-ovn. По умолчанию false: наружу
-      # трафик выходит через VpcEgressGateway, а не через NAT подсети.
-      natOutgoing: false
+  # Сетевые параметры сабчарта. Полный справочник - subnet/values.full.yaml.
+  subnet:
+    name: ""                     # пусто - назначение namespace
+    cidrBlock: "10.24.8.0/24"     # предварительно зарезервированный диапазон
+    natOutgoing: false            # NAT средствами kube-ovn
+    excludeIPs: []                # дополнительные IP или диапазоны start..end
+    gatewayType: distributed      # distributed или centralized
+    gatewayNodes: ""              # узлы centralized через запятую; скрыто в форме
+    private: true                 # изоляция подсети
+    allowSubnets: []              # 172.30.0.0/15 шаблон добавляет всегда
+    namespaces: []                # оставьте пустым: привязка вычисляется автоматически
+    default: false                # зафиксировано схемой
+    protocol: IPv4                # зафиксировано схемой
+    enableEcmp: false              # зафиксировано схемой
 
 # ----------------------------------------------------------------------------
 # global - значения, которые видит и сам чарт, и его сабчарты
@@ -237,6 +227,12 @@ subnet:
 # из него и чарт, и waypoint собирают одно и то же имя, и синхронизировать
 # руками нечего.
 global:
+  # Общие теги namespace, subnet и waypoint. Сильнее локальных identity.
+  identity:
+    instance: ed
+    cluster: dev
+    project: nbox
+
   # Назначение namespace: последняя часть имени, 2..12 символов. Обязательно.
   # Полное имя собирается как {identity.project}-{identity.cluster}-ns-<значение>,
   # для примера ниже получится nbox-dev-ns-app.

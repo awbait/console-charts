@@ -2,7 +2,6 @@
   "views": {
     "order": {
       "include": [
-        "identity",
         "subnet"
       ],
       "identity": "/subnet/name"

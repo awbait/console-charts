@@ -359,7 +359,7 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 |---|---|---|
 | `waypointNamespace.enabled` | в `mesh` на выбор | Создание неймспейса |
 | `waypointNamespace.waypoint.waypoints` | в `mesh` | Один гейтвей |
-| `*.subnet.enable`, `*.subnet.subnets[].cidrBlock` | после брони | Подсеть |
+| `*.subnet.enabled`, `*.subnet.subnet.cidrBlock` | после брони | Подсеть |
 
 В `mesh` у переключателя «Создавать неймспейс гейтвея» два положения:
 
@@ -383,7 +383,7 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 Оно остаётся в форме и обязательно для чарта служебных неймспейсов.
 
 После резервирования диапазона укажите его в `cidrBlock` соответствующей
-секции и включите `subnet.enable: true`.
+секции и включите `subnet.enabled: true`.
 
 В `waypointNamespace.waypoint.waypoints` опишите гейтвей. При обоих
 положениях переключателя используется тот же список с одним элементом:
@@ -456,3 +456,12 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 
 В `values.yaml` зафиксированы настройки служебных неймспейсов.
 Сервисы-отправители и внешние адреса в нём не заданы.
+
+## Переход с версии 8.x
+
+Namespace обновлён до 7.0.0 с зависимостью Subnet 1.1.0. В секциях
+waypointNamespace и vegNamespace замените subnet.enable на subnet.enabled,
+subnet.subnets[0] на subnet.subnet. Маска теперь задаётся в CIDR, reservedIps
+заменён явными excludeIPs. Для vegNamespace укажите
+subnet.namespaceBinding.purpose: veg-vip, чтобы привязка совпала с namespace.name.
+Общие теги продолжайте передавать через global.identity.

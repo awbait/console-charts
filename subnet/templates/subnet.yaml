@@ -5,7 +5,7 @@
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
-  name: {{ include "subnet.helpers.resourceName" (dict "context" . "kindShort" "subnet" "name" $s.name) }}
+  name: {{ include "subnet.helpers.resourceName" (dict "context" . "kindShort" "subnet" "name" (include "subnet.helpers.purpose" .)) }}
   {{- include "subnet.helpers.metadata" (dict "context" . "annotations" (include "subnet.helpers.syncWave" "-2" | fromJson)) | nindent 2 }}
 spec:
   default: {{ $s.default }}
@@ -27,5 +27,5 @@ spec:
     {{- end }}
     {{- end }}
   enableEcmp: {{ $s.enableEcmp }}
-  namespaces: {{ $s.namespaces | toJson }}
+  namespaces: {{ include "subnet.helpers.namespaces" . }}
 {{- end }}

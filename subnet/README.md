@@ -55,3 +55,13 @@ Subnet получает annotation Argo CD sync-wave `-2` и labels по обр�
 
 Проверки CIDR и диапазонов выполняются также шаблоном. Чарт не проверяет наличие
 namespace или узлов в кластере и пересечение с другими подсетями.
+
+## Подключение к namespace
+
+Режим `namespaceBinding.enabled: true` автоматически привязывает подсеть к namespace.
+`namespaceBinding.purpose` переопределяет `global.namespacePurpose`,
+`namespaceBinding.namespaceOverride` переопределяет `global.namespaceOverride`.
+Пустое `subnet.name` наследует назначение namespace. Теги общие через `global.identity`.
+В этом режиме `subnet.namespaces` должен быть пустым, иначе рендер останавливается.
+Назначение должно иметь 2..12 символов в DNS-формате; полное имя namespace должно
+быть DNS-меткой до 63 символов. В standalone-режиме непустое `subnet.name` обязательно.

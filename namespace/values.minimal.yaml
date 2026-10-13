@@ -20,4 +20,4 @@ resourceQuotas:
     memory: "2Gi"
 
 subnet:
-  enable: false
+  enabled: false

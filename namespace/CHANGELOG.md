@@ -19,6 +19,19 @@
 - **Security** - изменения, влияющие на безопасность.
 
 ---
+## [7.0.0] - 2026-10-13
+
+### Changed
+
+- **BREAKING:** встроенный список subnet.subnets[] заменён сабчартом Subnet 1.1.0: subnet.enabled и subnet.subnet. Один Subnet на релиз.
+- Общие теги передаются через global.identity; привязка к namespace проверяется при рендере.
+- reservedIps заменён явными excludeIPs, маска задаётся в CIDR. Метки подсети задаются в subnet.generic.
+- Обновлены values, схемы Console, NOTES и руководство по миграции.
+
+### Removed
+
+- Собственный templates/subnet.yaml и неиспользуемые IPv4-хелперы namespace.
+
 ## [6.4.1] - 2026-10-09
 
 ### Changed

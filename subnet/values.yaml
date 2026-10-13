@@ -37,3 +37,16 @@ subnet:
 
 # Глобальные значения Helm. Родитель может передать общие теги в global.identity.
 global: {}
+
+# ----------------------------------------------------------------------------
+# namespaceBinding - автоматическая привязка при подключении к namespace
+# ----------------------------------------------------------------------------
+# В самостоятельном чарте выключено: используются subnet.name и namespaces.
+# В сабчарте назначение берётся из purpose или global.namespacePurpose,
+# полное имя namespace - из namespaceOverride или global.namespaceOverride.
+# Пустое subnet.name наследует назначение. subnet.namespaces должен быть пуст.
+# Теги родителя и сабчарта согласуйте через global.identity.
+namespaceBinding:
+  enabled: false             # включить привязку к namespace родителя
+  purpose: ""                # переопределение назначения namespace
+  namespaceOverride: ""      # полное имя namespace; иначе собирается из тегов
