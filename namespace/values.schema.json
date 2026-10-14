@@ -38,13 +38,29 @@
       "$ref": "#/definitions/resourceQuotas"
     },
     "subnet": {
-      "title": "Подсети неймспейса",
-      "description": "Выделенная подсеть для подов. Используйте её, только если диапазон адресов уже забронирован.",
-      "$ref": "#/definitions/subnet"
+      "title": "Подсеть namespace",
+      "description": "Значения сабчарта Subnet. Перед включением задайте зарезервированный CIDR.",
+      "type": "object",
+      "ui:widget": "hidden",
+      "$comment": "The subnet subchart validates its own values against its schema. Here only the pre-7.0.0 keys are rejected, so an old order cannot silently drop its Subnet.",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "enable"
+            ]
+          },
+          {
+            "required": [
+              "subnets"
+            ]
+          }
+        ]
+      }
     },
     "generic": {
       "title": "Общие метки и аннотации",
-      "description": "Метки и аннотации для всех создаваемых ресурсов: Namespace, ResourceQuota и Subnet. В форме скрыто.",
+      "description": "Метки и аннотации Namespace и ResourceQuota. Для Subnet задайте subnet.generic.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
     },
@@ -407,113 +423,6 @@
       },
       "required": [
         "limits"
-      ]
-    },
-    "subnet": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "subnets",
-        "enable"
-      ],
-      "$comment": "private and natOutgoing of each subnet are hidden in the form: they are set by charts that build on this one (egress-gateway), not by an ordinary order.",
-      "properties": {
-        "enable": {
-          "title": "Создавать подсеть",
-          "description": "Включает создание ресурса Subnet. Включайте, только если диапазон CIDR уже забронирован в Netbox. Служебное поле, в форме скрыто.",
-          "type": "boolean",
-          "default": false,
-          "ui:widget": "hidden"
-        },
-        "subnets": {
-          "title": "Подсети",
-          "description": "Добавьте подсети для неймспейса. Обычно достаточно одной, но можно указать несколько.",
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/subnetEntry"
-          }
-        }
-      }
-    },
-    "subnetEntry": {
-      "type": "object",
-      "additionalProperties": false,
-      "propertyOrder": [
-        "name",
-        "mask",
-        "reservedIps",
-        "allowSubnets",
-        "cidrBlock"
-      ],
-      "properties": {
-        "name": {
-          "title": "Назначение подсети",
-          "description": "Опишите назначение подсети одним словом, как у неймспейса. Если подсеть одна, оставьте поле пустым. Тогда используется назначение неймспейса, а имя получится, например, nbox-dev-subnet-app.",
-          "$ref": "#/definitions/purposeToken"
-        },
-        "mask": {
-          "title": "Маска подсети",
-          "description": "Выберите размер подсети по нужному числу подов. Платформа забронирует диапазон с этой маской в Netbox.",
-          "type": "integer",
-          "enum": [
-            29,
-            28,
-            27,
-            26,
-            25,
-            24
-          ],
-          "enumNames": [
-            "5 подов (/29)",
-            "13 подов (/28)",
-            "29 подов (/27)",
-            "61 под (/26)",
-            "125 подов (/25)",
-            "253 пода (/24)"
-          ],
-          "default": 26
-        },
-        "reservedIps": {
-          "title": "Количество резервируемых адресов",
-          "description": "Укажите, сколько адресов оставить для своих задач, например для точки входа с постоянным адресом. Эти адреса не будут выдаваться сервисам. Платформа выделит их и покажет в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно учитывать его не нужно.",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 16,
-          "default": 0
-        },
-        "cidrBlock": {
-          "title": "Диапазон адресов подсети",
-          "description": "Диапазон, забронированный в Netbox, вместе с маской, например 10.24.8.0/24. Служебное поле заполняет платформа. В форме скрыто.",
-          "type": "string",
-          "ui:widget": "hidden"
-        },
-        "allowSubnets": {
-          "title": "Разрешённые подсети",
-          "description": "Укажите диапазоны адресов подсетей, с которыми нужен сетевой обмен.",
-          "type": "array",
-          "items": {
-            "title": "Диапазон адресов подсети",
-            "type": "string"
-          }
-        },
-        "private": {
-          "title": "Изолировать подсеть",
-          "description": "Разрешает трафик только в указанные разрешённые подсети. Отключите, если поды сами обращаются к внешним адресам. В форме скрыто.",
-          "type": "boolean",
-          "default": true,
-          "ui:widget": "hidden"
-        },
-        "natOutgoing": {
-          "title": "NAT исходящего трафика",
-          "description": "Включает NAT средствами kube-ovn. Обычно выключен: внешний трафик проходит через шлюз с известным адресом. В форме скрыто.",
-          "type": "boolean",
-          "default": false,
-          "ui:widget": "hidden"
-        }
-      },
-      "required": [
-        "cidrBlock"
       ]
     },
     "generic": {

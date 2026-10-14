@@ -587,6 +587,13 @@ helm template release <chart> -f <chart>/values.full.yaml
 чарты (`*.tgz`), вендоринг `charts/` и `Chart.lock` - не коммить (они в
 `.gitignore`).
 
+Чарт с сабчартами перед рендером и перед публикацией в Harbor собирается
+скриптом `sh scripts/helm-dependency-build.sh <chart>`, а не голым
+`helm dependency build`. Helm кладёт `file://`-зависимость в пакет как есть и
+её собственные `charts/` не собирает: `egress-gateway` подключает `namespace`,
+а тот `subnet` и `waypoint`, и без сборки снизу вверх в пакет уедет `namespace`
+без подсети.
+
 ### Lefthook (pre-push)
 
 В репозитории есть `lefthook.yml`: на `git push` запускается
@@ -610,7 +617,7 @@ lefthook install
 
 ## Исключения
 
-Четыре чарта не следуют стандарту целиком - не копируй их как образец:
+Пять чартов не следуют стандарту целиком - не копируй их как образец:
 
 - **`console`** - деплой-артефакт портала. Компонентный нейминг
   (`{release}-portal`, `{release}-collector`) вместо 5-частной схемы; хелперы
@@ -625,6 +632,12 @@ lefthook install
   (`cpaas.io/project`, `cpaas.io/cluster`). Чарт в процессе доработки (RBAC,
   Istio-лейблы, deny-default NetworkPolicy, параметризация `creator`) - см.
   `idp/TODO.md`.
+- **`subnet`** - тот же cpaas-нейминг, что у `namespace`:
+  `{identity.project}-{identity.cluster}-subnet-{назначение}`. Подсеть всегда
+  называлась так внутри `namespace`, и вынос в отдельный чарт имя не меняет,
+  иначе kube-ovn пересоздал бы её вместе с адресами подов. Сабчартом `namespace`
+  он берёт назначение и имя неймспейса из `global` (`namespaceBinding`), а теги
+  `namespace` и `subnet` обязаны совпадать, поэтому их задают в `global.identity`.
 - **`project`** - тот же cpaas-нейминг: имя ресурса берётся из `project.name`.
   Блок `identity` есть и работает так же, как в `namespace`; тег `cluster` в нём
   означает окружение релиза, а не кластеры проекта из секции `clusters`.

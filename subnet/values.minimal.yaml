@@ -1,0 +1,17 @@
+# subnet - минимальный рабочий пример.
+# Создаёт Subnet demo-dev-subnet-app и привязывает demo-dev-ns-app.
+# Перед установкой зарезервируйте диапазон и создайте namespace.
+
+enabled: true
+
+identity:
+  instance: id         # тег инстанса окружения
+  cluster: dev         # тег кластера окружения
+  project: demo        # тег проекта, 2..9 символов
+
+subnet:
+  name: app            # назначение подсети, 2..12 символов
+  mask: 26             # размер подсети (/26 - 61 под)
+  cidrBlock: "10.24.8.0/26"   # заполняет платформа: диапазон с маской mask
+  namespaces:
+    - demo-dev-ns-app

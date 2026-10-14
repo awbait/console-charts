@@ -21,7 +21,9 @@ Helm-чартами платформы. Он лежит внутри рабоч�
 - `waypoint/` - Istio ambient waypoint proxy.
 - `policies/` - декларативные правила доступа между сервисами: `NetworkPolicy` +
   Istio `AuthorizationPolicy`.
-- `namespace/` - namespace + ResourceQuota + subnet.
+- `namespace/` - namespace + ResourceQuota; подсеть - сабчартом `subnet`.
+- `subnet/` - одна kube-ovn `Subnet` на релиз: сама по себе или сабчартом
+  `namespace` (привязка `namespaceBinding`).
 - `secret-store/` - доступ namespace к секретам StarVault: `ServiceAccount` +
   `SecretStore` (External Secrets Operator).
 

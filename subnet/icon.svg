@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none">
+  <title>Subnet</title>
+  <g stroke="#328BAF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 2H2v6m14-6h6v6M2 16v6h6m8 0h6v-6"/>
+    <rect x="9.5" y="5" width="5" height="4" rx="1"/>
+    <path d="M12 9v3.5m-5 2.5v-2.5h10V15"/>
+    <rect x="4.5" y="15" width="5" height="4" rx="1"/>
+    <rect x="14.5" y="15" width="5" height="4" rx="1"/>
+  </g>
+</svg>

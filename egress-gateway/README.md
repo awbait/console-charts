@@ -359,7 +359,7 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 |---|---|---|
 | `waypointNamespace.enabled` | в `mesh` на выбор | Создание неймспейса |
 | `waypointNamespace.waypoint.waypoints` | в `mesh` | Один гейтвей |
-| `*.subnet.enable`, `*.subnet.subnets[].cidrBlock` | после брони | Подсеть |
+| `*.subnet.enabled`, `*.subnet.subnet.cidrBlock` | после брони | Подсеть |
 
 В `mesh` у переключателя «Создавать неймспейс гейтвея» два положения:
 
@@ -383,7 +383,7 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 Оно остаётся в форме и обязательно для чарта служебных неймспейсов.
 
 После резервирования диапазона укажите его в `cidrBlock` соответствующей
-секции и включите `subnet.enable: true`.
+секции и включите `subnet.enabled: true`.
 
 В `waypointNamespace.waypoint.waypoints` опишите гейтвей. При обоих
 положениях переключателя используется тот же список с одним элементом:
@@ -456,3 +456,41 @@ VPC и внешняя подсеть `egress-vip` фиксированы и че
 
 В `values.yaml` зафиксированы настройки служебных неймспейсов.
 Сервисы-отправители и внешние адреса в нём не заданы.
+
+## Переход с версии 8.x
+
+**BREAKING:** версия `9.0.0` подключает `namespace` версии `7.0.0`. Подсеть каждого неймспейса теперь создаёт чарт `subnet` версии `1.0.0`.
+
+Перед обновлением измените values в обеих секциях: `waypointNamespace` и `vegNamespace`.
+
+| Раньше | Теперь |
+|---|---|
+| `waypointNamespace.subnet.enable` | `waypointNamespace.subnet.enabled` |
+| `waypointNamespace.subnet.subnets[0]` | `waypointNamespace.subnet.subnet` |
+| `vegNamespace.subnet.enable` | `vegNamespace.subnet.enabled` |
+| `vegNamespace.subnet.subnets[0]` | `vegNamespace.subnet.subnet` |
+| `waypointNamespace.generic` для подсети | `waypointNamespace.subnet.generic` |
+| `vegNamespace.generic` для подсети | `vegNamespace.subnet.generic` |
+
+Перенесите поля `name`, `mask`, `reservedIps`, `allowSubnets`, `private`, `natOutgoing` и `cidrBlock` из прежнего элемента списка в новый объект `subnet.subnet` соответствующей секции.
+
+Смысл сетевых параметров не изменился. Поле `mask` задаёт размер бронируемого диапазона, а `reservedIps` задаёт число адресов сразу за шлюзом, которые не выдаются подам. Заменять `reservedIps` явными адресами в `excludeIPs` не нужно.
+
+Маски по умолчанию сохранены:
+
+| Неймспейс | Поле | Маска |
+|---|---|---|
+| Гейтвея | `waypointNamespace.subnet.subnet.mask` | `/28` |
+| Выхода | `vegNamespace.subnet.subnet.mask` | `/29` |
+
+Проверьте, что маска каждого `cidrBlock` совпадает с соответствующим `mask`. Несовпадение останавливает рендер.
+
+Для неймспейса выхода значение `vegNamespace.subnet.namespaceBinding.purpose` должно совпадать с `vegNamespace.namespace.name`. По умолчанию оба поля равны `veg-vip`. Если вы меняли назначение, укажите одно и то же значение в обоих полях.
+
+Общие теги продолжайте задавать в `global.identity`. Сохраните прежние теги, назначения и диапазоны подсетей. Тогда имена существующих ресурсов останутся прежними, и подсети не будут пересозданы.
+
+Один неймспейс теперь управляет одной подсетью. Если раньше в его списке было несколько подсетей, до обновления перенесите управление дополнительными в отдельные заказы чарта `subnet` с сохранением имён и диапазонов. Иначе обновление удалит их.
+
+Метки и аннотации подсетей задавайте отдельно в `waypointNamespace.subnet.generic` и `vegNamespace.subnet.generic`. Поля `generic` самих неймспейсов на подсети больше не действуют.
+
+Удалите прежние ключи `subnet.enable` и `subnet.subnets` из обеих секций. В подключённом чарте `namespace` они останавливают рендер с подсказкой по переходу, даже если сама подсеть выключена.

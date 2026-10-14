@@ -78,7 +78,7 @@ authorizationPolicy:
 # Сабчарты namespace: неймспейс waypoint'а (только mesh) и неймспейс
 # VpcEgressGateway (всегда). Ниже - фиксированные дефолты платформы; заказ
 # добавляет сам waypoint (waypointNamespace.waypoint.waypoints) и, если
-# подсети зарезервированы, cidrBlock с subnet.enable: true.
+# подсети зарезервированы, cidrBlock с subnet.enabled: true.
 # ----------------------------------------------------------------------------
 waypointNamespace:
   # true  - гейтвей в своём неймспейсе {project}-{cluster}-ns-{namespacePurpose},
@@ -101,14 +101,15 @@ waypointNamespace:
       memory: "4Gi"
     podsAmount: 20
   subnet:
-    enable: false
-    subnets:
-      - mask: 28
-        cidrBlock: ""
-        reservedIps: 0
-        allowSubnets: []
-        private: false
-        natOutgoing: false
+    enabled: false
+    subnet:
+      mask: 28
+      reservedIps: 0
+      cidrBlock: ""
+      excludeIPs: []
+      allowSubnets: []
+      private: false
+      natOutgoing: false
   waypoint:
     waypoints: []      # заказ описывает ровно один waypoint, см. values.minimal.yaml
 
@@ -129,11 +130,14 @@ vegNamespace:
       memory: "2Gi"
     podsAmount: 10
   subnet:
-    enable: false
-    subnets:
-      - mask: 29
-        cidrBlock: ""
-        reservedIps: 0
-        allowSubnets: []
-        private: false
-        natOutgoing: false
+    enabled: false
+    namespaceBinding:
+      purpose: veg-vip
+    subnet:
+      mask: 29
+      reservedIps: 0
+      cidrBlock: ""
+      excludeIPs: []
+      allowSubnets: []
+      private: false
+      natOutgoing: false

@@ -1,0 +1,2 @@
+{{/* Validate dependency settings even when parent resources are disabled. */}}
+{{- include "namespace.helpers.checkSubnet" . -}}

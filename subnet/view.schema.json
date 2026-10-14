@@ -1,0 +1,44 @@
+{
+  "views": {
+    "order": {
+      "include": [
+        "subnet"
+      ],
+      "identity": "/subnet/name"
+    },
+    "subnet": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "ui:readOnly": true
+              },
+              "mask": {
+                "ui:readOnly": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "in": "info",
+      "view": "subnet",
+      "label": "Настроить подсеть"
+    }
+  ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}"
+  },
+  "initial": {
+    "/enabled": true
+  }
+}
