@@ -4,7 +4,6 @@
       "id": "serviceEntries",
       "form": "serviceEntries",
       "items": "/serviceEntries",
-      "ui:uniqueBy": "name",
       "title": "Внешние сервисы",
       "addLabel": "Добавить внешний сервис",
       "ui:table": [
@@ -16,7 +15,8 @@
           "path": "hostname",
           "label": "Домен внешнего сервиса"
         }
-      ]
+      ],
+      "ui:uniqueBy": "name"
     },
     {
       "id": "networkRules",
@@ -39,6 +39,7 @@
   "views": {
     "order": {
       "include": [
+        "global/identity/cluster",
         "mode",
         "waypointNamespace/enabled",
         "senders",
@@ -56,19 +57,6 @@
         "vegNamespace/namespace/name"
       ],
       "overrides": {
-        "waypointNamespace/enabled": {
-          "title": "Создавать неймспейс гейтвея",
-          "description": "В mesh: включён - свой неймспейс, выключен - неймспейс ваших сервисов. В direct выключите.",
-          "ui:widget": "edit"
-        },
-        "global/namespacePurpose": {
-          "description": "Укажите слово для имени {проект}-{кластер}-ns-egw-eg. Для второго гейтвея команды в кластере выберите другое."
-        },
-        "vegNamespace/namespace/name": {
-          "title": "Назначение неймспейса выхода",
-          "description": "Укажите слово для имени {проект}-{кластер}-ns-veg-vip. Для второго выхода команды в кластере выберите другое.",
-          "ui:widget": "edit"
-        },
         "vpcEgressGateway": {
           "ui:view": {
             "overrides": {
@@ -78,8 +66,21 @@
             }
           }
         },
+        "global/namespacePurpose": {
+          "description": "Укажите слово для имени {проект}-{кластер}-ns-egw-eg. Для второго гейтвея команды в кластере выберите другое."
+        },
+        "waypointNamespace/enabled": {
+          "title": "Создавать неймспейс гейтвея",
+          "ui:widget": "edit",
+          "description": "В mesh: включён - свой неймспейс, выключен - неймспейс ваших сервисов. В direct выключите."
+        },
+        "vegNamespace/namespace/name": {
+          "title": "Назначение неймспейса выхода",
+          "ui:widget": "edit",
+          "description": "Укажите слово для имени {проект}-{кластер}-ns-veg-vip. Для второго выхода команды в кластере выберите другое."
+        },
         "waypointNamespace/waypoint/waypoints": {
-          "description": "При включённом переключателе «Создавать неймспейс гейтвея» укажите в поле «Namespace, которым можно привязаться» основной неймспейс сервисов. Если переключатель выключен, оставьте поле пустым."
+          "description": "Один гейтвей. Только при включённом переключателе добавьте неймспейс своих сервисов в список разрешённых."
         }
       }
     },
@@ -99,11 +100,16 @@
         }
       }
     },
+    "senders": {
+      "include": [
+        "senders"
+      ]
+    },
     "waypoint": {
-      "$comment": "Правка гейтвея (имя, разрешённые namespace, автомасштабирование, ресурсы) из карточки заказа. Ресурсы скрыты схемой сабчарта, поэтому здесь их нужно раскрыть явно.",
       "include": [
         "waypointNamespace/waypoint/waypoints"
       ],
+      "$comment": "Правка гейтвея (имя, разрешённые namespace, автомасштабирование, ресурсы) из карточки заказа. Ресурсы скрыты схемой сабчарта, поэтому здесь их нужно раскрыть явно.",
       "overrides": {
         "waypointNamespace/waypoint/waypoints": {
           "ui:view": {
@@ -145,20 +151,24 @@
       "label": "Настроить гейтвей"
     },
     {
+      "in": "info",
+      "view": "senders",
+      "label": "Настроить отправителей"
+    },
+    {
       "in": "tab:networkRules",
       "view": "authorizationPolicies",
       "label": "Настроить доступ к гейтвею"
     }
   ],
-  "defaults": {
-    "/global/identity/cluster": "dev",
-    "/global/identity/instance": "id",
-    "/global/identity/project": "{{.Team}}",
-    "/waypointNamespace/namespace/creator": "console",
-    "/vegNamespace/namespace/creator": "console"
-  },
   "initial": {
     "/global/namespacePurpose": "egw-eg",
     "/vegNamespace/namespace/name": "veg-vip"
+  },
+  "defaults": {
+    "/global/identity/project": "{{.Team}}",
+    "/global/identity/instance": "{{.Vars.INSTANCE}}",
+    "/vegNamespace/namespace/creator": "console",
+    "/waypointNamespace/namespace/creator": "console"
   }
 }

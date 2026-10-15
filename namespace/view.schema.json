@@ -2,14 +2,15 @@
   "views": {
     "order": {
       "include": [
+        "global/identity/cluster",
         "global",
         "namespace",
         "resourceQuotas",
         "serviceMesh",
-        "waypoint/waypoints",
-        "subnet/subnet"
+        "subnet",
+        "waypoint/waypoints"
       ],
-      "$comment": "Заказ спрашивает только назначение неймспейса: остальное имя чарт собирает из тегов. Теги лежат в global.identity, а назначение в global.namespacePurpose, чтобы их видели и сабчарты waypoint и subnet; теги проставляет блок defaults. Поля с косой чертой (waypoint/waypoints, subnet/subnet) принадлежат сабчартам. У подсети заказ называет маску, число резервируемых адресов и разрешённые подсети; диапазон и subnet.enabled проставляет платформа после брони в Netbox.",
+      "$comment": "Заказ спрашивает кластер и назначение неймспейса: остальное имя чарт собирает из тегов. Теги лежат в global.identity, а не в корневом identity: сабчарты subnet и waypoint видят только global, и с корневыми тегами включённая подсеть останавливает рендер на несовпадении тегов. Код проекта и инстанс проставляет блок defaults, роль неймспейса тоже. Поле \"waypoint/waypoints\" - это список вейпоинтов из сабчарта waypoint: он лежит в values под ключом waypoint, и без имени с косой чертой его поля назвать нельзя.",
       "identity": "/global/namespacePurpose",
       "namespace": {
         "source": "values",
@@ -17,13 +18,51 @@
         "hideOrderField": true
       },
       "overrides": {
+        "global/identity/cluster": {
+          "description": "Выберите кластер для неймспейса. Его код входит в имя, например dev в nbox-dev-ns-app. Если указано полное имя, оно используется без изменений."
+        },
         "global": {
-          "ui:widget": "edit",
           "ui:view": {
-            "include": [
-              "namespacePurpose"
-            ]
-          }
+            "overrides": {
+              "namespaceOverride": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "edit"
+        },
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "subnet": {
+                "ui:view": {
+                  "overrides": {
+                    "mask": {
+                      "ui:widget": "hidden"
+                    },
+                    "name": {
+                      "ui:widget": "edit"
+                    },
+                    "private": {
+                      "ui:widget": "edit"
+                    },
+                    "cidrBlock": {
+                      "title": "CIDR",
+                      "ui:widget": "edit"
+                    },
+                    "namespaces": {
+                      "ui:widget": "hidden"
+                    }
+                  }
+                },
+                "ui:widget": "edit"
+              },
+              "enabled": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "edit"
         },
         "serviceMesh": {
           "ui:view": {
@@ -40,15 +79,47 @@
         },
         "waypoint/waypoints": {
           "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
-        },
-        "subnet/subnet": {
+        }
+      }
+    },
+    "subnet": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
           "ui:view": {
-            "include": [
-              "mask",
-              "reservedIps",
-              "allowSubnets"
-            ]
-          }
+            "overrides": {
+              "subnet": {
+                "ui:view": {
+                  "overrides": {
+                    "name": {
+                      "ui:readOnly": true
+                    },
+                    "mask": {
+                      "ui:widget": "hidden"
+                    },
+                    "private": {
+                      "ui:widget": "edit"
+                    },
+                    "cidrBlock": {
+                      "ui:widget": "edit"
+                    },
+                    "namespaces": {
+                      "ui:widget": "hidden"
+                    },
+                    "reservedIps": {
+                      "ui:readOnly": true
+                    }
+                  }
+                }
+              },
+              "enabled": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "edit"
         }
       }
     },
@@ -58,11 +129,11 @@
       ]
     },
     "serviceMesh": {
-      "$comment": "Форма пункта «Действия»: включает сетку и тут же даёт поправить список вейпоинтов, иначе включить вейпоинт можно, а настроить его нечем.",
       "include": [
         "serviceMesh",
         "waypoint/waypoints"
       ],
+      "$comment": "Форма пункта «Действия»: включает сетку и тут же даёт поправить список вейпоинтов, иначе включить вейпоинт можно, а настроить его нечем.",
       "overrides": {
         "serviceMesh": {
           "ui:view": {
@@ -82,15 +153,6 @@
         }
       }
     }
-  },
-  "defaults": {
-    "/namespace/role": "other",
-    "/namespace/creator": "console",
-    "/namespace/cpaas/cluster": "global",
-    "/namespace/cpaas/project": "dev",
-    "/global/identity/instance": "id",
-    "/global/identity/cluster": "dev",
-    "/global/identity/project": "{{.Team}}"
   },
   "actions": [
     {
@@ -102,6 +164,18 @@
       "in": "info",
       "view": "serviceMesh",
       "label": "Настроить сервисную сетку"
+    },
+    {
+      "in": "info",
+      "view": "subnet",
+      "label": "Настроить подсеть"
     }
-  ]
+  ],
+  "defaults": {
+    "/namespace/role": "other",
+    "/global/identity/project": "{{.Team}}",
+    "/global/identity/instance": "{{.Vars.INSTANCE}}",
+    "/namespace/creator": "console",
+    "/subnet/subnet/natOutgoing": "true"
+  }
 }

@@ -2,9 +2,38 @@
   "views": {
     "order": {
       "include": [
+        "identity/cluster",
         "subnet"
       ],
-      "identity": "/subnet/name"
+      "identity": "/subnet/name",
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "name": {
+                "description": "Назначение подсети, 2..12 символов. Полное имя составляется по маске {{identity.project}}-{{identity.cluster}}-subnet-{{subnet.name}}",
+                "ui:readOnly": true
+              },
+              "mask": {
+                "ui:widget": "hidden"
+              },
+              "private": {
+                "ui:widget": "edit"
+              },
+              "cidrBlock": {
+                "title": "CIDR",
+                "ui:widget": "edit"
+              },
+              "namespaces": {
+                "description": "Укажите название неймспейсов, на которые распространяется эта подсеть"
+              },
+              "allowSubnets": {
+                "description": "Укажите CIDR подсетей, с которыми у этой подсети должна быть прямая сетевая связность"
+              }
+            }
+          }
+        }
+      }
     },
     "subnet": {
       "include": [
@@ -15,10 +44,115 @@
           "ui:view": {
             "overrides": {
               "name": {
-                "ui:readOnly": true
+                "ui:widget": "hidden"
               },
               "mask": {
-                "ui:readOnly": true
+                "ui:widget": "hidden"
+              },
+              "cidrBlock": {
+                "title": "CIDR",
+                "ui:widget": "edit"
+              },
+              "namespaces": {
+                "ui:widget": "hidden"
+              },
+              "allowSubnets": {
+                "ui:widget": "hidden"
+              }
+            }
+          }
+        }
+      }
+    },
+    "private": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "mask": {
+                "ui:widget": "hidden"
+              },
+              "name": {
+                "ui:widget": "hidden"
+              },
+              "private": {
+                "ui:widget": "edit"
+              },
+              "namespaces": {
+                "ui:widget": "hidden"
+              },
+              "reservedIps": {
+                "ui:widget": "hidden"
+              },
+              "allowSubnets": {
+                "ui:widget": "hidden"
+              }
+            }
+          }
+        }
+      }
+    },
+    "namespaces": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "mask": {
+                "ui:widget": "hidden"
+              },
+              "name": {
+                "ui:widget": "hidden"
+              },
+              "private": {
+                "ui:widget": "hidden"
+              },
+              "namespaces": {
+                "ui:widget": "edit",
+                "description": "Укажите название неймспейсов, на которые распространяется эта подсеть"
+              },
+              "reservedIps": {
+                "ui:widget": "hidden"
+              },
+              "allowSubnets": {
+                "ui:widget": "hidden"
+              }
+            }
+          }
+        }
+      }
+    },
+    "allowSubnets": {
+      "include": [
+        "subnet"
+      ],
+      "overrides": {
+        "subnet": {
+          "ui:view": {
+            "overrides": {
+              "mask": {
+                "ui:widget": "hidden"
+              },
+              "name": {
+                "ui:widget": "hidden"
+              },
+              "private": {
+                "ui:widget": "hidden"
+              },
+              "namespaces": {
+                "ui:widget": "hidden"
+              },
+              "reservedIps": {
+                "ui:widget": "hidden"
+              },
+              "allowSubnets": {
+                "ui:widget": "edit",
+                "description": "Укажите CIDR подсетей, с которыми у этой подсети должна быть прямая сетевая связность"
               }
             }
           }
@@ -30,15 +164,32 @@
     {
       "in": "info",
       "view": "subnet",
-      "label": "Настроить подсеть"
+      "label": "Изменить настройки подсети"
+    },
+    {
+      "in": "info",
+      "view": "private",
+      "label": "Изолирование подсети"
+    },
+    {
+      "in": "info",
+      "view": "namespaces",
+      "label": "Подключенные неймспейсы"
+    },
+    {
+      "in": "info",
+      "view": "allowSubnets",
+      "label": "Разрешённые подсети"
     }
   ],
-  "defaults": {
-    "/identity/instance": "id",
-    "/identity/cluster": "dev",
-    "/identity/project": "{{.Team}}"
-  },
   "initial": {
-    "/enabled": true
+    "/subnet/name": "app",
+    "/identity/cluster": "{{.Vars.CLUSTER}}",
+    "/subnet/reservedIps": "0"
+  },
+  "defaults": {
+    "/enabled": "true",
+    "/identity/project": "{{.Team}}",
+    "/identity/instance": "{{.Vars.INSTANCE}}"
   }
 }
