@@ -286,8 +286,6 @@
         "gatewayType",
         "gatewayNodes",
         "private",
-        "allowSubnets",
-        "namespaces",
         "default",
         "protocol",
         "enableEcmp"
@@ -357,6 +355,37 @@
             "properties": {
               "name": {
                 "minLength": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "An automatic binding names the namespace itself, so an explicit list next to it is refused here instead of at render time.",
+      "if": {
+        "required": [
+          "namespaceBinding"
+        ],
+        "properties": {
+          "namespaceBinding": {
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "subnet": {
+            "properties": {
+              "namespaces": {
+                "maxItems": 0
               }
             }
           }
