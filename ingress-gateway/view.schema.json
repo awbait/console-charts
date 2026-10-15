@@ -172,6 +172,28 @@
         }
       }
     },
+    "proxy": {
+      "include": [
+        "gateways"
+      ],
+      "$comment": "Правка настроек прокси точки входа (gateways[0].proxy) из карточки заказа: idle-таймаут потока и предел на размер заголовков, оба уходят в EnvoyFilter на workload гейтвея. Скрытое в форме заказа поле proxy здесь раскрывается.",
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "include": [
+              "proxy"
+            ],
+            "overrides": {
+              "proxy": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
     "certificates": {
       "include": [
         "tls/certificates"
@@ -194,6 +216,11 @@
       "in": "info",
       "view": "ipAddress",
       "label": "Редактировать IP"
+    },
+    {
+      "in": "info",
+      "view": "proxy",
+      "label": "Редактировать таймаут и лимит заголовков"
     },
     {
       "in": "info",
