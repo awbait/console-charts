@@ -343,6 +343,10 @@ instead.
 
 {{/* Guard the identity and target namespace of the subnet dependency. */}}
 {{- define "namespace.helpers.checkSubnet" -}}
+{{- /* Pre-7.0.0 keys would leave subnet.enabled unset and silently drop an existing Subnet. */ -}}
+{{- if or (hasKey .Values.subnet "enable") (hasKey .Values.subnet "subnets") -}}
+{{- fail "subnet.enable and subnet.subnets were replaced in 7.0.0: use subnet.enabled and subnet.subnet (see README)" -}}
+{{- end -}}
 {{- if .Values.subnet.enabled -}}
 {{- if ne (include "namespace.helpers.chartEnabled" .) "true" -}}
 {{- fail "subnet.enabled requires namespace enabled=true; disable subnet.enabled too" -}}

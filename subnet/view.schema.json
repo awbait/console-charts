@@ -16,6 +16,9 @@
             "overrides": {
               "name": {
                 "ui:readOnly": true
+              },
+              "mask": {
+                "ui:readOnly": true
               }
             }
           }
@@ -30,6 +33,11 @@
       "label": "Настроить подсеть"
     }
   ],
+  "defaults": {
+    "/identity/instance": "id",
+    "/identity/cluster": "dev",
+    "/identity/project": "{{.Team}}"
+  },
   "initial": {
     "/enabled": true
   }

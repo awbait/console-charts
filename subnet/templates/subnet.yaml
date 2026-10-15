@@ -12,7 +12,7 @@ spec:
   protocol: {{ $s.protocol }}
   cidrBlock: {{ $s.cidrBlock | quote }}
   natOutgoing: {{ $s.natOutgoing }}
-  excludeIps: {{ prepend $s.excludeIPs (include "subnet.helpers.subnetGateway" $s.cidrBlock) | uniq | toJson }}
+  excludeIps: {{ concat (splitList "," (include "subnet.helpers.reservedAddresses" $s)) ($s.excludeIPs | default list) | uniq | toJson }}
   gateway: {{ include "subnet.helpers.subnetGateway" $s.cidrBlock | quote }}
   gatewayType: {{ $s.gatewayType }}
   {{- with $s.gatewayNodes }}

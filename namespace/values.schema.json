@@ -41,45 +41,22 @@
       "title": "Подсеть namespace",
       "description": "Значения сабчарта Subnet. Перед включением задайте зарезервированный CIDR.",
       "type": "object",
-      "additionalProperties": false,
       "ui:widget": "hidden",
-      "properties": {
-        "identity": {
-          "$ref": "#/definitions/subnetChild_identity",
-          "title": "Окружение и проект",
-          "ui:widget": "hidden"
-        },
-        "enabled": {
-          "type": "boolean",
-          "title": "Создавать подсеть",
-          "ui:widget": "hidden"
-        },
-        "global": {
-          "type": "object",
-          "ui:widget": "hidden"
-        },
-        "generic": {
-          "$ref": "#/definitions/subnetChild_generic",
-          "ui:widget": "hidden"
-        },
-        "subnet": {
-          "$ref": "#/definitions/subnetChild_subnet",
-          "title": "Подсеть"
-        },
-        "namespaceBinding": {
-          "title": "Привязка к namespace",
-          "ui:widget": "hidden",
-          "$ref": "#/definitions/subnetChild_namespaceBinding"
-        }
-      },
-      "propertyOrder": [
-        "identity",
-        "enabled",
-        "global",
-        "generic",
-        "subnet",
-        "namespaceBinding"
-      ]
+      "$comment": "The subnet subchart validates its own values against its schema. Here only the pre-7.0.0 keys are rejected, so an old order cannot silently drop its Subnet.",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "enable"
+            ]
+          },
+          {
+            "required": [
+              "subnets"
+            ]
+          }
+        ]
+      }
     },
     "generic": {
       "title": "Общие метки и аннотации",
