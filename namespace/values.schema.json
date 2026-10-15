@@ -20,6 +20,43 @@
     "global",
     "resourceQuotas"
   ],
+  "allOf": [
+    {
+      "$comment": "The subnet of this namespace is bound automatically. Its explicit list stays empty, and that rule lives in the subnet schema.",
+      "if": {
+        "required": [
+          "subnet"
+        ],
+        "properties": {
+          "subnet": {
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "subnet": {
+            "properties": {
+              "namespaceBinding": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "identity": {
       "title": "Окружение и проект",
