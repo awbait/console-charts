@@ -52,6 +52,7 @@ xroutes:
               type: PathPrefix
               value: /
         backendRefs:
+          # Без sessionAffinity и h2UpgradePolicy DestinationRule не создаётся.
           - name: nginx-service
             port: 80
             namespace: demo-core-test

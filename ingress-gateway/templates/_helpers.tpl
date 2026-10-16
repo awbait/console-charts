@@ -257,12 +257,14 @@ Parameter: the root context.
 {{- $wanted := dict -}}
 {{- with $backend.sessionAffinity -}}
 {{- $cookie := required (printf "%s.sessionAffinity.cookieName is required" $label) .cookieName | toString -}}
-{{- $ttl := .ttl | default "0s" | toString -}}
+{{- $_ := set $wanted "cookieName" $cookie -}}
+{{- if hasKey . "ttl" -}}
+{{- $ttl := .ttl | toString -}}
 {{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
 {{- fail (printf "%s.sessionAffinity.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
 {{- end -}}
-{{- $_ := set $wanted "cookieName" $cookie -}}
 {{- $_ := set $wanted "ttl" $ttl -}}
+{{- end -}}
 {{- end -}}
 {{- with $backend.h2UpgradePolicy -}}
 {{- $policy := toString . -}}
