@@ -2,6 +2,7 @@
 # При enabled=false чарт не создаёт ни одного ресурса.
 # Полный справочник параметров - values.full.yaml, рабочий пример - values.minimal.yaml.
 
+# При false все поля необязательны; при true обязательность проверяется схемой.
 enabled: false
 
 # Теги окружения и проекта: попадают в labels ecpk/instance, ecpk/cluster,
