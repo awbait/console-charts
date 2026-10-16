@@ -38,10 +38,6 @@
       "$ref": "#/definitions/namespaceBinding"
     }
   },
-  "required": [
-    "identity",
-    "subnet"
-  ],
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/subnet/values.schema.json",
   "title": "Subnet Helm chart values",
@@ -106,12 +102,7 @@
           "description": "Укажите короткий код проекта. Он добавляется в метки, по которым можно найти ресурсы в кластере.",
           "$ref": "#/definitions/projectToken"
         }
-      },
-      "required": [
-        "instance",
-        "cluster",
-        "project"
-      ]
+      }
     },
     "generic": {
       "type": "object",
@@ -179,7 +170,8 @@
           "description": "Укажите, сколько адресов оставить для своих задач, например для точки входа с постоянным адресом. Эти адреса не будут выдаваться сервисам. Платформа выделит их и покажет в карточке неймспейса. Адрес шлюза резервируется всегда, отдельно учитывать его не нужно.",
           "type": "integer",
           "minimum": 0,
-          "maximum": 16
+          "maximum": 16,
+          "default": 0
         },
         "name": {
           "type": "string",
@@ -199,6 +191,7 @@
           "type": "boolean",
           "title": "NAT исходящего трафика",
           "description": "При включённом NAT трафик пода за пределы кластера уходит с адресом узла, на котором работает под. При выключенном NAT сохраняется собственный адрес пода из подсети. Отключите NAT, если внешняя система должна видеть адреса подсети, например для правил межсетевого экрана. Также отключите его при выходе через отдельный шлюз исходящего трафика. При заказе неймспейса портал включает NAT автоматически. Переключатель скрыт в форме.",
+          "default": false,
           "ui:widget": "hidden"
         },
         "excludeIPs": {
@@ -209,7 +202,8 @@
           "items": {
             "type": "string",
             "pattern": "^(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}(?:\\.\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})?$"
-          }
+          },
+          "default": []
         },
         "gatewayType": {
           "type": "string",
@@ -222,17 +216,20 @@
           "enumNames": [
             "Распределённый",
             "Централизованный"
-          ]
+          ],
+          "default": "distributed"
         },
         "gatewayNodes": {
           "type": "string",
           "title": "Узлы шлюза",
-          "ui:widget": "hidden"
+          "ui:widget": "hidden",
+          "default": ""
         },
         "private": {
           "type": "boolean",
           "title": "Изолированная подсеть",
           "description": "Разрешает трафик только в указанные разрешённые подсети. Отключите, если поды сами обращаются к внешним адресам. В форме скрыто.",
+          "default": true,
           "ui:widget": "hidden"
         },
         "allowSubnets": {
@@ -244,7 +241,8 @@
             "title": "Диапазон адресов подсети",
             "type": "string",
             "pattern": "^(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}/(?:[0-9]|[12][0-9]|3[0-2])$"
-          }
+          },
+          "default": []
         },
         "namespaces": {
           "type": "array",
@@ -255,40 +253,31 @@
             "minLength": 1,
             "maxLength": 63,
             "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-          }
+          },
+          "default": []
         },
         "default": {
           "type": "boolean",
           "title": "Подсеть по умолчанию",
           "const": false,
-          "ui:widget": "hidden"
+          "ui:widget": "hidden",
+          "default": false
         },
         "protocol": {
           "type": "string",
           "title": "Протокол",
           "const": "IPv4",
-          "ui:widget": "hidden"
+          "ui:widget": "hidden",
+          "default": "IPv4"
         },
         "enableEcmp": {
           "type": "boolean",
           "title": "ECMP",
           "const": false,
-          "ui:widget": "hidden"
+          "ui:widget": "hidden",
+          "default": false
         }
-      },
-      "required": [
-        "name",
-        "reservedIps",
-        "cidrBlock",
-        "natOutgoing",
-        "excludeIPs",
-        "gatewayType",
-        "gatewayNodes",
-        "private",
-        "default",
-        "protocol",
-        "enableEcmp"
-      ]
+      }
     },
     "projectToken": {
       "type": "string",
@@ -306,11 +295,6 @@
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
-        "enabled",
-        "purpose",
-        "namespaceOverride"
-      ],
-      "required": [
         "enabled",
         "purpose",
         "namespaceOverride"
@@ -335,61 +319,96 @@
       }
     }
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "namespaceBinding": {
-            "properties": {
-              "enabled": {
-                "const": false
-              }
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "subnet": {
-            "properties": {
-              "name": {
-                "minLength": 2
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "$comment": "An automatic binding names the namespace itself, so an explicit list next to it is refused here instead of at render time.",
-      "if": {
-        "required": [
-          "namespaceBinding"
-        ],
-        "properties": {
-          "namespaceBinding": {
-            "required": [
-              "enabled"
-            ],
-            "properties": {
-              "enabled": {
-                "const": true
-              }
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "subnet": {
-            "properties": {
-              "namespaces": {
-                "maxItems": 0
-              }
-            }
-          }
-        }
+  "if": {
+    "properties": {
+      "enabled": {
+        "const": true
       }
     }
-  ]
+  },
+  "then": {
+    "required": [
+      "identity",
+      "subnet"
+    ],
+    "properties": {
+      "identity": {
+        "required": [
+          "instance",
+          "cluster",
+          "project"
+        ]
+      },
+      "subnet": {
+        "required": [
+          "name",
+          "cidrBlock"
+        ]
+      },
+      "namespaceBinding": {
+        "required": [
+          "enabled",
+          "purpose",
+          "namespaceOverride"
+        ]
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "namespaceBinding": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "subnet": {
+              "properties": {
+                "name": {
+                  "minLength": 2
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "$comment": "An automatic binding names the namespace itself, so an explicit list next to it is refused here instead of at render time.",
+        "if": {
+          "required": [
+            "namespaceBinding"
+          ],
+          "properties": {
+            "namespaceBinding": {
+              "required": [
+                "enabled"
+              ],
+              "properties": {
+                "enabled": {
+                  "const": true
+                }
+              }
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "subnet": {
+              "properties": {
+                "namespaces": {
+                  "maxItems": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
 }

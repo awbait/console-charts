@@ -243,7 +243,8 @@ sends to that host is affected. So one entry per Service, collected from every
 enabled route whose backendRefs carry sessionAffinity or h2UpgradePolicy.
 References to one Service merge: one may pin the cookie and another the
 protocol. Two that set the same setting differently stop the render: the
-second would silently win otherwise. Rendered by destinationRule.yaml.
+second would silently win otherwise. For cookie affinity, an omitted ttl
+and an explicit ttl are different settings too. Rendered by destinationRule.yaml.
 Parameter: the root context.
 */}}
 {{- define "ingress-gateway.helpers.app.destinationRules" -}}
@@ -257,12 +258,14 @@ Parameter: the root context.
 {{- $wanted := dict -}}
 {{- with $backend.sessionAffinity -}}
 {{- $cookie := required (printf "%s.sessionAffinity.cookieName is required" $label) .cookieName | toString -}}
-{{- $ttl := .ttl | default "0s" | toString -}}
+{{- $_ := set $wanted "cookieName" $cookie -}}
+{{- if hasKey . "ttl" -}}
+{{- $ttl := .ttl | toString -}}
 {{- if not (regexMatch "^[0-9]+(\\.[0-9]+)?s$" $ttl) -}}
 {{- fail (printf "%s.sessionAffinity.ttl must be a number of seconds with the s suffix, for example 172800s, got %q" $label $ttl) -}}
 {{- end -}}
-{{- $_ := set $wanted "cookieName" $cookie -}}
 {{- $_ := set $wanted "ttl" $ttl -}}
+{{- end -}}
 {{- end -}}
 {{- with $backend.h2UpgradePolicy -}}
 {{- $policy := toString . -}}
@@ -276,6 +279,9 @@ Parameter: the root context.
 {{- $namespace := $backend.namespace | default $root.Release.Namespace | toString -}}
 {{- $key := printf "%s.%s" $service $namespace -}}
 {{- $entry := index $rules $key | default (dict "name" $service "namespace" $namespace) -}}
+{{- if and (hasKey $wanted "cookieName") (hasKey $entry "cookieName") (ne (hasKey $entry "ttl") (hasKey $wanted "ttl")) -}}
+{{- fail (printf "%s.sessionAffinity.ttl presence disagrees with an earlier reference for service %s in namespace %s: omitted and explicit ttl cannot share one DestinationRule" $label $service $namespace) -}}
+{{- end -}}
 {{- range $setting, $value := $wanted -}}
 {{- if and (hasKey $entry $setting) (ne (index $entry $setting) $value) -}}
 {{- fail (printf "%s.%s %q disagrees with an earlier %q for service %s in namespace %s: one Service gets one DestinationRule" $label $setting $value (index $entry $setting) $service $namespace) -}}
