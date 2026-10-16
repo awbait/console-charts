@@ -21,7 +21,7 @@ spec:
   private: {{ $s.private }}
   allowSubnets:
     - 172.30.0.0/15
-    {{- range (uniq $s.allowSubnets) }}
+    {{- range (uniq ($s.allowSubnets | default list)) }}
     {{- if ne . "172.30.0.0/15" }}
     - {{ . | quote }}
     {{- end }}

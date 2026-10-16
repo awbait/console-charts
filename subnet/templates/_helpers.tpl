@@ -277,6 +277,6 @@ reserve for it. Parameter: the subnet values block.
 {{- if .Values.subnet.namespaces -}}{{- fail "subnet.namespaces must be empty when namespaceBinding.enabled=true" -}}{{- end -}}
 {{- list (include "subnet.helpers.boundNamespace" .) | toJson -}}
 {{- else -}}
-{{- .Values.subnet.namespaces | toJson -}}
+{{- .Values.subnet.namespaces | default list | toJson -}}
 {{- end -}}
 {{- end -}}

@@ -20,6 +20,43 @@
     "global",
     "resourceQuotas"
   ],
+  "allOf": [
+    {
+      "$comment": "The subnet of this namespace is bound automatically. Its explicit list stays empty, and that rule lives in the subnet schema.",
+      "if": {
+        "required": [
+          "subnet"
+        ],
+        "properties": {
+          "subnet": {
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "subnet": {
+            "properties": {
+              "namespaceBinding": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "identity": {
       "title": "Окружение и проект",
@@ -81,18 +118,25 @@
       "description": "Настройки для неймспейса и связанных с ним ресурсов. Если неймспейс создаётся в составе другого сервиса, тот может передать окружение и проект через global.identity. Тогда используются значения из global.identity вместо identity.",
       "type": "object",
       "propertyOrder": [
+        "identity",
         "namespacePurpose",
         "namespaceOverride"
       ],
       "properties": {
+        "identity": {
+          "title": "Окружение и проект",
+          "description": "Окружение и проект общие для неймспейса, его подсети и прокси сервисной сетки. Портал заполняет их автоматически и определяет код проекта по вашей команде. В форме выберите только кластер.",
+          "ui:widget": "hidden",
+          "$ref": "#/definitions/identity"
+        },
         "namespacePurpose": {
           "title": "Назначение неймспейса",
-          "description": "Опишите назначение неймспейса одним словом, например app, api или monitoring. Остальные части имени платформа добавит сама. Например, получится nbox-dev-ns-app.",
+          "description": "Укажите назначение неймспейса, например app для приложений. Имя собирается по схеме {код проекта}-{кластер}-ns-{назначение}, например nbox-dev-ns-app. Заполните назначение, даже если указали полное имя. Оно нужно для имени заказа в портале и имени подсети, например nbox-dev-subnet-app.",
           "$ref": "#/definitions/purposeToken"
         },
         "namespaceOverride": {
           "title": "Полное имя неймспейса",
-          "description": "Полное имя неймспейса для неймспейса и подключённого вейпоинта. В форме скрыто.",
+          "description": "Для нового неймспейса оставьте поле пустым. Укажите полное имя, только если неймспейс уже существует в кластере и называется не по общей схеме, например legacy-billing. Неймспейс будет использовать это имя без изменений. Прокси сервисной сетки будет установлен в этот неймспейс. Подсеть будет привязана к этому неймспейсу. Назначение всё равно заполните. Из него строятся имя заказа и имя подсети.",
           "$ref": "#/definitions/namespaceOverride",
           "ui:widget": "hidden"
         }
