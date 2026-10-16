@@ -218,7 +218,11 @@ portal:
     # каждого application.yaml: Application из чужого namespace Argo CD не читает.
     ARGOCD_NAMESPACE: argocd
     ARGOCD_DEFAULT_CLUSTER: in-cluster
-    ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.ServiceName}}"
+    # Имя приложения Argo CD для заказа. Namespace и стенд в нём обязательны:
+    # один сервис в двух namespace или на двух стендах иначе получит одно имя.
+    # {{.Stand}} пуст на стенде по умолчанию. Имя считается один раз при
+    # создании заказа, существующие заказы сохраняют свои имена.
+    ARGOCD_APP_NAME_TEMPLATE: "{{.Team}}-{{.Chart}}-{{.Namespace}}-{{.ServiceName}}{{if .Stand}}-{{.Stand}}{{end}}"
     # OCI-эндпоинт Harbor. Хост должен резолвиться и из подов портала, и из
     # подов ArgoCD.
     CHART_REGISTRY: "harbor.example.com"
