@@ -129,6 +129,21 @@ portal:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # Сколько Kubernetes ждёт остановки пода. Складывается из config.SHUTDOWN_DRAIN,
+  # до 10 с на завершение HTTP-запросов и до 15 с на фоновый проход ведущей
+  # реплики, плюс запас.
+  terminationGracePeriodSeconds: 45
+  # Сколько подов портала можно потерять при плановых работах с узлами (drain,
+  # обновление кластера). Создаётся, только когда реплик больше одной: при
+  # одной реплике бюджет нечего защищать.
+  podDisruptionBudget:
+    enabled: true
+    maxUnavailable: 1
+  # Как раскладывать реплики по узлам. Пусто и реплик больше одной - чарт
+  # просит планировщик разнести их по разным узлам, но не запрещает поставить
+  # на один, если других нет (whenUnsatisfiable: ScheduleAnyway). Свой список
+  # заменяет это правило целиком.
+  topologySpreadConstraints: []
   podSecurityContext: {}
   securityContext: {}
 
@@ -245,6 +260,12 @@ portal:
     SESSION_TTL: "24h"
     SESSION_COOKIE_NAME: idp_session
     COOKIE_SECURE: "true"
+    # Остановка пода: портал сразу отвечает «не готов» на /ready и ещё столько
+    # обслуживает запросы, пока Kubernetes убирает под из Service. Должно
+    # укладываться в portal.terminationGracePeriodSeconds вместе с остановкой
+    # самого портала (до 10 с на HTTP и до 15 с на фоновый проход).
+    # Нужен портал с SHUTDOWN_DRAIN, более ранние сборки переменную игнорируют.
+    SHUTDOWN_DRAIN: "5s"
 
   # Откуда портал берёт секреты. Три способа, взаимоисключающие:
   #

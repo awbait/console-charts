@@ -62,6 +62,8 @@ portal:
 | `portal.existingSecret` | Использовать заранее созданный `Secret` вместо рендера     |
 | `portal.externalSecret` | Наполнять `Secret` из Vault через External Secrets Operator |
 | `portal.replicaCount`, `portal.autoscaling` | Сколько реплик портала держать и когда добавлять |
+| `portal.podDisruptionBudget`, `portal.topologySpreadConstraints` | Защита реплик от drain и их разнесение по узлам |
+| `portal.terminationGracePeriodSeconds` | Сколько ждать остановки пода (вместе с `config.SHUTDOWN_DRAIN`) |
 | `portal.metrics`  | Экспозиция Prometheus-метрик (порт + scrape-аннотации)           |
 | `trustedCA`       | Корневые сертификаты внутреннего УЦ для апстримов по HTTPS        |
 | `*.extraVolumes`, `*.extraVolumeMounts`, `*.extraEnv` | Произвольные тома и env компонента |
@@ -172,6 +174,22 @@ portal:
 реплик принадлежит автоскейлеру, и оставленное поле Helm возвращал бы обратно на
 каждом `upgrade`. HPA считает загрузку долей от `resources.requests`, поэтому
 метрика без соответствующего request рендер тоже роняет.
+
+Когда реплик больше одной (фиксированно или через автоскейлер), чарт добавляет
+ещё две вещи:
+
+- `PodDisruptionBudget` с `maxUnavailable: 1`, чтобы drain узла или обновление
+  кластера не убрали все поды портала разом (`portal.podDisruptionBudget`);
+- мягкое разнесение реплик по узлам (`topologySpreadConstraints` по
+  `kubernetes.io/hostname` с `whenUnsatisfiable: ScheduleAnyway`). Свой список в
+  `portal.topologySpreadConstraints` заменяет это правило целиком.
+
+Остановка пода. Портал сразу отвечает «не готов» на `/ready` и ещё
+`portal.config.SHUTDOWN_DRAIN` (по умолчанию в чарте 5 с) обслуживает запросы,
+пока Kubernetes убирает под из `Service`. Затем он закрывает соединения (до
+10 с), а ведущая реплика дорабатывает фоновый проход (до 15 с) и только потом
+отдаёт аренду. `portal.terminationGracePeriodSeconds: 45` покрывает это с
+запасом. Если поднимаете `SHUTDOWN_DRAIN`, поднимите и его.
 
 Коллектор не масштабируется: он каждый цикл переписывает снимок целиком, и
 вторая реплика просто во второй раз обходит Kubernetes API.

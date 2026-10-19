@@ -1,0 +1,19 @@
+{{/*
+How many portal pods a voluntary disruption (a node drain, a cluster upgrade)
+may take at once. Only with more than one pod: a budget over a single pod can
+only either block the drain or protect nothing.
+*/}}
+{{- if and .Values.portal.podDisruptionBudget.enabled (include "console.portal.multiReplica" .) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "console.portal.fullname" . }}
+  labels:
+    {{- include "console.labels" . | nindent 4 }}
+    {{- include "console.portal.selectorLabels" . | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.portal.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "console.portal.selectorLabels" . | nindent 6 }}
+{{- end }}
