@@ -19,6 +19,23 @@
 
 ---
 
+## [0.10.0] - 2026-10-19
+
+### Added
+
+- `PodDisruptionBudget` портала (`portal.podDisruptionBudget`, по умолчанию
+  `maxUnavailable: 1`). Создаётся, только когда реплик больше одной
+  (`replicaCount > 1` или `autoscaling.enabled`): drain узла или обновление
+  кластера больше не убирают все поды портала разом.
+- `portal.topologySpreadConstraints`. Пусто и реплик больше одной: чарт мягко
+  разносит реплики по узлам (`kubernetes.io/hostname`,
+  `whenUnsatisfiable: ScheduleAnyway`). Свой список заменяет это правило.
+- `portal.terminationGracePeriodSeconds` (по умолчанию 45).
+- `portal.config.SHUTDOWN_DRAIN: "5s"`. На остановке портал сразу отвечает
+  «не готов» на `/ready` и ещё столько обслуживает запросы, пока Kubernetes
+  убирает под из `Service`, поэтому выкат не обрывает запросы. Нужен портал с
+  этой переменной, более ранние сборки её игнорируют.
+
 ## [0.9.12] - 2026-10-16
 
 ### Changed

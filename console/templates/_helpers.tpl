@@ -187,6 +187,16 @@ own. Both need a portal that knows how to share (app 0.10.0 and newer).
 {{- end -}}
 
 {{/*
+"true" when the portal may run more than one pod: a fixed count above one, or
+an autoscaler. What only means something with several pods (the disruption
+budget, the spread over nodes) is rendered on this.
+*/}}
+{{- define "console.portal.multiReplica" -}}
+{{- $replicas := .Values.portal.replicaCount | default 1 | int -}}
+{{- if or (.Values.portal.autoscaling | default dict).enabled (gt $replicas 1) -}}true{{- end -}}
+{{- end -}}
+
+{{/*
 Portal ServiceAccount name.
 */}}
 {{- define "console.serviceAccountName" -}}

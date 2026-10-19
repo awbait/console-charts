@@ -123,3 +123,20 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.portal.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml .Values.portal.topologySpreadConstraints | nindent 8 }}
+      {{- else if include "console.portal.multiReplica" . }}
+      {{- /* Replicas on one node fall together with it. A preference, not a
+             rule: a cluster with one node still runs them all. */}}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "console.portal.selectorLabels" . | nindent 14 }}
+      {{- end }}
+      {{- with .Values.portal.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
