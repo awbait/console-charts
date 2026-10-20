@@ -216,7 +216,7 @@ subnet:
     gatewayType: distributed      # distributed или centralized
     gatewayNodes: ""              # узлы centralized через запятую
     private: true                 # изоляция подсети
-    allowSubnets: []              # 172.30.0.0/15, 100.96.0.0/16 и 169.254.7.127/32 шаблон добавляет всегда
+    allowSubnets: []              # системные CIDR для Service, join-подсети и проверок ambient-сетки шаблон добавляет всегда
     namespaces: []                # оставьте пустым: привязка вычисляется автоматически
     default: false                # зафиксировано схемой
     protocol: IPv4                # зафиксировано схемой
