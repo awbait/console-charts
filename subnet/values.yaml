@@ -31,7 +31,7 @@ subnet:
   gatewayType: distributed
   gatewayNodes: ""     # узлы для centralized через запятую; в форме скрыто
   private: true        # изоляция: связность только с allowSubnets
-  allowSubnets: []     # дополнительные CIDR; 172.30.0.0/15 добавляется всегда
+  allowSubnets: []     # дополнительные CIDR; 172.30.0.0/15, 100.96.0.0/16 и 169.254.7.127/32 добавляются всегда
   namespaces: []       # полные имена namespace, привязанных к подсети
 
   # Служебные поля: значения как в чарте namespace, зафиксированы схемой.
