@@ -31,9 +31,9 @@ Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом,
 {{- end }}
 
 Внешние сервисы (ServiceEntry создаются в основном неймспейсе отправителей и видны в остальных неймспейсах отправителей, привязаны к гейтвею лейблами istio.io/use-waypoint и istio.io/use-waypoint-namespace):
-{{- range .Values.serviceEntries }}
-{{- if eq (include "egress-gateway.helpers.app.enabled" .) "true" }}
-  * {{ .hostname }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
+{{- range $index, $entry := .Values.serviceEntries }}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
+  * {{ $entry.hostname }}:{{ include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) }} {{ include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
 {{- end }}
 {{- end }}
 Через выход с известного адреса уходят только эти домены; остальной трафик отправителей идёт как прежде.

@@ -510,6 +510,38 @@ message instead. Parameter: the root context.
 {{- end -}}
 
 {{/*
+Port of an external service: serviceEntries[].port, 443 when not set. The
+schema checks the range too, it is repeated here for values that skip the
+form. Parameters: entry, index.
+*/}}
+{{- define "egress-gateway.helpers.serviceEntryPort" -}}
+{{- $raw := 443 -}}
+{{- if and (hasKey .entry "port") (not (kindIs "invalid" .entry.port)) -}}
+{{- $raw = .entry.port -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]+$" (toString $raw)) -}}
+{{- fail (printf "serviceEntries[%d].port must be a number from 1 to 65535, got %v" .index $raw) -}}
+{{- end -}}
+{{- $port := int64 $raw -}}
+{{- if or (lt $port 1) (gt $port 65535) -}}
+{{- fail (printf "serviceEntries[%d].port must be a number from 1 to 65535, got %v" .index $raw) -}}
+{{- end -}}
+{{- $port -}}
+{{- end -}}
+
+{{/*
+Protocol of an external service: serviceEntries[].protocol, TLS when not set.
+Upper case, one of TLS, HTTP, TCP. Parameters: entry, index.
+*/}}
+{{- define "egress-gateway.helpers.serviceEntryProtocol" -}}
+{{- $protocol := .entry.protocol | default "TLS" | toString | upper -}}
+{{- if not (has $protocol (list "TLS" "HTTP" "TCP")) -}}
+{{- fail (printf "serviceEntries[%d].protocol must be one of TLS, HTTP, TCP, got %q" .index .entry.protocol) -}}
+{{- end -}}
+{{- $protocol -}}
+{{- end -}}
+
+{{/*
 Selector labels - stable workload identification.
 */}}
 {{- define "egress-gateway.helpers.app.selectorLabels" -}}
