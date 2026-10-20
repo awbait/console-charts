@@ -22,7 +22,9 @@ label.
 exportTo keeps the entry visible in its own namespace, in every other
 namespace of the senders and, when that is another namespace, in the
 namespace of the gateway, so the waypoint resolves the same host.
-Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
+The entry has one port: port (default 443) and protocol (default TLS) come
+from the entry, the port name is the protocol in lower case. Everything else
+is fixed: MESH_EXTERNAL, DNS resolution.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
@@ -36,6 +38,8 @@ Everything else is fixed: MESH_EXTERNAL, DNS resolution, one TLS port 443.
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
 {{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
+{{- $port := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) }}
+{{- $protocol := include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -57,9 +61,9 @@ spec:
   location: MESH_EXTERNAL
   resolution: DNS
   ports:
-    - name: tls
-      number: 443
-      protocol: TLS
+    - name: {{ lower $protocol }}
+      number: {{ $port }}
+      protocol: {{ $protocol }}
 {{- end }}
 {{- end }}
 {{- end }}

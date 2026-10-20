@@ -125,18 +125,24 @@ senders:
 # туннелирует трафик к домену в waypoint по HBONE, а тот выпускает его наружу
 # через выход. Маршруты и ReferenceGrant не создаются.
 # Захардкожено в шаблоне (НЕ настраивается здесь):
-#   location MESH_EXTERNAL, resolution DNS, порт tls/443/TLS;
-#   exportTo ["." и NS 2].
+#   location MESH_EXTERNAL, resolution DNS, один порт на запись (имя порта -
+#   протокол в нижнем регистре); exportTo ["." и NS 2].
 # Пользователь задаёт:
 #   name      - обязателен, 2..9 символов; {name} в имени ресурса (egw)
 #   hostname  - обязателен, домен внешнего сервиса
+#   port      - порт внешнего сервиса, по умолчанию 443
+#   protocol  - TLS, HTTP или TCP, по умолчанию TLS
 #   enabled   - по умолчанию true
+# Домен уникален в заказе: два порта одного домена двумя записями не задать,
+# две записи на один хост в сетке конфликтуют.
 serviceEntries:
   - name: nx
     hostname: repository.solution.test
 
   - name: art
     hostname: artifactory.solution.test
+    port: 8443
+    protocol: TLS
     # Служебное поле, в форме портала скрыто. По умолчанию true.
     enabled: true
 
