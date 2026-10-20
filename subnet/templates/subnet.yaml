@@ -2,6 +2,7 @@
 {{- if eq (include "subnet.helpers.chartEnabled" .) "true" }}
 {{- include "subnet.helpers.validate" . }}
 {{- $s := .Values.subnet }}
+{{- $systemAllowSubnets := list "172.30.0.0/15" "100.96.0.0/16" "169.254.7.127/32" }}
 apiVersion: kubeovn.io/v1
 kind: Subnet
 metadata:
@@ -20,11 +21,11 @@ spec:
   {{- end }}
   private: {{ $s.private }}
   allowSubnets:
-    - 172.30.0.0/15
-    - 100.96.0.0/16
-    - 169.254.7.127/32
+    {{- range $systemAllowSubnets }}
+    - {{ . | quote }}
+    {{- end }}
     {{- range (uniq ($s.allowSubnets | default list)) }}
-    {{- if and (ne . "172.30.0.0/15") (ne . "100.96.0.0/16") (ne . "169.254.7.127/32") }}
+    {{- if not (has . $systemAllowSubnets) }}
     - {{ . | quote }}
     {{- end }}
     {{- end }}
