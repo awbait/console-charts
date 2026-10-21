@@ -33,8 +33,11 @@
    (`values*.yaml`) - это принятая здесь практика. В `values.schema.json`
    человекочитаемые `title`/`description` тоже могут быть на русском (их видит
    пользователь в форме).
-3. **Коммиты - на английском, Conventional Commits, scope = имя чарта.**
-   `feat(project): ...`, `fix(ingress-gateway): ...`, `chore(namespace): ...`.
+3. **Коммиты - на английском, Conventional Commits.** Для изменений чарта scope
+   обязателен и равен имени чарта: `feat(project): ...`,
+   `fix(ingress-gateway): ...`, `chore(namespace): ...`. Для общерепозиторных
+   документации, шаблонов и настроек scope можно не указывать:
+   `docs: add contribution guidelines`, `chore: ignore local workspace files`.
    Заголовок и тело - по-английски. Без `Co-Authored-By` и без
    `Generated with Claude Code`.
 4. **Все git-операции - через скилл `git-workflow`** (ветки, коммиты, PR/MR,
