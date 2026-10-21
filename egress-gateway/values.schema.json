@@ -39,10 +39,50 @@
       },
       "then": {
         "properties": {
+          "serviceEntries": {
+            "ui:widget": "hidden"
+          },
+          "networkPolicy": {
+            "ui:widget": "hidden"
+          },
+          "authorizationPolicy": {
+            "ui:widget": "hidden"
+          },
           "waypointNamespace": {
             "properties": {
               "enabled": {
                 "const": false
+              },
+              "waypoint": {
+                "properties": {
+                  "waypoints": {
+                    "ui:widget": "hidden"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "senders": {
+            "properties": {
+              "subnet": {
+                "ui:widget": "hidden"
+              },
+              "additionalSubnets": {
+                "ui:widget": "hidden"
+              }
+            }
+          },
+          "vpcEgressGateway": {
+            "properties": {
+              "scope": {
+                "ui:widget": "hidden"
+              },
+              "label": {
+                "ui:widget": "hidden"
               }
             }
           }
