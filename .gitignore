@@ -13,3 +13,4 @@
 # it. Those are repositories of their own: staged wholesale they land here as
 # gitlinks pointing at commits nobody else has.
 .claude/
+.codex/
