@@ -382,13 +382,14 @@ Parameter: the root context. Renders nothing.
 {{- range $namespace := ($waypoint.allowedNamespaces | default list) -}}
 {{- $allowed = append $allowed ($namespace | toString | trim | lower) -}}
 {{- end -}}
-{{- /* Only the primary senders namespace binds: the ServiceEntries live there and reach the other senders namespaces through exportTo (serviceEntry.yaml). */ -}}
-{{- $primary := index $sendersAll 0 -}}
-{{- if not (has $primary $allowed) -}}
-{{- fail (printf "senders.namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces: the waypoint admits a binding from another namespace only when its listener allows it" $primary) -}}
+{{- /* Every senders namespace binds: each holds its own copy of the ServiceEntries (serviceEntry.yaml), and the waypoint subchart builds the listener Selector from allowedNamespaces alone. */ -}}
+{{- range $senders := $sendersAll -}}
+{{- if not (has $senders $allowed) -}}
+{{- fail (printf "senders namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces (senders.namespace and every senders.additionalNamespaces): the ServiceEntries of that namespace bind to the waypoint, and it admits a binding from another namespace only when its listener allows it" $senders) -}}
 {{- end -}}
 {{- end -}}
-{{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace without allowedNamespaces. */}}
+{{- end -}}
+{{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace and the other senders namespaces without allowedNamespaces. */}}
 {{- $entries := list -}}
 {{- range $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}
