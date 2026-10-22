@@ -1,1 +1,24 @@
+# Line endings: LF in the repository and in every checkout, on every platform.
+# core.autocrlf=true on Windows would otherwise check text files out as CRLF,
+# and a chart packaged from such a checkout (helm package) carries line endings
+# the repository never had and differs from what CI builds from the same commit.
 * text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Shell scripts run in CI and in hooks on Linux: pinned even if the rule above changes.
+scripts/*.sh text eol=lf
+
+# Binary assets: never touch line endings, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.tgz binary
+*.zip binary
+*.pdf binary
