@@ -2,9 +2,10 @@
 
 Единый справочник по структуре и оформлению Helm-чартов этого репозитория. Когда
 добавляешь новый чарт или правишь существующий, держи его в этих рамках. Правила
-процесса (ветки, коммиты, git-workflow, запрет длинного тире) - в `CLAUDE.md`;
-здесь - как должен быть устроен сам чарт (включая SemVer, CHANGELOG и проверку
-перед коммитом).
+репозитория (ветки, коммиты, PR, язык, запрет длинного тире) - в `AGENTS.md` и
+`CONTRIBUTING.md`; пошаговый порядок работы над чартом - в скилле
+`.agents/skills/chart-authoring/SKILL.md`; здесь - как должен быть устроен сам
+чарт (включая SemVer, CHANGELOG и проверку перед коммитом).
 
 Эталон, на который равняемся: `ingress-gateway`, `egress-gateway`, `waypoint`,
 `policies`. Два чарта - исключения по историческим причинам и описаны отдельно в
@@ -623,7 +624,7 @@ lefthook install
   (`{release}-portal`, `{release}-collector`) вместо 5-частной схемы; хелперы
   `console.*`; есть `Deployment`/`Service`/`ServiceAccount`/RBAC. Блока
   `identity` и `values.schema.json` пока нет. Связь его env-ключей с `config.go`/
-  `.env.example` основного репозитория описана в `CLAUDE.md`.
+  `.env.example` основного репозитория описана в `AGENTS.md`, раздел «Что внутри».
 - **`namespace`** (до версии 3.0.0 назывался `managed-namespace`) - cpaas-нейминг
   (labels `cpaas.io/*`, `app.cpaas.io/name`). 5-частная схема не применяется:
   имя собирается из трёх частей, `{identity.project}-{identity.cluster}-{ns|subnet}-{назначение}`,
