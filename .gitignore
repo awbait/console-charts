@@ -9,8 +9,15 @@
 .DS_Store
 *.swp
 
-# Assistant working directory, and the git worktrees other sessions keep under
-# it. Those are repositories of their own: staged wholesale they land here as
-# gitlinks pointing at commits nobody else has.
-.claude/
+# Python bytecode (skill and tool scripts)
+__pycache__/
+
+# Agent local state. Skills (.agents/skills) and rules (.claude/rules) are tracked.
+.claude/settings.local.json
 .codex/
+
+# Git worktrees: made by hand (.worktrees/) and by Claude Code (.claude/worktrees/).
+# They are checkouts of their own: staged wholesale they would land here as
+# gitlinks pointing at commits nobody else has. See AGENTS.md, "Worktrees".
+/.worktrees/
+/.claude/worktrees/
