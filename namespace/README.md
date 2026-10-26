@@ -173,10 +173,16 @@
 | `namespace.podSecurity` | нет | Уровень Pod Security: `restricted`, `baseline` или `privileged` |
 | `namespace.cpaas.cluster` | нет | Кластер в консоли платформы. Значение для `cpaas.io/cluster`. При пустом поле берётся `identity.cluster`, при заказе через портал ставится `global` |
 | `namespace.cpaas.project` | нет | Проект в консоли платформы. Значение для `cpaas.io/project`. При пустом поле берётся `identity.project`, при заказе через портал ставится `dev` |
-| `resourceQuotas.limits` | да | Лимиты CPU и памяти, например `cpu: "4"` и `memory: "8Gi"`. Без них рендер останавливается |
+| `resourceQuotas.unlimited` | нет | Скрытые флаги для снятия квоты с отдельного ресурса. При `true` значение этого ресурса игнорируется |
+| `resourceQuotas.limits` | да | Лимиты CPU и памяти, например `cpu: "4"` и `memory: "8Gi"`. Не нужны для ресурса с флагом безлимитности |
 | `resourceQuotas.requests` | нет | Запросы CPU и памяти. По умолчанию берутся из лимитов |
 | `resourceQuotas.storage` | нет | Квоты на хранилище. Объём по классам хранилища, см. ниже |
 | `subnet` | нет | Подсети неймспейса. Для выделенной подсети нужен зарезервированный CIDR |
+
+Чтобы снять квоту, включите флаг в `resourceQuotas.unlimited` по тому же пути,
+что и ресурс. Например, `unlimited.requests.cpu: true` не выводит
+`requests.cpu`, даже если для него задано значение. Флаги есть для CPU и памяти
+в `limits` и `requests`, для `pods` и для каждого класса в `storage`.
 
 ## Квоты на хранилище
 

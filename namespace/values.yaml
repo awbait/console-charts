@@ -54,8 +54,22 @@ waypoint:
       enabled: true
       for: service
 
-# Лимиты обязательны: без них рендер останавливается.
+# Лимиты обязательны, если для соответствующего ресурса не включён unlimited.
 resourceQuotas:
+  unlimited:
+    limits:
+      cpu: false
+      memory: false
+    requests:
+      cpu: false
+      memory: false
+    pods: false
+    storage:
+      topolvm-mu: false
+      topolvm-ri: false
+      ceph-rbd: false
+      ceph-rgw: false
+      cephfs-hot: false
   limits:
     cpu: "4"
     memory: "8Gi"

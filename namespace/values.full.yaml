@@ -143,6 +143,23 @@ waypoint:
 # resourceQuotas - квоты ресурсов namespace
 # ----------------------------------------------------------------------------
 resourceQuotas:
+  # Отключает квоту для отдельного ресурса. Значение ресурса при true игнорируется.
+  # Служебные флаги, в форме портала скрыты.
+  unlimited:
+    limits:
+      cpu: false
+      memory: false
+    requests:
+      cpu: false
+      memory: false
+    pods: false
+    storage:
+      topolvm-mu: false
+      topolvm-ri: false
+      ceph-rbd: false
+      ceph-rgw: false
+      cephfs-hot: false
+
   # Имя ресурса ResourceQuota. Пусто - "default".
   # Служебное поле, в форме портала скрыто.
   name: default

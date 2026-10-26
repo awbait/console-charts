@@ -355,6 +355,7 @@
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
+        "unlimited",
         "limits",
         "requests",
         "storage",
@@ -362,6 +363,43 @@
         "name"
       ],
       "properties": {
+        "unlimited": {
+          "title": "Ресурсы без лимита",
+          "description": "Отключает квоту для выбранного ресурса. Значение ресурса при включённом флаге игнорируется. В форме скрыто.",
+          "type": "object",
+          "additionalProperties": false,
+          "ui:widget": "hidden",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "memory": { "type": "boolean", "default": false, "ui:widget": "hidden" }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "memory": { "type": "boolean", "default": false, "ui:widget": "hidden" }
+              }
+            },
+            "pods": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+            "storage": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "topolvm-mu": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "topolvm-ri": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "ceph-rbd": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "ceph-rgw": { "type": "boolean", "default": false, "ui:widget": "hidden" },
+                "cephfs-hot": { "type": "boolean", "default": false, "ui:widget": "hidden" }
+              }
+            }
+          }
+        },
         "limits": {
           "title": "Лимиты ресурсов",
           "description": "Укажите общий предел ресурсов для всех сервисов неймспейса.",

@@ -12,6 +12,20 @@ global:
   namespacePurpose: app  # получится demo-dev-ns-app
 
 resourceQuotas:
+  unlimited:
+    limits:
+      cpu: false
+      memory: false
+    requests:
+      cpu: false
+      memory: false
+    pods: false
+    storage:
+      topolvm-mu: false
+      topolvm-ri: false
+      ceph-rbd: false
+      ceph-rgw: false
+      cephfs-hot: false
   limits:
     cpu: "2"
     memory: "4Gi"
