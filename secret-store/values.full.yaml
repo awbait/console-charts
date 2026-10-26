@@ -52,6 +52,24 @@ generic:
 serviceAccount:
   create: true
 
+# ============================================================================
+# secrets - секреты StarVault в Kubernetes
+# ============================================================================
+# Каждая запись создаёт Kubernetes Secret с именем name. ESO читает значения
+# через SecretStore из store.name. vaultKey становится ключом итогового Secret,
+# если для него не задан отдельный secretKey.
+secrets:
+  - name: application-credentials
+    vaultSecrets:
+      # Запись в StarVault. Можно добавить несколько записей в один Secret.
+      - vaultSecretPath: applications/example
+        keys:
+          - vaultKey: username
+          - vaultKey: password
+            # secretKey: application-password
+      # Если keys не указаны, в Kubernetes Secret переносятся все поля записи.
+      # - vaultSecretPath: applications/all-settings
+
 
 # ============================================================================
 # store - сам SecretStore

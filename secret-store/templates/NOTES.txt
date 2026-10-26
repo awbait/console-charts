@@ -18,6 +18,14 @@ the cluster does not trust (store.caBundle).
 
 Other releases point at this store by its name, for example an ingress-gateway
 certificate takes it in the "Хранилище" field.
+{{- with .Values.secrets }}
+
+ExternalSecret resources:
+{{- range . }}
+- {{ .name }}
+{{- end }}
+They synchronize data from StarVault into the listed Kubernetes Secret resources.
+{{- end }}
 {{- else }}
 Resources not created: enabled=false.
 {{- end }}

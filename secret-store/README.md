@@ -14,6 +14,7 @@ Operator знает, куда ходить и от чьего имени.
 |------------------|---------------------------------------------------|
 | `ServiceAccount` | Всегда, если `serviceAccount.create` не выключен  |
 | `SecretStore`    | Всегда                                            |
+| `ExternalSecret` | Для каждой записи в `secrets`                     |
 
 Ресурсы создаются в namespace релиза. Namespace чарт не создаёт и не меняет:
 заказ ставится в уже существующее пространство.
@@ -85,6 +86,28 @@ Operator знает, куда ходить и от чьего имени.
 Версия движка KV влияет на то, как пишутся пути в заказах, которые читают
 секреты: для `v2` путь пишется без `data/`, оператор подставляет его сам.
 
+## Секреты из StarVault
+
+Секция `secrets` описывает Kubernetes Secret, которые нужно собрать из значений
+StarVault. Каждая запись создаёт `ExternalSecret` и использует SecretStore этого
+заказа. Поле `name` задаёт имя итогового Kubernetes Secret.
+
+```yaml
+secrets:
+  - name: custom-ca
+    vaultSecrets:
+      - vaultSecretPath: ecpk.test/intermediate
+        keys:
+          - vaultKey: intermediate-pem
+```
+
+`vaultSecretPath` - путь к записи в StarVault. Если `keys` не указан, в
+Kubernetes Secret переносятся все поля этой записи. `vaultKey` - ключ в записи,
+который нужно перенести выборочно. По умолчанию он станет таким же ключом
+итогового Kubernetes Secret. Если имя ключа в Kubernetes должно отличаться,
+укажите `secretKey`. В один Kubernetes Secret можно перенести ключи или все
+поля из нескольких записей StarVault.
+
 ## Что должно быть готово со стороны StarVault
 
 Роль должна существовать, и её политика должна давать чтение по тем путям, за
@@ -104,6 +127,9 @@ Operator знает, куда ходить и от чьего имени.
 - не задан `store.server`;
 - имя `SecretStore` или `ServiceAccount` длиннее 63 символов или не в
   DNS-формате.
+- у записи `secrets` нет имени или пути в StarVault;
+- имя Kubernetes Secret не в DNS-формате;
+- несколько значений StarVault записываются в один ключ Kubernetes Secret.
 
 ## Файлы чарта
 

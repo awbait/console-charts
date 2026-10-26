@@ -162,6 +162,30 @@ Name of the ServiceAccount the store authenticates as.
 {{- end -}}
 
 {{/*
+Validate one Kubernetes Secret entry. Parameters: .entry and zero-based .index.
+*/}}
+{{- define "secret-store.helpers.secret.validate" -}}
+{{- $entry := .entry | default dict -}}
+{{- $index := .index | int -}}
+{{- $_ := include "secret-store.helpers.app.objectName" (dict "label" (printf "secrets[%d].name" $index) "value" $entry.name) -}}
+{{- if not $entry.vaultSecrets -}}
+{{- fail (printf "secrets[%d].vaultSecrets must contain at least one StarVault secret" $index) -}}
+{{- end -}}
+{{- $keys := dict -}}
+{{- range $vaultIndex, $vaultSecret := $entry.vaultSecrets | default list -}}
+{{- $_ := required (printf "secrets[%d].vaultSecrets[%d].vaultSecretPath is required" $index $vaultIndex) $vaultSecret.vaultSecretPath -}}
+{{- range $keyIndex, $key := $vaultSecret.keys | default list -}}
+{{- $vaultKey := required (printf "secrets[%d].vaultSecrets[%d].keys[%d].vaultKey is required" $index $vaultIndex $keyIndex) $key.vaultKey -}}
+{{- $secretKey := $key.secretKey | default $vaultKey -}}
+{{- if hasKey $keys $secretKey -}}
+{{- fail (printf "secrets[%d] maps more than one Vault value to Secret key %q" $index $secretKey) -}}
+{{- end -}}
+{{- $_ := set $keys $secretKey true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Generic rendering of templated values. Parameters: .value, .context.
 */}}
 {{- define "secret-store.helpers.tplvalues.render" -}}

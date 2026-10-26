@@ -8,6 +8,7 @@
   "propertyOrder": [
     "identity",
     "store",
+    "secrets",
     "serviceAccount",
     "generic"
   ],
@@ -25,6 +26,15 @@
       "title": "Доступ к StarVault",
       "description": "Откуда namespace берёт секреты и под какой ролью туда ходит.",
       "$ref": "#/definitions/store"
+    },
+    "secrets": {
+      "title": "Секреты",
+      "description": "Список Kubernetes Secret, которые External Secrets Operator наполнит значениями из StarVault через хранилище этого заказа.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/definitions/secret"
+      }
     },
     "serviceAccount": {
       "ui:widget": "hidden",
@@ -219,6 +229,65 @@
       "required": [
         "role"
       ]
+    },
+    "secret": {
+      "title": "Секрет",
+      "description": "Kubernetes Secret и значения StarVault, из которых он будет собран.",
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": ["name", "vaultSecrets"],
+      "properties": {
+        "name": {
+          "title": "Имя Kubernetes Secret",
+          "$ref": "#/definitions/k8sName"
+        },
+        "vaultSecrets": {
+          "title": "Секреты StarVault",
+          "description": "Записи StarVault и ключи, которые нужно перенести в Kubernetes Secret.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/vaultSecret" }
+        }
+      },
+      "required": ["name", "vaultSecrets"]
+    },
+    "vaultSecret": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": ["vaultSecretPath", "keys"],
+      "properties": {
+        "vaultSecretPath": {
+          "title": "Путь в StarVault",
+          "type": "string",
+          "minLength": 1
+        },
+        "keys": {
+          "title": "Ключи",
+          "description": "Ключи записи StarVault, которые нужно перенести. Оставьте пустым, чтобы перенести все поля записи.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/vaultSecretKey" }
+        }
+      },
+      "required": ["vaultSecretPath"]
+    },
+    "vaultSecretKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": ["vaultKey", "secretKey"],
+      "properties": {
+        "vaultKey": {
+          "title": "Ключ в StarVault",
+          "type": "string",
+          "minLength": 1
+        },
+        "secretKey": {
+          "title": "Ключ Kubernetes Secret",
+          "description": "Оставьте пустым, чтобы использовать имя ключа из StarVault.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["vaultKey"]
     },
     "serviceAccount": {
       "type": "object",
