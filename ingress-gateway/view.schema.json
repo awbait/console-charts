@@ -147,6 +147,28 @@
         }
       }
     },
+    "externalTrafficPolicy": {
+      "include": [
+        "gateways"
+      ],
+      "$comment": "Правка политики внешнего трафика Service точки входа (gateways[0].externalTrafficPolicy) из карточки заказа: Cluster или Local, уходит в externalTrafficPolicy Service'а в ConfigMap гейтвея. Скрытое в форме заказа поле здесь раскрывается, как ipAddress.",
+      "overrides": {
+        "gateways": {
+          "title": "Gateway",
+          "ui:view": {
+            "include": [
+              "externalTrafficPolicy"
+            ],
+            "overrides": {
+              "externalTrafficPolicy": {
+                "ui:widget": "edit"
+              }
+            }
+          },
+          "ui:widget": "single"
+        }
+      }
+    },
     "listeners": {
       "$comment": "Редактор listener'ов Gateway (gateways[0].listeners) в карточке. Последний удалить нельзя (minItems:1 в схеме). Имя точки входа лучше не менять после выпуска: на него ссылается sectionName маршрутов, и по нему же назван автовыпущенный сертификат, который после переименования выпустится заново."
     },
@@ -216,6 +238,11 @@
       "in": "info",
       "view": "ipAddress",
       "label": "Редактировать IP"
+    },
+    {
+      "in": "info",
+      "view": "externalTrafficPolicy",
+      "label": "Редактировать передачу трафика"
     },
     {
       "in": "info",
