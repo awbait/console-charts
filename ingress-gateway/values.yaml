@@ -75,7 +75,7 @@ gatewayScheduling:
   affinity: {}
 
 # gateways / xroutes намеренно не заданы: их приносит заказ. У каждого gateway
-# можно задать externalTrafficPolicy: Cluster (по умолчанию) или Local.
+# можно задать externalTrafficPolicy: Local (по умолчанию) или Cluster.
 # sessionAffinity и h2UpgradePolicy у сервисов маршрута необязательны и без
 # значений по умолчанию. Без них DestinationRule не создаётся.
 # Пример со всеми параметрами - в values.full.yaml.

@@ -698,7 +698,7 @@
             "Только локальные поды",
             "Поды всего кластера"
           ],
-          "default": "Cluster",
+          "default": "Local",
           "ui:widget": "hidden"
         },
         "listeners": {
