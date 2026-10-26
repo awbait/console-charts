@@ -19,6 +19,12 @@
 
 ---
 
+## [1.0.0] - 2026-10-26
+
+### Changed
+
+- **BREAKING:** Сабчарт `ingress-gateway` обновлён до `12.0.0`. Для точки входа по умолчанию используется `externalTrafficPolicy: Local` вместо `Cluster`. Если нужен прежний режим, укажите `ingressGateway.gateways[].externalTrafficPolicy: Cluster`.
+
 ## [0.10.0] - 2026-10-19
 
 ### Added

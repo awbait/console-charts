@@ -160,6 +160,7 @@ namespace. На одной точке входа имена маршрутов �
 | `name`        | да                       | Имя точки входа от 2 до 9 символов. На него ссылаются маршруты.              |
 | `enabled`     | нет, по умолчанию `true` | При `false` ресурсы `Gateway` и `ConfigMap` не создаются.                    |
 | `ipAddress`   | нет                      | Постоянный адрес балансировщика. Передаётся в аннотацию MetalLB.             |
+| `externalTrafficPolicy` | нет, по умолчанию `Local` | Как Service направляет внешний трафик. `Local` отправляет его только в поды на принявшей ноде, `Cluster` допускает отправку в под на другой ноде. |
 | `hpa`         | нет                      | Настройки автомасштабирования: `enabled`, `minReplicas`, `maxReplicas`, `averageUtilization`. |
 | `resources`   | нет                      | Ресурсы контейнера `istio-proxy`.                                           |
 | `proxy`       | нет                      | Настройки прокси точки входа: `streamIdleTimeout` и `maxRequestHeadersKb`. Описаны ниже. |

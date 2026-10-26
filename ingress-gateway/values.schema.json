@@ -657,6 +657,7 @@
         "name",
         "enabled",
         "ipAddress",
+        "externalTrafficPolicy",
         "listeners",
         "hpa",
         "resources",
@@ -684,6 +685,20 @@
           "type": "string",
           "minLength": 1,
           "ui:widget": "hidden"
+        },
+        "externalTrafficPolicy": {
+          "title": "Маршрутизация внешнего трафика",
+          "description": "Local направляет трафик только в поды на ноде, которая его приняла. Cluster допускает перенаправление в под на другой ноде.",
+          "type": "string",
+          "enum": [
+            "Local",
+            "Cluster"
+          ],
+          "enumNames": [
+            "Только локальные поды",
+            "Поды всего кластера"
+          ],
+          "default": "Local"
         },
         "listeners": {
           "title": "Слушатели",

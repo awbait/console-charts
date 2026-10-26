@@ -169,6 +169,10 @@ gateways:
 
     ipAddress: 127.0.0.1
 
+    # Local направляет внешний трафик только в поды на ноде, которая его
+    # приняла. Cluster допускает перенаправление в под на другой ноде.
+    externalTrafficPolicy: Cluster
+
     hpa:
       enabled: true
       minReplicas: 2
