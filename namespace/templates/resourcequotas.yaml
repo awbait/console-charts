@@ -1,7 +1,13 @@
 {{/*
-ResourceQuota of the Namespace. CPU and memory values are required unless the
-matching unlimited flag is set. Empty values otherwise render as null and are
-rejected by the API server at apply time. Sync wave -2, alongside the Subnet.
+ResourceQuota of the Namespace. The CPU and memory limits are required, as in
+the schema: an empty limit used to render as a null value, which the API server
+rejects at apply time, long after the render passed. They also stay the source
+of requests that are not set, even when the limit itself is lifted.
+
+A flag under resourceQuotas.unlimited lifts one quota: its key is left out of
+spec.hard and the value set for it is ignored. With every quota lifted the
+ResourceQuota is not rendered at all, since an empty spec.hard limits nothing.
+Sync wave -2, alongside the Subnet.
 */}}
 {{- if eq (include "namespace.helpers.chartEnabled" .) "true" }}
 {{- $quotas := .Values.resourceQuotas | default dict }}
@@ -11,12 +17,16 @@ rejected by the API server at apply time. Sync wave -2, alongside the Subnet.
 {{- $unlimitedLimits := $unlimited.limits | default dict }}
 {{- $unlimitedRequests := $unlimited.requests | default dict }}
 {{- $unlimitedStorage := $unlimited.storage | default dict }}
-{{- if not $unlimitedLimits.cpu }}
-{{- $cpu := required "resourceQuotas.limits.cpu is required unless resourceQuotas.unlimited.limits.cpu is true" $limits.cpu }}
+{{- $cpu := required "resourceQuotas.limits.cpu is required: the CPU limit of the namespace, for example \"4\"" $limits.cpu }}
+{{- $memory := required "resourceQuotas.limits.memory is required: the memory limit of the namespace, for example \"8Gi\"" $limits.memory }}
+{{- $storageQuotas := dict }}
+{{- range $storageClass, $quota := $quotas.storage | default dict }}
+{{- if and $quota (not (get $unlimitedStorage $storageClass)) }}
+{{- $_ := set $storageQuotas (printf "%s.storageclass.storage.k8s.io/requests.storage" $storageClass) $quota }}
 {{- end }}
-{{- if not $unlimitedLimits.memory }}
-{{- $memory := required "resourceQuotas.limits.memory is required unless resourceQuotas.unlimited.limits.memory is true" $limits.memory }}
 {{- end }}
+{{- $anyQuota := or (not $unlimitedLimits.cpu) (not $unlimitedLimits.memory) (not $unlimited.pods) (not $unlimitedRequests.cpu) (not $unlimitedRequests.memory) (gt (len $storageQuotas) 0) }}
+{{- if $anyQuota }}
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -26,27 +36,22 @@ metadata:
 spec:
   hard:
     {{- if not $unlimitedLimits.cpu }}
-    limits.cpu: {{ $limits.cpu | quote }}
+    limits.cpu: {{ $cpu | quote }}
     {{- end }}
     {{- if not $unlimitedLimits.memory }}
-    limits.memory: {{ $limits.memory | quote }}
+    limits.memory: {{ $memory | quote }}
     {{- end }}
     {{- if not $unlimited.pods }}
     pods: {{ $quotas.podsAmount | default 1000 }}
     {{- end }}
     {{- if not $unlimitedRequests.cpu }}
-    requests.cpu: {{ $requests.cpu | default $limits.cpu | quote }}
+    requests.cpu: {{ $requests.cpu | default $cpu | quote }}
     {{- end }}
     {{- if not $unlimitedRequests.memory }}
-    requests.memory: {{ $requests.memory | default $limits.memory | quote }}
-    {{- end }}
-    {{- $storageQuotas := dict }}
-    {{- range $storageClass, $quota := $quotas.storage | default dict }}
-    {{- if and $quota (not (get $unlimitedStorage $storageClass)) }}
-    {{- $_ := set $storageQuotas (printf "%s.storageclass.storage.k8s.io/requests.storage" $storageClass) $quota }}
-    {{- end }}
+    requests.memory: {{ $requests.memory | default $memory | quote }}
     {{- end }}
     {{- if $storageQuotas }}
     {{- $storageQuotas | toYaml | nindent 4 }}
     {{- end }}
+{{- end }}
 {{- end -}}
