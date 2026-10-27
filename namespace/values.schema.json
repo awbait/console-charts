@@ -355,6 +355,7 @@
       "type": "object",
       "additionalProperties": false,
       "propertyOrder": [
+        "unlimited",
         "limits",
         "requests",
         "storage",
@@ -362,6 +363,44 @@
         "name"
       ],
       "properties": {
+        "unlimited": {
+          "title": "Ресурсы без лимита",
+          "description": "Отключает квоту для выбранного ресурса. Значение ресурса при включённом флаге игнорируется. В форме скрыто.",
+          "type": "object",
+          "additionalProperties": false,
+          "ui:widget": "hidden",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": { "type": "boolean", "default": false },
+                "memory": { "type": "boolean", "default": false }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cpu": { "type": "boolean", "default": false },
+                "memory": { "type": "boolean", "default": false }
+              }
+            },
+            "pods": { "type": "boolean", "default": false },
+            "storage": {
+              "$comment": "Keep the classes in sync with resourceQuotas.storage: a class added there needs its flag here.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "topolvm-mu": { "type": "boolean", "default": false },
+                "topolvm-ri": { "type": "boolean", "default": false },
+                "ceph-rbd": { "type": "boolean", "default": false },
+                "ceph-rgw": { "type": "boolean", "default": false },
+                "cephfs-hot": { "type": "boolean", "default": false }
+              }
+            }
+          }
+        },
         "limits": {
           "title": "Лимиты ресурсов",
           "description": "Укажите общий предел ресурсов для всех сервисов неймспейса.",

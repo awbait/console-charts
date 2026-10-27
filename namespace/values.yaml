@@ -56,6 +56,24 @@ waypoint:
 
 # Лимиты обязательны: без них рендер останавливается.
 resourceQuotas:
+  # Снятие квоты с отдельного ресурса: при true ключ не попадает в квоту, а
+  # заданное для него значение игнорируется. Лимиты при этом всё равно
+  # обязательны, из них берутся незаданные requests. Если сняты все квоты,
+  # ResourceQuota не создаётся. Служебные флаги, в форме портала скрыты.
+  unlimited:
+    limits:
+      cpu: false
+      memory: false
+    requests:
+      cpu: false
+      memory: false
+    pods: false
+    storage:
+      topolvm-mu: false
+      topolvm-ri: false
+      ceph-rbd: false
+      ceph-rgw: false
+      cephfs-hot: false
   limits:
     cpu: "4"
     memory: "8Gi"
