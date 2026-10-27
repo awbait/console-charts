@@ -157,17 +157,26 @@ Name of the ServiceAccount the store authenticates as.
 */}}
 {{- define "secret-store.helpers.app.serviceAccountName" -}}
 {{- $sa := .Values.serviceAccount | default dict -}}
-{{- $store := (.Values.store | default dict).name | default "vault" -}}
-{{- include "secret-store.helpers.app.objectName" (dict "label" "serviceAccount.name" "value" ($sa.name | default (printf "external-secrets-%s" $store))) -}}
+{{- $storeName := include "secret-store.helpers.storeName" . -}}
+{{- include "secret-store.helpers.app.objectName" (dict "label" "serviceAccount.name" "value" ($sa.name | default (printf "external-secrets-%s" $storeName))) -}}
 {{- end -}}
 
 {{/*
-Validate one Kubernetes Secret entry. Parameters: .entry and zero-based .index.
+Name of the SecretStore. Uses the same validation wherever the store is referenced.
+*/}}
+{{- define "secret-store.helpers.storeName" -}}
+{{- $store := .Values.store | default dict -}}
+{{- include "secret-store.helpers.app.objectName" (dict "label" "store.name" "value" ($store.name | default "vault")) -}}
+{{- end -}}
+
+{{/*
+Validate one Kubernetes Secret entry and return its validated name. Parameters:
+.entry and zero-based .index.
 */}}
 {{- define "secret-store.helpers.secret.validate" -}}
 {{- $entry := .entry | default dict -}}
 {{- $index := .index | int -}}
-{{- $_ := include "secret-store.helpers.app.objectName" (dict "label" (printf "secrets[%d].name" $index) "value" $entry.name) -}}
+{{- $name := include "secret-store.helpers.app.objectName" (dict "label" (printf "secrets[%d].name" $index) "value" $entry.name) -}}
 {{- if not $entry.vaultSecrets -}}
 {{- fail (printf "secrets[%d].vaultSecrets must contain at least one StarVault secret" $index) -}}
 {{- end -}}
@@ -183,6 +192,7 @@ Validate one Kubernetes Secret entry. Parameters: .entry and zero-based .index.
 {{- $_ := set $keys $secretKey true -}}
 {{- end -}}
 {{- end -}}
+{{- $name -}}
 {{- end -}}
 
 {{/*

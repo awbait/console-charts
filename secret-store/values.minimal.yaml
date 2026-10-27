@@ -16,10 +16,3 @@ store:
   path: kv             # движок KV, в котором лежат секреты
   auth:
     role: core         # роль в StarVault, обычно имя команды
-
-secrets:
-  - name: application-credentials
-    vaultSecrets:
-      - vaultSecretPath: applications/example
-        keys:
-          - vaultKey: username

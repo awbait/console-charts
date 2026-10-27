@@ -194,7 +194,7 @@
         "apiVersion": {
           "ui:widget": "hidden",
           "title": "apiVersion",
-          "description": "apiVersion of the SecretStore resource, for a cluster with an older External Secrets Operator. Hidden.",
+          "description": "API version for SecretStore and ExternalSecret resources in clusters using an older External Secrets Operator. Hidden.",
           "type": "string",
           "minLength": 1
         }
