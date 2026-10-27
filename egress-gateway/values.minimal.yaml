@@ -49,8 +49,9 @@ waypointNamespace:
     waypoints:
       - name: eg
         for: service
-        # Namespace отправителей: без него привязка ServiceEntry из чужого
-        # namespace к waypoint'у не действует.
+        # Все namespace отправителей (senders.namespace и additionalNamespaces):
+        # без них привязка ServiceEntry из чужого namespace к waypoint'у не
+        # действует.
         allowedNamespaces:
           - nbox-dev-ns-app
         hpa:

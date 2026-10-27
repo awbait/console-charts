@@ -39,10 +39,50 @@
       },
       "then": {
         "properties": {
+          "serviceEntries": {
+            "ui:widget": "hidden"
+          },
+          "networkPolicy": {
+            "ui:widget": "hidden"
+          },
+          "authorizationPolicy": {
+            "ui:widget": "hidden"
+          },
           "waypointNamespace": {
             "properties": {
               "enabled": {
                 "const": false
+              },
+              "waypoint": {
+                "properties": {
+                  "waypoints": {
+                    "ui:widget": "hidden"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "senders": {
+            "properties": {
+              "subnet": {
+                "ui:widget": "hidden"
+              },
+              "additionalSubnets": {
+                "ui:widget": "hidden"
+              }
+            }
+          },
+          "vpcEgressGateway": {
+            "properties": {
+              "scope": {
+                "ui:widget": "hidden"
+              },
+              "label": {
+                "ui:widget": "hidden"
               }
             }
           }
@@ -435,7 +475,7 @@
         },
         "additionalNamespaces": {
           "title": "Другие неймспейсы сервисов",
-          "description": "Добавьте существующие неймспейсы, сервисам из которых нужен выход через этот гейтвей. Не указывайте основной неймспейс и не повторяйте значения.",
+          "description": "Добавьте существующие неймспейсы, сервисам из которых нужен выход через этот гейтвей, не повторяя значения и не указывая основной неймспейс. При включённом переключателе «Создавать неймспейс гейтвея» добавьте каждый из них также в список разрешённых неймспейсов гейтвея.",
           "type": "array",
           "uniqueItems": true,
           "items": {

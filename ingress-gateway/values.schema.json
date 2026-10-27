@@ -657,6 +657,7 @@
         "name",
         "enabled",
         "ipAddress",
+        "externalTrafficPolicy",
         "listeners",
         "hpa",
         "resources",
@@ -683,6 +684,21 @@
           "description": "Постоянный IP-адрес, который MetalLB назначит балансировщику этой точки входа.",
           "type": "string",
           "minLength": 1,
+          "ui:widget": "hidden"
+        },
+        "externalTrafficPolicy": {
+          "title": "Маршрутизация внешнего трафика",
+          "description": "Определяет, куда передаётся внешний трафик: Cluster допускает передачу в поды на других нодах, а Local направляет его только в поды на принявшей трафик ноде и сохраняет адрес клиента. После создания заказа настройку можно изменить через пункт «Редактировать передачу трафика».",
+          "type": "string",
+          "enum": [
+            "Local",
+            "Cluster"
+          ],
+          "enumNames": [
+            "Только локальные поды",
+            "Поды всего кластера"
+          ],
+          "default": "Local",
           "ui:widget": "hidden"
         },
         "listeners": {

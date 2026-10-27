@@ -13,13 +13,15 @@ subchart renders it in NS 2 and this file renders nothing. Mirrors
 waypoint/templates/waypoint.yaml and configmap.yaml of this repository; keep
 the two in step.
 
-The listener admits its own namespace, which is where the senders and their
-ServiceEntries are (the other senders namespaces see the entries through
-exportTo and bind nothing themselves), so allowedNamespaces is not needed
-here; namespaces still listed there (minus the own one) land in a Selector as
-the waypoint chart does. The Service of the
-waypoint stays internal (annotation networking.istio.io/service-type:
-ClusterIP): a waypoint is only ever reached over HBONE from ztunnel.
+The listener admits its own namespace, where the primary senders are, and
+every other namespace of the senders (senders.additionalNamespaces): each of
+them holds its own copy of the ServiceEntries (serviceEntry.yaml) and binds
+it to this gateway, which the listener admits only through a Selector. The
+senders go into that Selector by themselves, allowedNamespaces is not needed
+here; namespaces still listed there land in the same Selector, as the
+waypoint chart does. The Service of the waypoint stays internal (annotation
+networking.istio.io/service-type: ClusterIP): a waypoint is only ever
+reached over HBONE from ztunnel.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
@@ -32,7 +34,8 @@ ClusterIP): a waypoint is only ever reached over HBONE from ztunnel.
 {{- if not (has $for (list "service" "workload" "all")) }}
 {{- fail (printf "waypointNamespace.waypoint.waypoints[].for must be one of service|workload|all, got %q" $for) }}
 {{- end }}
-{{- $allowed := list }}
+{{- $sendersAll := include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray }}
+{{- $allowed := rest $sendersAll }}
 {{- range $item := ($waypoint.allowedNamespaces | default list) }}
 {{- $value := $item | toString | trim | lower }}
 {{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value) }}

@@ -3,25 +3,28 @@ ServiceEntry - one per entry of .Values.serviceEntries, each describing a single
 external service the senders reach through the gateway. Mode mesh only: in
 mode direct there is no waypoint to bind an entry to.
 
-Every entry lands in the primary namespace of the senders (senders.namespace)
-once, and only there. A hostname is mesh-wide to Istio: a second ServiceEntry
-for the same host in another namespace (senders.additionalNamespaces) does not
-give that namespace its own copy, it makes the two entries fight over the
-host, and the TLS handshake through the gateway breaks. The other namespaces
-of the senders see the entry through exportTo instead, which is what a shared
-host needs.
+Every entry lands in every namespace of the senders (senders.namespace and
+each of senders.additionalNamespaces), one copy per namespace with the same
+name and labels. The DNS proxy of ztunnel resolves a host to the ServiceEntry
+of the namespace the client pod is in and does not read exportTo: a namespace
+that has no entry of its own for the host gets whichever entry the mesh holds
+for it, in another namespace, bound to another gateway that admits nobody
+from here, and the traffic dies there. Up to 9.1.0 the chart created the
+entry in the primary namespace only and exported it to the others, and the
+senders of the other namespaces lost the host to a foreign entry as soon as
+one existed in the cluster. Two entries for the same host in two namespaces
+do not fight: each namespace follows its own, checked live on the cluster
+(console-charts issue 117).
 The entry carries both binding labels: istio.io/use-waypoint with the name of
 the egress Gateway and istio.io/use-waypoint-namespace with the namespace the
-gateway stands in. When the gateway has a namespace of its own (NS 2), ztunnel
-picks the traffic of the entry up in the senders namespaces and tunnels it
-into the waypoint over HBONE, and the listener of the waypoint admits the
-primary senders namespace, where the entry is, through allowedNamespaces
-(checked in validate). When the gateway stands next to the senders, the
-namespace label names the own namespace, which Istio treats the same as no
-label.
-exportTo keeps the entry visible in its own namespace, in every other
-namespace of the senders and, when that is another namespace, in the
-namespace of the gateway, so the waypoint resolves the same host.
+gateway stands in. ztunnel picks the traffic of the entry up in its namespace
+and tunnels it into the waypoint over HBONE, and the listener of the waypoint
+admits every senders namespace: through allowedNamespaces when the gateway
+has a namespace of its own (NS 2, checked in validate), through the Selector
+gateway.yaml builds from the senders when the gateway stands next to them.
+exportTo keeps the entry visible in its own namespace and, when that is
+another namespace, in the namespace of the gateway, so the waypoint resolves
+the same host.
 The entry has one port: port (default 443) and protocol (default TLS) come
 from the entry, the port name is the protocol in lower case. Everything else
 is fixed: MESH_EXTERNAL, DNS resolution.
@@ -33,7 +36,7 @@ is fixed: MESH_EXTERNAL, DNS resolution.
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
 {{- $gwNamespace := include "egress-gateway.helpers.gatewayNamespace" $root }}
 {{- $sendersAll := include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray }}
-{{- $senders := index $sendersAll 0 }}
+{{- range $senders := $sendersAll }}
 {{- range $index, $entry := $root.Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
@@ -52,10 +55,7 @@ spec:
     - {{ $hostname | quote }}
   exportTo:
     - "."
-    {{- range $other := (rest $sendersAll) }}
-    - {{ $other | quote }}
-    {{- end }}
-    {{- if not (has $gwNamespace $sendersAll) }}
+    {{- if ne $gwNamespace $senders }}
     - {{ $gwNamespace | quote }}
     {{- end }}
   location: MESH_EXTERNAL
@@ -64,6 +64,7 @@ spec:
     - name: {{ lower $protocol }}
       number: {{ $port }}
       protocol: {{ $protocol }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

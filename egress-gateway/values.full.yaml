@@ -94,14 +94,16 @@ senders:
   # выключенным waypointNamespace), он создаётся именно здесь.
   namespace: nbox-dev-ns-app
 
-  # Необязательно. Другие namespace, которым нужен тот же выход. ServiceEntry
-  # остаются в основном namespace и экспортируются сюда (exportTo): для Istio
-  # домен один на всю сетку, вторая запись на тот же домен в другом namespace
-  # ломает TLS через гейтвей. Каждый из этих namespace получает правило
-  # выхода к гейтвею (mesh), попадает в политики гейтвея (вход и
-  # AuthorizationPolicy) и выбирается по метке (direct + label). В
-  # allowedNamespaces вейпоинта их добавлять не нужно: привязывается только
-  # основной namespace, где лежат ServiceEntry.
+  # Необязательно. Другие namespace, которым нужен тот же выход. Каждый из них
+  # получает свою копию каждой ServiceEntry (mesh): DNS-прокси ztunnel отдаёт
+  # поду запись его namespace и exportTo не читает, поэтому namespace без
+  # своей записи получал бы чужую, с чужим гейтвеем. Каждый из этих namespace
+  # получает правило выхода к гейтвею (mesh), попадает в политики гейтвея
+  # (вход и AuthorizationPolicy) и выбирается по метке (direct + label). При
+  # гейтвее в своём неймспейсе (waypointNamespace.enabled: true) каждый из них
+  # обязан быть в allowedNamespaces вейпоинта вместе с основным: записи
+  # привязываются к гейтвею из каждого namespace. При гейтвее рядом с
+  # отправителями чарт добавляет их в allowedRoutes сам.
   additionalNamespaces:
     - nbox-dev-ns-app2
 
@@ -287,7 +289,8 @@ authorizationPolicy:
 #                       рядом с приложением, его рендерит сам egress-gateway
 #                       по тому же списку waypoint.waypoints (пример -
 #                       values.mesh-senders.yaml); allowedNamespaces тогда не
-#                       нужен, сетевые политики и правило доступа уезжают в
+#                       нужен (все namespace отправителей чарт пускает сам),
+#                       сетевые политики и правило доступа уезжают в
 #                       senders.namespace. В режиме direct обязательно false.
 #   serviceMesh       - всегда enabled + waypoint, never запрещён
 #   namespace.role    - egress
@@ -296,7 +299,8 @@ authorizationPolicy:
 #                       внешние адреса). enabled: true, когда CIDR
 #                       зарезервирован и вписан в cidrBlock.
 #   waypoint.waypoints - ровно один элемент: сам egress-гейтвей. Обязательно
-#                       allowedNamespaces с namespace отправителей; hpa и
+#                       allowedNamespaces со всеми namespace отправителей
+#                       (senders.namespace и additionalNamespaces); hpa и
 #                       resources по желанию (без них ConfigMap не создаётся).
 #                       Список не сливается с дефолтами чарта: описывайте
 #                       элемент целиком.

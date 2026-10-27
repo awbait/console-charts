@@ -19,6 +19,12 @@
 
 ---
 
+## [0.11.0] - 2026-10-26
+
+### Changed
+
+- **BREAKING:** Сабчарт `ingress-gateway` обновлён с версии `11.0.0` до `12.0.0`. При обновлении точка входа портала переключится на `Local`. Чтобы оставить `Cluster`, укажите `ingressGateway.gateways[].externalTrafficPolicy: Cluster` в values установки портала.
+
 ## [0.10.0] - 2026-10-19
 
 ### Added
