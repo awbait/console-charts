@@ -2,9 +2,11 @@
   "views": {
     "order": {
       "include": [
-        "store"
+        "identity/cluster",
+        "store",
+        "secrets"
       ],
-      "$comment": "Заказ: настройки хранилища. Служебные поля store (адрес StarVault, версия движка, сертификат УЦ) и serviceAccount скрыты схемой чарта, теги окружения и проекта проставляет блок defaults. identity указывает на имя хранилища: в кластере оно занято на пару (namespace, kind), поэтому портал не даст завести два одноимённых хранилища в одном неймспейсе.",
+      "$comment": "Заказ: настройки хранилища. Служебные поля store (адрес StarVault, версия движка, сертификат УЦ) и serviceAccount скрыты схемой чарта. Инстанс и проект проставляет блок defaults, кластер получает начальное значение из переменной портала и остаётся доступен для выбора. identity указывает на имя хранилища: в кластере оно занято на пару (namespace, kind), поэтому портал не даст завести два одноимённых хранилища в одном неймспейсе.",
       "identity": "/store/name"
     },
     "access": {
@@ -23,8 +25,38 @@
           }
         }
       }
+    },
+    "secret": {
+      "include": [
+        "name",
+        "vaultSecrets"
+      ]
     }
   },
+  "tabs": [
+    {
+      "id": "secrets",
+      "title": "Секреты",
+      "items": "/secrets",
+      "form": "secret",
+      "addLabel": "Добавить секрет",
+      "ui:uniqueBy": "name",
+      "ui:table": [
+        {
+          "path": "name",
+          "label": "Kubernetes Secret"
+        },
+        {
+          "path": "vaultSecrets/*/vaultSecretPath",
+          "label": "Пути в StarVault"
+        },
+        {
+          "path": "vaultSecrets/*/keys/*/vaultKey",
+          "label": "Ключи StarVault"
+        }
+      ]
+    }
+  ],
   "actions": [
     {
       "in": "info",
@@ -32,9 +64,11 @@
       "label": "Изменить доступ"
     }
   ],
+  "initial": {
+    "/identity/cluster": "{{.Vars.CLUSTER}}"
+  },
   "defaults": {
-    "/identity/instance": "id",
-    "/identity/cluster": "dev",
+    "/identity/instance": "{{.Vars.INSTANCE}}",
     "/identity/project": "{{.Team}}"
   }
 }

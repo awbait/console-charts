@@ -14,6 +14,7 @@ Operator знает, куда ходить и от чьего имени.
 |------------------|---------------------------------------------------|
 | `ServiceAccount` | Всегда, если `serviceAccount.create` не выключен  |
 | `SecretStore`    | Всегда                                            |
+| `ExternalSecret` | Для каждой записи в `secrets`                     |
 
 Ресурсы создаются в namespace релиза. Namespace чарт не создаёт и не меняет:
 заказ ставится в уже существующее пространство.
@@ -80,10 +81,37 @@ Operator знает, куда ходить и от чьего имени.
 | `version`          | нет           | Версия движка KV, по умолчанию `v2`                                    |
 | `caBundle`         | нет           | Сертификат УЦ StarVault в base64, если кластер ему не доверяет         |
 | `caProvider`       | нет           | Ссылка на `ConfigMap` или `Secret` с этим сертификатом                 |
-| `apiVersion`       | нет           | `apiVersion` ресурса `SecretStore` для старого оператора               |
+| `apiVersion`       | нет           | `apiVersion` ресурсов `SecretStore` и `ExternalSecret` для старого оператора |
 
 Версия движка KV влияет на то, как пишутся пути в заказах, которые читают
 секреты: для `v2` путь пишется без `data/`, оператор подставляет его сам.
+
+## Секреты из StarVault
+
+Секция `secrets` описывает Kubernetes Secret, которые нужно собрать из значений
+StarVault. Каждая запись создаёт `ExternalSecret` и использует SecretStore этого
+заказа. Поле `name` задаёт имя итогового Kubernetes Secret.
+
+```yaml
+secrets:
+  - name: custom-ca
+    vaultSecrets:
+      - vaultSecretPath: ecpk.test/intermediate
+        keys:
+          - vaultKey: intermediate-pem
+```
+
+`vaultSecretPath` - путь к записи в StarVault. Если `keys` не указан, в
+Kubernetes Secret переносятся все поля этой записи. `vaultKey` - ключ в записи,
+который нужно перенести выборочно. По умолчанию он станет таким же ключом
+итогового Kubernetes Secret. Если имя ключа в Kubernetes должно отличаться,
+укажите `secretKey`. В один Kubernetes Secret можно перенести ключи или все
+поля из нескольких записей StarVault.
+
+Интервал синхронизации секретов фиксирован и составляет один час. Если одну
+запись переносят целиком, а из другой переносят отдельные ключи, явно заданный
+ключ может перекрыть одноимённое поле, а чарт не проверяет такой конфликт при
+рендере.
 
 ## Что должно быть готово со стороны StarVault
 
@@ -98,12 +126,15 @@ Operator знает, куда ходить и от чьего имени.
 ## Когда рендер останавливается
 
 - не заданы `identity.instance` или `identity.cluster` либо в них недопустимые
-  символы;
-- `identity.project` длиннее 9 символов или содержит недопустимые символы;
-- не задана `store.auth.role`;
-- не задан `store.server`;
+  символы,
+- `identity.project` длиннее 9 символов или содержит недопустимые символы,
+- не задана `store.auth.role`,
+- не задан `store.server`,
 - имя `SecretStore` или `ServiceAccount` длиннее 63 символов или не в
-  DNS-формате.
+  DNS-формате,
+- у записи `secrets` нет имени или пути в StarVault,
+- имя Kubernetes Secret не в DNS-формате,
+- несколько значений StarVault записываются в один ключ Kubernetes Secret.
 
 ## Файлы чарта
 

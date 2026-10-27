@@ -4,7 +4,7 @@ Identity labels on every resource: {{ include "secret-store.helpers.identityLabe
 
 {{- $store := .Values.store | default dict -}}
 {{- $auth := $store.auth | default dict -}}
-SecretStore: {{ $store.name | default "vault" }} -> {{ $store.server }} (KV {{ $store.path | default "kv" }}, {{ $store.version | default "v2" }})
+SecretStore: {{ include "secret-store.helpers.storeName" . }} -> {{ $store.server }} (KV {{ $store.path | default "kv" }}, {{ $store.version | default "v2" }})
 ServiceAccount: {{ include "secret-store.helpers.app.serviceAccountName" . }}{{ if not (.Values.serviceAccount | default dict).create }} (existing, not created by this release){{ end }}
 Role in StarVault: {{ $auth.role }}
 
@@ -18,6 +18,14 @@ the cluster does not trust (store.caBundle).
 
 Other releases point at this store by its name, for example an ingress-gateway
 certificate takes it in the "Хранилище" field.
+{{- with .Values.secrets }}
+
+ExternalSecret resources:
+{{- range . }}
+- {{ .name }}
+{{- end }}
+They synchronize data from StarVault into the listed Kubernetes Secret resources.
+{{- end }}
 {{- else }}
 Resources not created: enabled=false.
 {{- end }}
