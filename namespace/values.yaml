@@ -72,6 +72,7 @@ resourceQuotas:
       topolvm-mu: false
       topolvm-ri: false
       ceph-rbd: false
+      ceph-rbd-vm: false
       ceph-rgw: false
       cephfs-hot: false
   limits:
@@ -86,6 +87,7 @@ resourceQuotas:
     topolvm-mu: ""
     topolvm-ri: ""
     ceph-rbd: ""
+    ceph-rbd-vm: ""
     ceph-rgw: ""
     cephfs-hot: ""
 
