@@ -159,6 +159,7 @@ resourceQuotas:
       topolvm-mu: false
       topolvm-ri: false
       ceph-rbd: false
+      ceph-rbd-vm: false
       ceph-rgw: false
       cephfs-hot: false
 
@@ -186,6 +187,7 @@ resourceQuotas:
   #   topolvm-ri - экономичный диск для частого чтения: кеши, индексы.
   # Оба держат данные на диске своего сервера и копий на других не делают.
   #   ceph-rbd   - блочный том в кластере Ceph,
+  #   ceph-rbd-vm - сетевой диск для виртуальных машин,
   #   ceph-rgw   - класс объектного хранилища Ceph (RGW),
   #   cephfs-hot - общая файловая система CephFS на быстром пуле.
   # Квота считает объём, запрошенный PVC этого класса.
@@ -193,6 +195,7 @@ resourceQuotas:
     topolvm-mu: "100Gi"
     topolvm-ri: "200Gi"
     ceph-rbd: "50Gi"
+    ceph-rbd-vm: "100Gi"
     ceph-rgw: ""
     cephfs-hot: "20Gi"
 

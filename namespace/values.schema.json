@@ -395,6 +395,7 @@
                 "topolvm-mu": { "type": "boolean", "default": false },
                 "topolvm-ri": { "type": "boolean", "default": false },
                 "ceph-rbd": { "type": "boolean", "default": false },
+                "ceph-rbd-vm": { "type": "boolean", "default": false },
                 "ceph-rgw": { "type": "boolean", "default": false },
                 "cephfs-hot": { "type": "boolean", "default": false }
               }
@@ -458,6 +459,7 @@
             "topolvm-mu",
             "topolvm-ri",
             "ceph-rbd",
+            "ceph-rbd-vm",
             "ceph-rgw",
             "cephfs-hot"
           ],
@@ -475,6 +477,11 @@
             "ceph-rbd": {
               "title": "Сетевой блочный диск (ceph-rbd)",
               "description": "Данные хранятся в сетевом хранилище и не привязаны к серверу. Выбирайте для баз данных и сервисов, которым нужен отдельный диск. Укажите объём, например 50Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "ceph-rbd-vm": {
+              "title": "Сетевой диск для виртуальных машин (ceph-rbd-vm)",
+              "description": "Выбирайте для дисков виртуальных машин. Данные хранятся в сетевом хранилище и не привязаны к серверу, поэтому виртуальную машину можно переносить между серверами без остановки. Для контейнерных сервисов используйте ceph-rbd. Укажите объём, например 100Gi.",
               "$ref": "#/definitions/quantity"
             },
             "ceph-rgw": {
