@@ -22,12 +22,12 @@ and tunnels it into the waypoint over HBONE, and the listener of the waypoint
 admits every senders namespace: through allowedNamespaces when the gateway
 has a namespace of its own (NS 2, checked in validate), through the Selector
 gateway.yaml builds from the senders when the gateway stands next to them.
-exportTo keeps the entry visible in its own namespace and, when that is
-another namespace, in the namespace of the gateway, so the waypoint resolves
-the same host.
+exportTo retains the existing namespace export hints. Ambient proxies may
+ignore this field; it is not an isolation boundary.
 The entry has one port: port (default 443) and protocol (default TLS) come
 from the entry, the port name is the protocol in lower case. Everything else
-is fixed: MESH_EXTERNAL, DNS resolution.
+is fixed: MESH_EXTERNAL. Hostname entries use DNS; IP entries use STATIC
+resolution with explicit addresses and endpoints.
 */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
@@ -40,7 +40,8 @@ is fixed: MESH_EXTERNAL, DNS resolution.
 {{- range $index, $entry := $root.Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
-{{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
+{{- $destination := include "egress-gateway.helpers.serviceEntryDestination" (dict "entry" $entry "index" $index) | fromJson }}
+{{- $hostname := include "egress-gateway.helpers.serviceEntryHost" (dict "entry" $entry "index" $index "context" $root) }}
 {{- $port := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) }}
 {{- $protocol := include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) }}
 ---
@@ -59,7 +60,15 @@ spec:
     - {{ $gwNamespace | quote }}
     {{- end }}
   location: MESH_EXTERNAL
+  {{- if eq $destination.kind "IPv4" }}
+  addresses:
+    - {{ $destination.address | quote }}
+  resolution: STATIC
+  endpoints:
+    - address: {{ $destination.address | quote }}
+  {{- else }}
   resolution: DNS
+  {{- end }}
   ports:
     - name: {{ lower $protocol }}
       number: {{ $port }}

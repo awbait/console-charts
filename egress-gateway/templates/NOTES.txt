@@ -36,7 +36,7 @@ Namespace waypoint'а: {{ $gwNamespace }} (создан этим релизом,
   * {{ $entry.hostname }}:{{ include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) }} {{ include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) }} - SE {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "egw" "name" .name "context" $) }}
 {{- end }}
 {{- end }}
-Через выход с известного адреса уходят только эти домены; остальной трафик отправителей идёт как прежде.
+Через выход с известного адреса уходят только перечисленные домены и IP; остальной трафик отправителей идёт как прежде.
 
 {{- $np := .Values.networkPolicy | default dict }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $np) "true" }}

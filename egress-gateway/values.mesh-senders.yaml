@@ -3,11 +3,12 @@
 # приложением в senders.namespace. Список вейпоинтов тот же, что и в
 # values.minimal.yaml, только allowedNamespaces не нужен: гейтвей и так
 # принимает свой неймспейс и остальные неймспейсы отправителей.
+# Внешние назначения: домен через DNS и фиксированный IPv4 по TCP.
 #
 # Что создаётся (теги ниже):
 # - в namespace отправителей nbox-dev-ns-app:
 #   Gateway       ed-dev-wp-nbox-eg    (класс istio-waypoint, рендерит сам egress-gateway) и его ConfigMap
-#   ServiceEntry  ed-dev-egw-nbox-nx
+#   ServiceEntry  ed-dev-egw-nbox-nx и ed-dev-egw-nbox-vm
 #   NetworkPolicy ed-dev-np-eg-nbox-out, ed-dev-np-eg-nbox-in и ed-dev-np-eg-nbox-senders
 #   AuthorizationPolicy ed-dev-ap-nbox-eg
 # - Namespace   nbox-dev-ns-veg-vip  (сабчарт vegNamespace, вне сетки)
@@ -29,6 +30,11 @@ serviceEntries:
   - name: nx
     hostname: repository.solution.test
 
+  - name: vm
+    hostname: 10.20.30.40
+    port: 22
+    protocol: TCP
+
 vpcEgressGateway:
   name: vip
   externalIPs:
@@ -36,6 +42,7 @@ vpcEgressGateway:
 
 networkPolicy:
   enabled: true
+  # IP и порт записи vm добавляются автоматически. Для домена nx нужен адрес ниже.
   endpoints:
     - address: 10.40.20.50
       port: 443

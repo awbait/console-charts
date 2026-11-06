@@ -18,7 +18,7 @@ generic:
   annotations: {}
 
 # Режим: mesh (отправители в ambient, наружу через выход уходят только домены
-# из serviceEntries) или direct (отправители вне сетки, через выход уходит весь
+# и IP из serviceEntries) или direct (отправители вне сетки, через выход уходит весь
 # внешний трафик их подсети).
 mode: mesh
 
@@ -30,7 +30,7 @@ senders:
   subnet: ""           # только direct со scope namespace: имя Subnet отправителей
   additionalSubnets: []      # только direct со scope namespace: другие Subnet
 
-serviceEntries: []     # только mesh; заполняет заказ
+serviceEntries: []     # только mesh; hostname: домен или IPv4; protocol: TLS, HTTP или TCP
 
 # Выход с известного адреса: ОДИН на релиз. externalIPs заполняет заказ.
 # Свои nodeSelector и tolerations здесь заменяют одноимённое умолчание из
@@ -66,7 +66,7 @@ gatewayScheduling:
   tolerations: []
 
 # Политики выключены по умолчанию: их включает заказ (только режим mesh).
-# У networkPolicy при enabled: true обязателен список endpoints.
+# При networkPolicy.enabled: true нужны ручные endpoints или включённые IP-записи.
 networkPolicy:
   enabled: false
   senders: true        # правило в namespace отправителей: выход к гейтвею на 15008
