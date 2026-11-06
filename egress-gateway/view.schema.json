@@ -13,7 +13,7 @@
         },
         {
           "path": "hostname",
-          "label": "Домен внешнего сервиса"
+          "label": "Домен или IPv4"
         },
         {
           "path": "port",

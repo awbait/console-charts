@@ -400,6 +400,12 @@ Parameter: the root context. Renders nothing.
 {{- fail "serviceEntries must contain at least one external service: in mode mesh only the hosts named there leave through the gateway" -}}
 {{- end -}}
 {{- include "egress-gateway.helpers.app.uniqueNames" . -}}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true" -}}
+{{- $endpoints := include "egress-gateway.helpers.effectiveNetworkPolicyEndpoints" . | fromJsonArray -}}
+{{- if not $endpoints -}}
+{{- fail "networkPolicy.endpoints is required when networkPolicy.enabled=true and no enabled IP serviceEntries exist: name the address and port of every external endpoint the gateway has to reach" -}}
+{{- end -}}
+{{- end -}}
 {{- else -}}
 {{- if $wpEnabled -}}
 {{- fail "mode direct has no waypoint: set waypointNamespace.enabled to false, the senders are outside the mesh and their whole subnet leaves through the VIP" -}}
@@ -494,6 +500,7 @@ message instead. Parameter: the root context.
 {{- define "egress-gateway.helpers.app.uniqueNames" -}}
 {{- $entries := dict -}}
 {{- $hostnames := dict -}}
+{{- $ips := dict -}}
 {{- range $index, $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}
 {{- $name := required (printf "serviceEntries[%d].name is required" $index) $entry.name | toString | lower -}}
@@ -501,7 +508,16 @@ message instead. Parameter: the root context.
 {{- fail (printf "serviceEntries[%d].name %q is already taken by another external service; the two would share one ServiceEntry" $index $name) -}}
 {{- end -}}
 {{- $_ := set $entries $name true -}}
-{{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname | toString | lower -}}
+{{- $hostname := include "egress-gateway.helpers.serviceEntryHost" (dict "entry" $entry "index" $index "context" $) -}}
+{{- $_ := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) -}}
+{{- $_ := include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) -}}
+{{- $destination := include "egress-gateway.helpers.serviceEntryDestination" (dict "entry" $entry "index" $index) | fromJson -}}
+{{- if eq $destination.kind "IPv4" -}}
+{{- if hasKey $ips $destination.address -}}
+{{- fail (printf "serviceEntries[%d].hostname IPv4 %q is already taken by another external service; one IP cannot be shared by multiple entries, even on different ports" $index $destination.address) -}}
+{{- end -}}
+{{- $_ := set $ips $destination.address true -}}
+{{- end -}}
 {{- if hasKey $hostnames $hostname -}}
 {{- fail (printf "serviceEntries[%d].hostname %q is already taken by another external service; the two would bind one host twice" $index $hostname) -}}
 {{- end -}}
@@ -637,4 +653,90 @@ Generic templated-value rendering. Params: .value, .context.
 {{- else -}}
 {{- tpl (.value | toYaml) .context -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Canonical IPv4 literal, without CIDR or leading zeroes. Parameters: value, label.
+*/}}
+{{- define "egress-gateway.helpers.ipv4" -}}
+{{- $value := .value | toString -}}
+{{- if eq $value "0.0.0.0" -}}
+{{- fail (printf "%s must be a concrete IPv4 destination, not 0.0.0.0" .label) -}}
+{{- end -}}
+{{- if not (regexMatch "^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$" $value) -}}
+{{- fail (printf "%s must be a canonical IPv4 address without CIDR or leading zeroes, got %q" .label $value) -}}
+{{- end -}}
+{{- $value -}}
+{{- end -}}
+
+{{/*
+Validate and classify the public hostname field. Numeric dotted values must
+be canonical IPv4, never DNS names. Returns kind and address as JSON.
+Parameters: entry, index.
+*/}}
+{{- define "egress-gateway.helpers.serviceEntryDestination" -}}
+{{- if hasKey .entry "ip" -}}
+{{- fail (printf "serviceEntries[%d].ip is not supported: put the domain or IPv4 in hostname" .index) -}}
+{{- end -}}
+{{- $address := required (printf "serviceEntries[%d].hostname is required" .index) .entry.hostname | toString -}}
+{{- if regexMatch "^[0-9.]+$" $address -}}
+{{- $address = include "egress-gateway.helpers.ipv4" (dict "label" (printf "serviceEntries[%d].hostname" .index) "value" $address) -}}
+{{- dict "kind" "IPv4" "address" $address | toJson -}}
+{{- else -}}
+{{- if not (regexMatch "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" $address) -}}
+{{- fail (printf "serviceEntries[%d].hostname must be a lowercase DNS name or canonical IPv4 address, got %q" .index $address) -}}
+{{- end -}}
+{{- dict "kind" "DNS" "address" $address | toJson -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the ServiceEntry host for the classified hostname destination.
+IP entries use a stable SHA-256 host scoped by identity, release and entry name.
+Two DNS labels preserve all 256 bits without exceeding the 63-byte label limit.
+Parameters: entry, index, context.
+*/}}
+{{- define "egress-gateway.helpers.serviceEntryHost" -}}
+{{- $destination := include "egress-gateway.helpers.serviceEntryDestination" . | fromJson -}}
+{{- if eq $destination.kind "IPv4" -}}
+{{- $identity := include "egress-gateway.helpers.identity" .context | fromJson -}}
+{{- $key := list $identity.instance $identity.cluster $identity.project .context.Release.Namespace .context.Release.Name .entry.name | toJson -}}
+{{- $hash := sha256sum $key -}}
+{{- printf "ip-%s.%s.external.invalid" (substr 0 32 $hash) (substr 32 64 $hash) -}}
+{{- else -}}
+{{- $destination.address -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Merge manual endpoints and enabled IP entries without changing Values.
+Normalize bare IPv4 addresses to /32 and deduplicate by CIDR and TCP port.
+Parameter: root context. Returns a JSON array in input order.
+*/}}
+{{- define "egress-gateway.helpers.effectiveNetworkPolicyEndpoints" -}}
+{{- $candidates := list -}}
+{{- range $endpoint := ((.Values.networkPolicy | default dict).endpoints | default list) -}}
+{{- $candidates = append $candidates (dict "address" $endpoint.address "port" $endpoint.port) -}}
+{{- end -}}
+{{- range $index, $entry := (.Values.serviceEntries | default list) -}}
+{{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}
+{{- $destination := include "egress-gateway.helpers.serviceEntryDestination" (dict "entry" $entry "index" $index) | fromJson -}}
+{{- if eq $destination.kind "IPv4" -}}
+{{- $port := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) | int -}}
+{{- $candidates = append $candidates (dict "address" $destination.address "port" $port) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- $seen := dict -}}
+{{- $result := list -}}
+{{- range $index, $endpoint := $candidates -}}
+{{- $cidr := include "egress-gateway.helpers.app.endpointCidr" (dict "label" (printf "networkPolicy.endpoints[%d].address" $index) "value" $endpoint.address) -}}
+{{- $port := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" (dict "port" (required (printf "networkPolicy.endpoints[%d].port is required" $index) $endpoint.port)) "index" $index) | int -}}
+{{- $key := printf "%s:%d" $cidr $port -}}
+{{- if not (hasKey $seen $key) -}}
+{{- $_ := set $seen $key true -}}
+{{- $result = append $result (dict "address" $cidr "port" $port) -}}
+{{- end -}}
+{{- end -}}
+{{- $result | toJson -}}
 {{- end -}}
