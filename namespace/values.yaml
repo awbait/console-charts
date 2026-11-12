@@ -74,6 +74,12 @@ resourceQuotas:
       ceph-rbd: false
       ceph-rbd-vm: false
       ceph-rgw: false
+      topolvm-mu-ml: false
+      topolvm-mu-ext4: false
+      topolvm-ri-ext4: false
+      cephfs-cold: false
+      infinibox-block: false
+      infinibox-fs: false
       cephfs-hot: false
   limits:
     cpu: "4"
@@ -89,6 +95,12 @@ resourceQuotas:
     ceph-rbd: ""
     ceph-rbd-vm: ""
     ceph-rgw: ""
+    topolvm-mu-ml: ""
+    topolvm-mu-ext4: ""
+    topolvm-ri-ext4: ""
+    cephfs-cold: ""
+    infinibox-block: ""
+    infinibox-fs: ""
     cephfs-hot: ""
 
 # Сабчарт Subnet. Включайте только после резервирования диапазона.

@@ -79,6 +79,58 @@
         },
         "waypoint/waypoints": {
           "description": "Укажите прокси, через которые пойдёт трафик сервисов неймспейса. Список используется, только если в этой форме включён переключатель «Подключить прокси для правил доступа». Обычно достаточно одного вейпоинта."
+        },
+        "resourceQuotas": {
+          "ui:view": {
+            "overrides": {
+              "storage": {
+                "ui:view": {
+                  "overrides": {
+                    "topolvm-mu": {
+                      "ui:widget": "edit",
+                      "description": "Выбирайте для сервисов с постоянной записью: очередей сообщений, журналов и аналитических баз. Данные хранятся на диске сервера, где работает сервис. Копии на других серверах нет, поэтому сервис должен уметь восстанавливаться самостоятельно. Укажите объём, например 100Gi. Доступен только в DEV-ECPK, кластер global."
+                    },
+                    "topolvm-mu-ml": {
+                      "ui:widget": "edit",
+                      "description": "Доступен только в DEV-ECPK, кластер global, неймспейсам dev-llmaas, dev-solver и dev-mlops. Ограничение задано политикой Kyverno. Укажите объём, например 100Gi."
+                    },
+                    "infinibox-block": {
+                      "ui:widget": "edit",
+                      "description": "Блочное хранилище с доступом RWO. Доступен только в PROD-ECPK, кластер techsec-dev. Укажите объём, например 100Gi."
+                    },
+                    "infinibox-fs": {
+                      "ui:widget": "edit",
+                      "description": "Файловое хранилище с доступом RWO/RWX. Доступен только в PROD-ECPK, кластер techsec-dev. Укажите объём, например 100Gi."
+                    },
+                    "topolvm-mu-ext4": {
+                      "description": "Чередование данных на четырёх дисках MU, полоса 256 КиБ, ext4. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "topolvm-ri": {
+                      "description": "Выбирайте для кешей, поисковых индексов и данных, которые можно загрузить заново. Данные хранятся на диске сервера, где работает сервис. Этот диск дешевле и медленнее на запись, чем topolvm-mu. Копии на других серверах нет. Укажите объём, например 200Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "topolvm-ri-ext4": {
+                      "description": "Чередование данных на восьми дисках RI, полоса 128 КиБ, ext4. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rbd": {
+                      "description": "Данные хранятся в сетевом хранилище и не привязаны к серверу. Выбирайте для баз данных и сервисов, которым нужен отдельный диск. Укажите объём, например 50Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rbd-vm": {
+                      "description": "Выбирайте для дисков виртуальных машин. Данные хранятся в сетевом хранилище и не привязаны к серверу, поэтому виртуальную машину можно переносить между серверами без остановки. Для контейнерных сервисов используйте ceph-rbd. Укажите объём, например 100Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rgw": {
+                      "description": "Квота ограничивает объём, запрошенный томами этого класса. Укажите объём, например 100Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "cephfs-hot": {
+                      "description": "Один том могут одновременно подключить несколько подов. Выбирайте для общих файлов нескольких реплик. Укажите объём, например 20Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "cephfs-cold": {
+                      "description": "Файловое хранилище CephFS на холодном пуле, доступ RWO/RWX. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -126,7 +178,61 @@
     "resources": {
       "include": [
         "resourceQuotas"
-      ]
+      ],
+      "overrides": {
+        "resourceQuotas": {
+          "ui:view": {
+            "overrides": {
+              "storage": {
+                "ui:view": {
+                  "overrides": {
+                    "topolvm-mu": {
+                      "ui:widget": "edit",
+                      "description": "Выбирайте для сервисов с постоянной записью: очередей сообщений, журналов и аналитических баз. Данные хранятся на диске сервера, где работает сервис. Копии на других серверах нет, поэтому сервис должен уметь восстанавливаться самостоятельно. Укажите объём, например 100Gi. Доступен только в DEV-ECPK, кластер global."
+                    },
+                    "topolvm-mu-ml": {
+                      "ui:widget": "edit",
+                      "description": "Доступен только в DEV-ECPK, кластер global, неймспейсам dev-llmaas, dev-solver и dev-mlops. Ограничение задано политикой Kyverno. Укажите объём, например 100Gi."
+                    },
+                    "infinibox-block": {
+                      "ui:widget": "edit",
+                      "description": "Блочное хранилище с доступом RWO. Доступен только в PROD-ECPK, кластер techsec-dev. Укажите объём, например 100Gi."
+                    },
+                    "infinibox-fs": {
+                      "ui:widget": "edit",
+                      "description": "Файловое хранилище с доступом RWO/RWX. Доступен только в PROD-ECPK, кластер techsec-dev. Укажите объём, например 100Gi."
+                    },
+                    "topolvm-mu-ext4": {
+                      "description": "Чередование данных на четырёх дисках MU, полоса 256 КиБ, ext4. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "topolvm-ri": {
+                      "description": "Выбирайте для кешей, поисковых индексов и данных, которые можно загрузить заново. Данные хранятся на диске сервера, где работает сервис. Этот диск дешевле и медленнее на запись, чем topolvm-mu. Копии на других серверах нет. Укажите объём, например 200Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "topolvm-ri-ext4": {
+                      "description": "Чередование данных на восьми дисках RI, полоса 128 КиБ, ext4. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rbd": {
+                      "description": "Данные хранятся в сетевом хранилище и не привязаны к серверу. Выбирайте для баз данных и сервисов, которым нужен отдельный диск. Укажите объём, например 50Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rbd-vm": {
+                      "description": "Выбирайте для дисков виртуальных машин. Данные хранятся в сетевом хранилище и не привязаны к серверу, поэтому виртуальную машину можно переносить между серверами без остановки. Для контейнерных сервисов используйте ceph-rbd. Укажите объём, например 100Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "ceph-rgw": {
+                      "description": "Квота ограничивает объём, запрошенный томами этого класса. Укажите объём, например 100Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "cephfs-hot": {
+                      "description": "Один том могут одновременно подключить несколько подов. Выбирайте для общих файлов нескольких реплик. Укажите объём, например 20Gi. Доступен в DEV-ECPK, кластер global, и PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    },
+                    "cephfs-cold": {
+                      "description": "Файловое хранилище CephFS на холодном пуле, доступ RWO/RWX. Укажите объём, например 100Gi. Доступен в PROD-ECPK, кластеры techsec-dev, dev-common и test-common."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "serviceMesh": {
       "include": [
