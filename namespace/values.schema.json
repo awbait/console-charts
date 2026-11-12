@@ -397,7 +397,13 @@
                 "ceph-rbd": { "type": "boolean", "default": false },
                 "ceph-rbd-vm": { "type": "boolean", "default": false },
                 "ceph-rgw": { "type": "boolean", "default": false },
-                "cephfs-hot": { "type": "boolean", "default": false }
+                "cephfs-hot": { "type": "boolean", "default": false },
+                "topolvm-mu-ml": { "type": "boolean", "default": false },
+                "topolvm-mu-ext4": { "type": "boolean", "default": false },
+                "topolvm-ri-ext4": { "type": "boolean", "default": false },
+                "cephfs-cold": { "type": "boolean", "default": false },
+                "infinibox-block": { "type": "boolean", "default": false },
+                "infinibox-fs": { "type": "boolean", "default": false }
               }
             }
           }
@@ -457,17 +463,24 @@
           "additionalProperties": false,
           "propertyOrder": [
             "topolvm-mu",
+            "topolvm-mu-ml",
+            "topolvm-mu-ext4",
             "topolvm-ri",
+            "topolvm-ri-ext4",
             "ceph-rbd",
             "ceph-rbd-vm",
             "ceph-rgw",
-            "cephfs-hot"
+            "cephfs-hot",
+            "cephfs-cold",
+            "infinibox-block",
+            "infinibox-fs"
           ],
           "properties": {
             "topolvm-mu": {
               "title": "Быстрый диск для частой записи (topolvm-mu)",
               "description": "Выбирайте для сервисов с постоянной записью: очередей сообщений, журналов и аналитических баз. Данные хранятся на диске сервера, где работает сервис. Копии на других серверах нет, поэтому сервис должен уметь восстанавливаться самостоятельно. Укажите объём, например 100Gi.",
-              "$ref": "#/definitions/quantity"
+              "$ref": "#/definitions/quantity",
+              "ui:widget": "hidden"
             },
             "topolvm-ri": {
               "title": "Экономичный диск для частого чтения (topolvm-ri)",
@@ -493,6 +506,39 @@
               "title": "Общая файловая система (cephfs-hot)",
               "description": "Один том могут одновременно подключить несколько подов. Выбирайте для общих файлов нескольких реплик. Укажите объём, например 20Gi.",
               "$ref": "#/definitions/quantity"
+            },
+            "topolvm-mu-ml": {
+              "title": "Локальный диск для ML (topolvm-mu-ml)",
+              "description": "Доступен в DEV-ECPK только неймспейсам dev-llmaas, dev-solver и dev-mlops. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity",
+              "ui:widget": "hidden"
+            },
+            "topolvm-mu-ext4": {
+              "title": "Локальный диск MU с ext4 (topolvm-mu-ext4)",
+              "description": "Чередование данных на четырёх дисках MU, полоса 256 КиБ, ext4. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "topolvm-ri-ext4": {
+              "title": "Локальный диск RI с ext4 (topolvm-ri-ext4)",
+              "description": "Чередование данных на восьми дисках RI, полоса 128 КиБ, ext4. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "cephfs-cold": {
+              "title": "Общая файловая система на холодном пуле (cephfs-cold)",
+              "description": "Файловое хранилище CephFS на холодном пуле, доступ RWO/RWX. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity"
+            },
+            "infinibox-block": {
+              "title": "Блочное хранилище Infinibox (infinibox-block)",
+              "description": "Доступно в techsec-dev, тип доступа RWO. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity",
+              "ui:widget": "hidden"
+            },
+            "infinibox-fs": {
+              "title": "Файловое хранилище Infinibox (infinibox-fs)",
+              "description": "Доступно в techsec-dev, тип доступа RWO/RWX. Укажите объём, например 100Gi.",
+              "$ref": "#/definitions/quantity",
+              "ui:widget": "hidden"
             }
           }
         },
