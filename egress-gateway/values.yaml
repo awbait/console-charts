@@ -1,49 +1,34 @@
-# egress-gateway - дефолтные значения (минимум, чтобы рендер проходил).
-# Чарт автоматически подгружает этот файл при каждом `helm template`, поэтому
-# здесь НЕТ примера отправителей, внешних сервисов и адресов: их передаёт заказ.
-# Теги окружения (global.identity) заказ тоже передаёт сам: без них рендер
-# останавливается, а не подставляет чужие теги молча.
-# Полный reference параметров - values.full.yaml; рабочие примеры -
-# values.minimal.yaml (режим mesh) и values.direct.yaml (режим direct).
+# Дефолты без данных заказа. Задайте identity, namespace, externalIPs и mesh-сервисы.
 
-# global - то, что видят и этот чарт, и оба сабчарта namespace, и waypoint
-# под одним из них. identity заказ передаёт сюда, а не в корень.
-global:
-  # Назначение namespace waypoint'а: {project}-{cluster}-ns-<значение>.
-  # Читается сабчартом waypointNamespace и waypoint'ом в нём.
-  namespacePurpose: egw-eg
-
+# Общие теги для ресурсов чарта и namespace выхода. identity заполняет заказ.
+global: {}
+# Общие метки и аннотации собственных ресурсов, включая локальные waypoint.
 generic:
   labels: {}
   annotations: {}
-
-# Режим: mesh (отправители в ambient, наружу через выход уходят только домены
-# из serviceEntries) или direct (отправители вне сетки, через выход уходит весь
-# внешний трафик их подсети).
+# mesh: домены через локальные waypoint. direct: SNAT без сервисной сетки.
 mode: mesh
-
-# Отправители: существующие namespace. Основной - namespace, остальные -
-# additionalNamespaces. Заполняет заказ.
+# Namespace существуют заранее. В mesh список задаёт размещение waypoint,
+# в direct со scope label ограничивает выбор подов. список subnet
+# содержит имена Subnet для direct со scope subnet, независимо от имён namespace.
 senders:
-  namespace: ""
-  additionalNamespaces: []   # другие namespace, которые ходят через тот же выход
-  subnet: ""           # только direct со scope namespace: имя Subnet отправителей
-  additionalSubnets: []      # только direct со scope namespace: другие Subnet
-
-serviceEntries: []     # только mesh; заполняет заказ
-
-# Выход с известного адреса: ОДИН на релиз. externalIPs заполняет заказ.
-# Свои nodeSelector и tolerations здесь заменяют одноимённое умолчание из
-# gatewayScheduling целиком (см. values.full.yaml); в форме заказа скрыты.
+  namespace: []
+  subnet: []
+# Только mesh: каждая включённая запись создаётся в каждом namespace отправителей.
+# Имя и домен обязательны. По умолчанию port: 443, protocol: TLS, enabled: true.
+serviceEntries: []
+# Один выход на релиз, replicas равен числу externalIPs. vpc: ovn-cluster,
+# internalSubnet: ovn-default и externalSubnet: egress-vip зафиксированы. Имя 2..9 символов задаёт и имя waypoint.
+# В direct scope subnet: SNAT для всех указанных Subnet, scope label:
+# поды из списка namespace с меткой <label>=<полное имя выхода>.
+# limitRange задаёт requests/limits контейнерам без собственных ресурсов в namespace выхода.
+# nodeSelector и tolerations здесь заменяют настройки gatewayScheduling целиком,
+# пустые списки отключают соответствующее умолчание.
 vpcEgressGateway:
   name: vip
   externalIPs: []
-  scope: namespace     # только direct: namespace (вся подсеть) | label (поды с меткой)
-  label: ecpk/egress   # только direct со scope label: ключ метки на подах
-  # LimitRange в неймспейсе выхода: requests и limits по умолчанию для
-  # контейнеров, которые kube-ovn создаёт без ресурсов (init-контейнер пода
-  # выхода). Без него квота неймспейса отклоняет под. Формат - LimitRange
-  # типа Container. Контейнер со своими ресурсами их сохраняет.
+  scope: subnet
+  label: ecpk/egress
   limitRange:
     enabled: true
     defaultRequest:
@@ -52,92 +37,42 @@ vpcEgressGateway:
     default:
       cpu: 500m
       memory: 256Mi
-
-# Размещение подов выхода по нодам: умолчание для vpcEgressGateway. Здесь
-# пусто, ноду выбирает планировщик; правила задаёт платформа в значениях
-# своей установки чарта. nodeSelector - в формате kube-ovn (список условий
-# matchLabels / matchExpressions / matchFields), tolerations - в формате
-# спецификации пода Kubernetes. Поле, заданное в vpcEgressGateway, заменяет
-# одноимённое умолчание целиком, а пустое значение там (nodeSelector: [])
-# отключает его. affinity у VpcEgressGateway нет: реплики по нодам
-# раскладывает сам kube-ovn. В форме заказа не показывается.
+# Размещение подов VpcEgressGateway. nodeSelector: список условий kube-ovn
+# (между условиями ИЛИ, внутри И). tolerations: формат PodSpec.
+# По умолчанию пусто, правила задаёт платформа. affinity API не поддерживает.
 gatewayScheduling:
   nodeSelector: []
   tolerations: []
-
-# Политики выключены по умолчанию: их включает заказ (только режим mesh).
-# У networkPolicy при enabled: true обязателен список endpoints.
+# Только mesh. В каждом namespace: вход waypoint из своего namespace на 15008,
+# выход к istiod:15012, DNS:1053 TCP/UDP и внешним endpoints.
+# endpoints обязателен при enabled: true. address: IP или CIDR, port: TCP-порт.
+# senders: true добавляет подам namespace выход к локальному waypoint на 15008.
 networkPolicy:
   enabled: false
-  senders: true        # правило в namespace отправителей: выход к гейтвею на 15008
-
+  senders: true
+# Только mesh: ALLOW на локальный Gateway только из его namespace, через targetRefs.
 authorizationPolicy:
   enabled: false
-
-# ----------------------------------------------------------------------------
-# Сабчарты namespace: неймспейс waypoint'а (только mesh) и неймспейс
-# VpcEgressGateway (всегда). Ниже - фиксированные дефолты платформы; заказ
-# добавляет сам waypoint (waypointNamespace.waypoint.waypoints) и, если
-# подсети зарезервированы, cidrBlock с subnet.enabled: true.
-# ----------------------------------------------------------------------------
-waypointNamespace:
-  # true  - гейтвей в своём неймспейсе {project}-{cluster}-ns-{namespacePurpose},
-  #         его рендерит сабчарт waypoint под этим сабчартом.
-  # false - в режиме mesh гейтвей встаёт в senders.namespace рядом с приложением,
-  #         его рендерит сам egress-gateway (templates/gateway.yaml) по тому же
-  #         списку waypoint.waypoints; в режиме direct - обязательно false.
-  enabled: true
-  namespace:
-    displayName: "Egress waypoint"
-    role: egress
-    podSecurity: baseline
-  serviceMesh:
-    enabled: true
-    never: false
-    waypoint: true
-  resourceQuotas:
-    limits:
-      cpu: "4"
-      memory: "4Gi"
-    podsAmount: 20
-  subnet:
-    enabled: false
-    subnet:
-      mask: 28
-      reservedIps: 0
-      cidrBlock: ""
-      excludeIPs: []
-      allowSubnets: []
-      private: false
-      natOutgoing: false
-  waypoint:
-    waypoints: []      # заказ описывает ровно один waypoint, см. values.minimal.yaml
-
+# Сабчарт namespace выхода: всегда включён, роль egress, privileged, вне ambient.
+# namespace.name задаёт назначение в имени {project}-{cluster}-ns-{назначение}.
+# Namespace использует дефолтную подсеть ovn-default. Создание своей подсети запрещено.
+# Остальные параметры сабчарта описаны в чарте namespace.
 vegNamespace:
   enabled: true
   namespace:
-    name: veg-vip      # назначение: {project}-{cluster}-ns-veg-vip
-    displayName: "Egress VIP"
+    name: veg-vip
+    displayName: Egress VIP
     role: egress
     podSecurity: privileged
   serviceMesh:
     enabled: false
-    never: true        # VpcEgressGateway ломается от перехвата ambient
+    never: true
     waypoint: false
   resourceQuotas:
     limits:
-      cpu: "2"
-      memory: "2Gi"
+      cpu: '2'
+      memory: 2Gi
     podsAmount: 10
+  # Внутренний флаг сабчарта, зафиксирован в false. Подсеть не создаётся.
   subnet:
     enabled: false
-    namespaceBinding:
-      purpose: veg-vip
-    subnet:
-      mask: 29
-      reservedIps: 0
-      cidrBlock: ""
-      excludeIPs: []
-      allowSubnets: []
-      private: false
-      natOutgoing: false

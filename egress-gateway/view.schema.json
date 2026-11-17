@@ -49,17 +49,13 @@
       "include": [
         "global/identity/cluster",
         "mode",
-        "waypointNamespace/enabled",
         "senders",
-        "global/namespacePurpose",
         "vegNamespace/namespace/name",
         "serviceEntries",
         "vpcEgressGateway",
         "networkPolicy",
-        "authorizationPolicy",
-        "waypointNamespace/waypoint/waypoints"
+        "authorizationPolicy"
       ],
-      "$comment": "Секции identity в форме нет: теги проставляет блок defaults в global.identity. Назначения двух служебных namespace (\"global/namespacePurpose\" для гейтвея и \"vegNamespace/namespace/name\" для выхода) в форме есть, с предзаполнением из блока initial: два заказа одной команды в одном кластере иначе получили бы одни и те же namespace. Поле \"waypointNamespace/waypoint/waypoints\" - список вейпоинтов сабчарта waypoint под сабчартом namespace: в нём один элемент, сам egress-гейтвей (имя, namespace отправителей в allowedNamespaces, автомасштабирование). Пути с косой чертой нужны, потому что поля сабчартов иначе не назвать. Секции serviceEntries, networkPolicy и authorizationPolicy имеют смысл только в режиме mesh: в режиме direct чарт останавливает рендер, если они заполнены. Поле \"waypointNamespace/enabled\" стоит сразу за режимом, потому что от режима и зависит: в mesh оно true, в direct - false, и без него режим direct нельзя было заказать формой вовсе. Выводить его вычислением из mode нельзя: это condition сабчарта в Chart.yaml, а Helm считает condition по values до рендера шаблонов.",
       "identity": "/vpcEgressGateway/name",
       "required": [
         "vegNamespace/namespace/name"
@@ -74,21 +70,10 @@
             }
           }
         },
-        "global/namespacePurpose": {
-          "description": "Укажите слово для имени {проект}-{кластер}-ns-egw-eg. Для второго гейтвея команды в кластере выберите другое."
-        },
-        "waypointNamespace/enabled": {
-          "title": "Создавать неймспейс гейтвея",
-          "ui:widget": "edit",
-          "description": "В mesh: включён - свой неймспейс, выключен - неймспейс ваших сервисов. В direct выключите."
-        },
         "vegNamespace/namespace/name": {
           "title": "Назначение неймспейса выхода",
           "ui:widget": "edit",
           "description": "Укажите слово для имени {проект}-{кластер}-ns-veg-vip. Для второго выхода команды в кластере выберите другое."
-        },
-        "waypointNamespace/waypoint/waypoints": {
-          "description": "Один гейтвей. Только при включённом переключателе «Создавать неймспейс гейтвея» добавьте в список разрешённых все неймспейсы своих сервисов: основной и дополнительные."
         }
       }
     },
@@ -113,26 +98,6 @@
         "senders"
       ]
     },
-    "waypoint": {
-      "include": [
-        "waypointNamespace/waypoint/waypoints"
-      ],
-      "$comment": "Правка гейтвея (имя, разрешённые namespace, автомасштабирование, ресурсы) из карточки заказа. Ресурсы скрыты схемой сабчарта, поэтому здесь их нужно раскрыть явно.",
-      "overrides": {
-        "waypointNamespace/waypoint/waypoints": {
-          "ui:view": {
-            "overrides": {
-              "name": {
-                "ui:readOnly": true
-              },
-              "resources": {
-                "ui:widget": "edit"
-              }
-            }
-          }
-        }
-      }
-    },
     "serviceEntries": {
       "overrides": {
         "name": {
@@ -155,11 +120,6 @@
     },
     {
       "in": "info",
-      "view": "waypoint",
-      "label": "Настроить гейтвей"
-    },
-    {
-      "in": "info",
       "view": "senders",
       "label": "Настроить отправителей"
     },
@@ -170,13 +130,11 @@
     }
   ],
   "initial": {
-    "/global/namespacePurpose": "egw-eg",
     "/vegNamespace/namespace/name": "veg-vip"
   },
   "defaults": {
     "/global/identity/project": "{{.Team}}",
     "/global/identity/instance": "{{.Vars.INSTANCE}}",
-    "/vegNamespace/namespace/creator": "console",
-    "/waypointNamespace/namespace/creator": "console"
+    "/vegNamespace/namespace/creator": "console"
   }
 }

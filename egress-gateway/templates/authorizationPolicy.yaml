@@ -1,26 +1,16 @@
-{{/*
-AuthorizationPolicy (Istio) attached to the egress gateway of this release,
-created when authorizationPolicy.enabled. Mode mesh only: it targets the
-waypoint, which mode direct does not have.
-ALLOW from the senders namespaces, nothing else: with the policy in place no
-other namespace of the cluster gets its traffic out through this gateway. The
-policy is attached through targetRefs, the way a Gateway API gateway is
-targeted, not through a workload selector, and lives in the namespace of the
-gateway next to the Gateway (NS 2, or the senders namespace when the gateway
-stands next to the senders). Named after the waypoint (kindShort ap).
-*/}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
 {{- $root := . }}
 {{- $authorizationPolicy := $root.Values.authorizationPolicy | default dict }}
 {{- if and (eq (include "egress-gateway.helpers.mode" $root) "mesh") (eq (include "egress-gateway.helpers.app.enabled" $authorizationPolicy) "true") }}
-{{- $waypoint := include "egress-gateway.helpers.waypoint" $root | fromJson }}
+{{- $waypoint := dict "name" $root.Values.vpcEgressGateway.name }}
+{{- range $gwNamespace := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
 metadata:
   name: {{ include "egress-gateway.helpers.app.fullname" (dict "kindShort" "ap" "name" $waypoint.name "context" $root) }}
-  namespace: {{ include "egress-gateway.helpers.gatewayNamespace" $root | quote }}
+  namespace: {{ $gwNamespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 spec:
   targetRefs:
@@ -32,8 +22,7 @@ spec:
     - from:
         - source:
             namespaces:
-              {{- range $sender := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
-              - {{ $sender | quote }}
-              {{- end }}
+              - {{ $gwNamespace | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
