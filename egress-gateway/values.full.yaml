@@ -1,196 +1,54 @@
-# ============================================================================
-#  Helm-чарт: egress-gateway - полный reference значений
-#  Чарт разворачивает выход наружу с известного адреса по схеме «два режима,
-#  три неймспейса». Приклад (NS 1, отправители) существует до заказа; релиз
-#  поднимает до двух служебных неймспейсов сабчартом namespace:
-#
-#    waypointNamespace - NS 2, только в режиме mesh: в сетке, pod security
-#                        baseline, внутри только egress-гейтвей (waypoint,
-#                        рендерит сабчарт waypoint из чарта namespace).
-#    vegNamespace      - NS 3, всегда: вне сетки навсегда, pod security
-#                        privileged, внутри только VpcEgressGateway.
-#
-#  Собственные ресурсы чарта:
-#    serviceEntries[]    - только mesh: ServiceEntry в namespace отправителей,
-#                          привязанный к гейтвею лейблами use-waypoint.
-#    networkPolicy       - только mesh: две NetworkPolicy на поды гейтвея и
-#                          одна в namespace отправителей.
-#    authorizationPolicy - только mesh: AuthorizationPolicy на гейтвей.
-#    vpcEgressGateway    - VpcEgressGateway (kube-ovn) в NS 3, ОДИН на релиз.
-#
-#  Имя каждого ресурса:
-#    {instance}-{cluster}-{kindShort}-{project}-{name}
-#  Имя неймспейсов сабчартов: {project}-{cluster}-ns-{назначение}.
-# ============================================================================
+# Полный reference. Waypoint настраивать нельзя: фиксированные ресурсы и HPA описаны в README.
 
-
-# ----------------------------------------------------------------------------
-# global - значения, которые видят и чарт, и его сабчарты
-# ----------------------------------------------------------------------------
-# Helm раздаёт global всем сабчартам, поэтому теги окружения живут здесь, а
-# не в корне: из них и этот чарт, и оба экземпляра namespace, и waypoint
-# собирают имена. identity в корне чарт не принимает (рендер останавливается).
+# Общие теги для ресурсов чарта и namespace выхода. identity заполняет заказ.
 global:
-  # Теги окружения и проекта. kindShort подставляется автоматически по типу
-  # ресурса: egw - ServiceEntry, veg - VpcEgressGateway, np - NetworkPolicy,
-  # ap - AuthorizationPolicy; wp - Gateway waypoint'а (сабчарт waypoint).
-  # Эти же теги проставляются на каждый ресурс как labels ecpk/instance,
-  # ecpk/cluster, ecpk/project.
   identity:
-    # Тег инстанса окружения. Обязателен. Допустимые значения - в README.md.
     instance: ed
-
-    # Тег кластера окружения. Обязателен. Допустимые значения - в README.md.
     cluster: dev
-
-    # Тег проекта. Обязателен. До 9 символов: строчные латинские буквы, цифры
-    # и дефис (дефис не может быть первым или последним символом).
     project: nbox
-
-  # Назначение namespace waypoint'а (NS 2), 2..12 символов. Полное имя
-  # соберётся как {project}-{cluster}-ns-<значение>: nbox-dev-ns-egw-eg.
-  # Его читают сабчарт waypointNamespace и waypoint в нём, поэтому оно лежит
-  # в global, а не под ключом сабчарта. Обязательно в обоих режимах: схема
-  # сабчарта требует его даже там, где NS 2 не создаётся.
-  namespacePurpose: egw-eg
-
+# Общие метки и аннотации собственных ресурсов, включая локальные waypoint.
 generic:
-  # Общие labels для всех ресурсов самого чарта. На ресурсы сабчартов не
-  # попадают: у них свои generic под ключами waypointNamespace и vegNamespace.
   labels:
     environment: production
     team: platform
-
-  # Общие annotations для всех ресурсов самого чарта.
   annotations:
     owner: platform-team
-    monitoring: "true"
-
-
-# ============================================================================
-# mode - режим релиза
-# ============================================================================
-#   mesh   - отправители в ambient. Заказ перечисляет внешние домены
-#            (serviceEntries), только они уходят через выход. Создаются NS 2
-#            с гейтвеем и NS 3 с выходом. Кто ходит - решают AuthorizationPolicy
-#            и allowedNamespaces гейтвея, куда - ServiceEntry и внешний
-#            межсетевой экран.
-#   direct - отправители без сетки. Через выход уходит весь внешний трафик
-#            их подсети (или подов с меткой, см. vpcEgressGateway.scope).
-#            NS 2 не создаётся, serviceEntries и политики запрещены. Куда
-#            можно ходить - решает только внешний межсетевой экран.
+    monitoring: 'true'
+# mesh: домены через локальные waypoint. direct: SNAT без сервисной сетки.
 mode: mesh
-
-
-# ============================================================================
-# senders - отправители: приклад, который ходит наружу
-# ============================================================================
-# Существующие namespace: основной и, при необходимости, другие. Их создаёт
-# обычный заказ namespace.
+# Namespace существуют заранее. В mesh список задаёт размещение waypoint,
+# в direct со scope label ограничивает выбор подов. список subnet
+# содержит имена Subnet для direct со scope subnet, независимо от имён namespace.
 senders:
-  # Основной namespace, обязателен в обоих режимах. Сюда уезжают ServiceEntry
-  # и правило выхода к гейтвею (mesh), отсюда выбираются поды по метке
-  # (direct + label). Если гейтвей стоит рядом с приложением (mesh с
-  # выключенным waypointNamespace), он создаётся именно здесь.
-  namespace: nbox-dev-ns-app
-
-  # Необязательно. Другие namespace, которым нужен тот же выход. Каждый из них
-  # получает свою копию каждой ServiceEntry (mesh): DNS-прокси ztunnel отдаёт
-  # поду запись его namespace и exportTo не читает, поэтому namespace без
-  # своей записи получал бы чужую, с чужим гейтвеем. Каждый из этих namespace
-  # получает правило выхода к гейтвею (mesh), попадает в политики гейтвея
-  # (вход и AuthorizationPolicy) и выбирается по метке (direct + label). При
-  # гейтвее в своём неймспейсе (waypointNamespace.enabled: true) каждый из них
-  # обязан быть в allowedNamespaces вейпоинта вместе с основным: записи
-  # привязываются к гейтвею из каждого namespace. При гейтвее рядом с
-  # отправителями чарт добавляет их в allowedRoutes сам.
-  additionalNamespaces:
+  namespace:
+    - nbox-dev-ns-app
     - nbox-dev-ns-app2
-
-  # Только direct со scope namespace: имя Subnet отправителей, а не CIDR.
-  # Подсети создаёт чарт namespace и называет {проект}-{кластер}-subnet-
-  # {назначение}, например nbox-dev-subnet-app. Весь внешний трафик этой
-  # подсети пойдёт через выход. В режиме mesh не читается.
-  subnet: nbox-dev-subnet-app
-
-  # Только direct со scope namespace. Необязательно: Subnet других namespace
-  # отправителей, если они не входят в subnet выше.
-  additionalSubnets: []
-
-
-# ============================================================================
-# serviceEntries - внешние сервисы, список (только mesh)
-# ============================================================================
-# На каждый элемент чарт создаёт один ServiceEntry в namespace отправителей с
-# двумя лейблами: istio.io/use-waypoint (имя гейтвея) и
-# istio.io/use-waypoint-namespace (NS 2). Этого достаточно: ztunnel сам
-# туннелирует трафик к домену в waypoint по HBONE, а тот выпускает его наружу
-# через выход. Маршруты и ReferenceGrant не создаются.
-# Захардкожено в шаблоне (НЕ настраивается здесь):
-#   location MESH_EXTERNAL, resolution DNS, один порт на запись (имя порта -
-#   протокол в нижнем регистре); exportTo ["." и NS 2].
-# Пользователь задаёт:
-#   name      - обязателен, 2..9 символов; {name} в имени ресурса (egw)
-#   hostname  - обязателен, домен внешнего сервиса
-#   port      - порт внешнего сервиса, по умолчанию 443
-#   protocol  - TLS, HTTP или TCP, по умолчанию TLS
-#   enabled   - по умолчанию true
-# Домен уникален в заказе: два порта одного домена двумя записями не задать,
-# две записи на один хост в сетке конфликтуют.
+  subnet:
+    - nbox-dev-subnet-app
+    - custom-egress-subnet
+# Только mesh: каждая включённая запись создаётся в каждом namespace отправителей.
+# Имя и домен обязательны. По умолчанию port: 443, protocol: TLS, enabled: true.
 serviceEntries:
   - name: nx
     hostname: repository.solution.test
-
   - name: art
     hostname: artifactory.solution.test
     port: 8443
     protocol: TLS
-    # Служебное поле, в форме портала скрыто. По умолчанию true.
     enabled: true
-
-
-# ============================================================================
-# vpcEgressGateway - выход с известного адреса, ОДИН на релиз
-# ============================================================================
-# VpcEgressGateway (kube-ovn) встаёт в NS 3 (сабчарт vegNamespace). Несколько
-# externalIPs - это несколько реплик одного выхода, а не несколько выходов;
-# два разных набора адресов - два заказа.
-# Захардкожено в шаблоне (НЕ настраивается здесь): vpc, externalSubnet
-# (egress-vip). trafficPolicy не пишется: он действует только при BFD,
-# который не включён.
-# Что выход захватывает, чарт выводит из режима:
-#   mesh                     selectors на поды гейтвея в NS 2. policies не
-#                            пишутся: SNAT для выбранных подов включает
-#                            init-скрипт выхода, а policies на подсеть
-#                            приклада захватили бы и сами приложения вместе
-#                            с ответами на пробы kubelet.
-#   direct, scope namespace  policies: SNAT на подсеть senders.subnet.
-#   direct, scope label      selectors на поды отправителей с меткой
-#                            <label>=<имя выхода>.
-# Пользователь задаёт:
-#   name        - обязателен, 2..9 символов; {name} в имени ресурса (veg)
-#   externalIPs - обязателен, внешние IP (replicas = len(externalIPs))
-#   scope       - только direct: namespace (по умолчанию) | label
-#   label       - только direct со scope label: ключ метки на подах,
-#                 по умолчанию ecpk/egress. Значение метки - имя выхода.
-#   nodeSelector, tolerations - где планировать поды выхода. Заданное здесь
-#                 поле заменяет целиком одноимённое умолчание из
-#                 gatewayScheduling (см. ниже), а пустое значение
-#                 (nodeSelector: []) отключает умолчание. В форме заказа
-#                 скрыты, задаются в values
-#   limitRange  - LimitRange в неймспейсе выхода (NS 3), имя как у
-#                 VpcEgressGateway. Квота неймспейса требует requests и limits
-#                 у каждого контейнера, а под выхода собирает контроллер
-#                 kube-ovn, и его init-контейнер приходит без ресурсов:
-#                 LimitRange типа Container подставляет их при создании пода.
-#                 enabled: false убирает его (например, если квоты в NS 3
-#                 нет). В форме заказа скрыт
+# Один выход на релиз, replicas равен числу externalIPs. vpc: ovn-cluster,
+# internalSubnet: ovn-default и externalSubnet: egress-vip зафиксированы. Имя 2..9 символов задаёт и имя waypoint.
+# В direct scope subnet: SNAT для всех указанных Subnet, scope label:
+# поды из списка namespace с меткой <label>=<полное имя выхода>.
+# limitRange задаёт requests/limits контейнерам без собственных ресурсов в namespace выхода.
+# nodeSelector и tolerations здесь заменяют настройки gatewayScheduling целиком,
+# пустые списки отключают соответствующее умолчание.
 vpcEgressGateway:
   name: vip
   externalIPs:
     - 10.193.101.10
     - 10.193.101.11
-  scope: namespace
+  scope: subnet
   label: ecpk/egress
   limitRange:
     enabled: true
@@ -200,9 +58,6 @@ vpcEgressGateway:
     default:
       cpu: 500m
       memory: 256Mi
-
-  # Этот выход живёт только на нодах группы egress. Поля ниже заменяют
-  # умолчания из gatewayScheduling для него одного.
   nodeSelector:
     - matchLabels:
         node-group: egress
@@ -211,20 +66,9 @@ vpcEgressGateway:
       operator: Equal
       value: egress
       effect: NoSchedule
-
-
-# ============================================================================
-# gatewayScheduling - размещение подов выхода по нодам, умолчание для
-# vpcEgressGateway
-# ============================================================================
-# В values.yaml чарта умолчание пустое: ноду выбирает планировщик, а правила
-# задаёт платформа в значениях своей установки, ниже пример такого правила.
-# Заказ меняет его полем в vpcEgressGateway (оно заменяет одноимённое
-# умолчание целиком). nodeSelector - в формате kube-ovn: список условий,
-# внутри условия matchLabels, matchExpressions и matchFields складываются
-# по «и», условия между собой - по «или». tolerations - в формате
-# спецификации пода Kubernetes. affinity у VpcEgressGateway нет: реплики по
-# нодам раскладывает сам kube-ovn. В форме заказа не показывается.
+# Размещение подов VpcEgressGateway. nodeSelector: список условий kube-ovn
+# (между условиями ИЛИ, внутри И). tolerations: формат PodSpec.
+# По умолчанию пусто, правила задаёт платформа. affinity API не поддерживает.
 gatewayScheduling:
   nodeSelector:
     - matchExpressions:
@@ -233,139 +77,30 @@ gatewayScheduling:
           values:
             - gpu
   tolerations: []
-
-
-# ============================================================================
-# networkPolicy - NetworkPolicy гейтвея (только mesh)
-# ============================================================================
-# enabled: true -> создаются политики:
-#   {waypoint}-out     в NS 2, куда гейтвею можно ходить. Захардкожено: istiod
-#                      (istio-system, порт 15012) и CoreDNS (kube-system,
-#                      порт 1053 по TCP и UDP). Остальное - endpoints ниже.
-#   {waypoint}-in      в NS 2, кто может ходить к гейтвею: namespace
-#                      отправителей, порт 15008 (HBONE).
-#   {waypoint}-senders в namespace отправителей, на все поды: выход к NS 2
-#                      на 15008. Namespace в сетке живёт под политиками по
-#                      умолчанию платформы (аннотация enable-netpol), и без
-#                      этого правила ztunnel не откроет туннель к waypoint'у.
-#                      senders: false отключает его; делайте так только для
-#                      namespace без политик по умолчанию, иначе правило
-#                      изолирует поды вместо того, чтобы их выпустить.
-# endpoints[] обязателен при enabled: true. По записи на адрес и порт:
-#   address - IP внешней точки или подсеть в формате CIDR (одиночный IP чарт
-#             сам превращает в /32)
-#   port    - порт внешней точки, TCP
-# В режиме direct enabled: true останавливает рендер: политик там нет.
+# Только mesh. В каждом namespace: вход waypoint из своего namespace на 15008,
+# выход к istiod:15012, DNS:1053 TCP/UDP и внешним endpoints.
+# endpoints обязателен при enabled: true. address: IP или CIDR, port: TCP-порт.
+# senders: true добавляет подам namespace выход к локальному waypoint на 15008.
 networkPolicy:
   enabled: true
   senders: true
   endpoints:
     - address: 10.40.20.50
       port: 443
-
     - address: 10.40.20.0/24
       port: 8443
-
-
-# ============================================================================
-# authorizationPolicy - AuthorizationPolicy (Istio) на гейтвей (только mesh)
-# ============================================================================
-# enabled: true -> в NS 2 создаётся политика ALLOW, которая пускает к гейтвею
-# трафик из namespace отправителей и больше ниоткуда. Привязывается к Gateway
-# через targetRefs. Настраивать в ней нечего.
+# Только mesh: ALLOW на локальный Gateway только из его namespace, через targetRefs.
 authorizationPolicy:
   enabled: true
-
-
-# ============================================================================
-# waypointNamespace - NS 2, сабчарт namespace (только mesh)
-# ============================================================================
-# Все поля - из чарта namespace, здесь только те, что чарт фиксирует.
-# Назначение (имя) берётся из global.namespacePurpose; namespace.name здесь
-# не читается. Теги - из global.identity.
-#   enabled           - где стоит гейтвей. true: в своём неймспейсе (NS 2),
-#                       его рендерит сабчарт waypoint. false в режиме mesh:
-#                       NS 2 не создаётся, гейтвей встаёт в senders.namespace
-#                       рядом с приложением, его рендерит сам egress-gateway
-#                       по тому же списку waypoint.waypoints (пример -
-#                       values.mesh-senders.yaml); allowedNamespaces тогда не
-#                       нужен (все namespace отправителей чарт пускает сам),
-#                       сетевые политики и правило доступа уезжают в
-#                       senders.namespace. В режиме direct обязательно false.
-#   serviceMesh       - всегда enabled + waypoint, never запрещён
-#   namespace.role    - egress
-#   podSecurity       - baseline: гейтвею больше не нужно
-#   subnet            - своя подсеть NS 2, private: false (waypoint ходит на
-#                       внешние адреса). enabled: true, когда CIDR
-#                       зарезервирован и вписан в cidrBlock.
-#   waypoint.waypoints - ровно один элемент: сам egress-гейтвей. Обязательно
-#                       allowedNamespaces со всеми namespace отправителей
-#                       (senders.namespace и additionalNamespaces); hpa и
-#                       resources по желанию (без них ConfigMap не создаётся).
-#                       Список не сливается с дефолтами чарта: описывайте
-#                       элемент целиком.
-waypointNamespace:
-  enabled: true
-  namespace:
-    displayName: "Egress waypoint"
-    role: egress
-    podSecurity: baseline
-  serviceMesh:
-    enabled: true
-    never: false
-    waypoint: true
-  resourceQuotas:
-    limits:
-      cpu: "4"
-      memory: "4Gi"
-    podsAmount: 20
-  subnet:
-    enabled: true
-    subnet:
-      mask: 28
-      reservedIps: 0
-      cidrBlock: "10.24.9.0/28"
-      excludeIPs: []
-      allowSubnets: []
-      private: false
-      natOutgoing: false
-  waypoint:
-    waypoints:
-      - name: eg
-        for: service
-        allowedNamespaces:
-          - nbox-dev-ns-app
-          - nbox-dev-ns-app2
-        hpa:
-          enabled: true
-          minReplicas: 2
-          maxReplicas: 5
-          averageUtilization: 80
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 2000m
-            memory: 1024Mi
-
-
-# ============================================================================
-# vegNamespace - NS 3, сабчарт namespace (всегда)
-# ============================================================================
-#   enabled              - всегда true: выходу нужен свой namespace
-#   namespace.name       - назначение NS 3, обязательно и не равно
-#                          global.namespacePurpose: {project}-{cluster}-ns-veg-vip
-#   namespace.role       - egress, обязательно: по этой метке кластерные
-#                          политики отличают namespace выхода
-#   serviceMesh.never    - true, обязательно: перехват ambient ломает выход
-#   podSecurity          - privileged: под выхода держит второй интерфейс
-#   subnet               - своя подсеть NS 3, private: false
+# Сабчарт namespace выхода: всегда включён, роль egress, privileged, вне ambient.
+# namespace.name задаёт назначение в имени {project}-{cluster}-ns-{назначение}.
+# Namespace использует дефолтную подсеть ovn-default. Создание своей подсети запрещено.
+# Остальные параметры сабчарта описаны в чарте namespace.
 vegNamespace:
   enabled: true
   namespace:
     name: veg-vip
-    displayName: "Egress VIP"
+    displayName: Egress VIP
     role: egress
     podSecurity: privileged
   serviceMesh:
@@ -374,26 +109,8 @@ vegNamespace:
     waypoint: false
   resourceQuotas:
     limits:
-      cpu: "2"
-      memory: "2Gi"
+      cpu: '2'
+      memory: 2Gi
     podsAmount: 10
-  subnet:
-    enabled: true
-    namespaceBinding:
-      purpose: veg-vip
-    subnet:
-      mask: 29
-      reservedIps: 0
-      cidrBlock: "10.24.9.16/29"
-      excludeIPs: []
-      allowSubnets: []
-      private: false
-      natOutgoing: false
-
-# ----------------------------------------------------------------------------
-# Служебные поля
-# ----------------------------------------------------------------------------
-# enabled - главный выключатель самого чарта. false -> не создаётся ни один
-# его ресурс. Сабчарты namespace он не выключает: у них свои
-# waypointNamespace.enabled и vegNamespace.enabled.
+# Выключатель собственных ресурсов. Сабчарт выключается отдельно через vegNamespace.enabled.
 enabled: true

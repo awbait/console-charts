@@ -19,6 +19,21 @@
 
 ---
 
+## [10.0.0] - 2026-11-17
+
+### Changed
+
+- **BREAKING:** `senders.namespace` и `senders.subnet` стали списками. Перенесите в них значения прежних `senders.additionalNamespaces` и `senders.additionalSubnets`, затем удалите дополнительные поля.
+- В mesh каждый namespace отправителей получает локальный waypoint и ServiceEntry с привязкой к нему. Один VpcEgressGateway выбирает поды всех этих waypoint.
+- **BREAKING:** режим выбора подсетей переименован с `vpcEgressGateway.scope: namespace` на `scope: subnet`. SNAT по указанным Subnet сохраняется.
+- Namespace выхода создаётся по умолчанию и использует дефолтную подсеть `ovn-default`. Для подов выхода зафиксировано `internalSubnet: ovn-default`, внешняя подсеть остаётся `egress-vip`.
+- Параметры waypoint зафиксированы: от 2 до 5 реплик, цель CPU 80%, requests 100m/128Mi и limits 2000m/1024Mi на реплику. Его имя выводится из имени выхода.
+
+### Removed
+
+- **BREAKING:** удалены отдельный namespace waypoint, `waypointNamespace`, `global.namespacePurpose` и настройки waypoint. При обновлении проверьте содержимое прежнего namespace и квоты namespace отправителей.
+- **BREAKING:** убрано создание собственной подсети namespace выхода. Удалите параметры `vegNamespace.subnet`. Если раньше релиз управлял такой Subnet, до обновления проверьте её использование и перенесите управление отдельно: она исключается из релиза.
+
 ## [9.2.3] - 2026-11-12
 
 ### Changed
