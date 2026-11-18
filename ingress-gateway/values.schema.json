@@ -698,7 +698,7 @@
             "Только локальные поды",
             "Поды всего кластера"
           ],
-          "default": "Local",
+          "default": "Cluster",
           "ui:widget": "hidden"
         },
         "listeners": {
@@ -1171,6 +1171,27 @@
           "if": {
             "properties": {
               "kind": {
+                "enum": ["GRPCRoute", "TLSRoute", "TCPRoute", "UDPRoute"]
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "rules": {
+                "items": {
+                  "not": {
+                    "required": ["retry"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
                 "enum": [
                   "TLSRoute",
                   "TCPRoute",
@@ -1259,6 +1280,7 @@
         "matches",
         "filters",
         "timeouts",
+        "retry",
         "backendRefs"
       ],
       "properties": {
@@ -1283,6 +1305,11 @@
           "description": "Ограничивают время обработки запросов, которые попадают под это правило маршрута.",
           "$ref": "#/definitions/routeTimeouts"
         },
+        "retry": {
+          "title": "Повторные попытки",
+          "description": "Повторные обращения к сервису при ошибках. Доступны только для HTTPRoute и требуют поддержки в кластере.",
+          "$ref": "#/definitions/routeRetry"
+        },
         "backendRefs": {
           "title": "Сервисы назначения",
           "description": "Укажите сервисы, в которые точка входа передаст запрос. В правиле с перенаправлением оставьте поле пустым.",
@@ -1290,6 +1317,36 @@
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/backendRef"
+          }
+        }
+      }
+    },
+    "routeRetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "propertyOrder": ["attempts", "backoff", "codes"],
+      "properties": {
+        "attempts": {
+          "title": "Число повторных попыток",
+          "description": "Максимальное число повторов после первоначального обращения. Значение 3 допускает всего четыре обращения к сервису, значение 0 выключает повторы.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "backoff": {
+          "title": "Интервал между попытками",
+          "description": "Базовый интервал ожидания, например 500ms или 1s. Фактические задержки зависят от контроллера точки входа.",
+          "type": "string",
+          "pattern": "^([0-9]{1,5}(h|m|s|ms)){1,4}$"
+        },
+        "codes": {
+          "title": "Коды ответов для повтора",
+          "description": "Разные HTTP-коды от 400 до 599. Поддержка конкретных кодов зависит от контроллера. Пустой список не включает повторы по HTTP-кодам, но не отключает повторы при ошибках соединения.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
           }
         }
       }
