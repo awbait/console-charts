@@ -2,7 +2,7 @@
 Chart-wide switch: root "enabled", true unless values say otherwise. Returns
 "true" or "" (for if-tests). Every template of the chart hangs on it, so
 enabled: false renders nothing at all. The namespace subcharts have switches of
-their own (waypointNamespace.enabled, vegNamespace.enabled): a parent cannot
+their own (vegNamespace.enabled): a parent cannot
 reach into them.
 */}}
 {{- define "egress-gateway.helpers.chartEnabled" -}}
@@ -23,8 +23,7 @@ Chart name for helm.sh/chart.
 {{/*
 The identity block of the release, as JSON (callers fromJson it).
 
-It lives in global.identity, not at the root: the two namespace subcharts and
-the waypoint under one of them build their names from the same tags, and
+It lives in global.identity, not at the root: the namespace subchart builds its names from the same tags, and
 global is the only place Helm copies into every subchart. A root identity is
 refused rather than ignored, because the subcharts would fall back to the
 default tags of their own values.yaml and name their namespaces after a
@@ -95,8 +94,8 @@ Namespace name validation (senders.namespace and the like). Params: .label,
 Full resource name by convention:
   without parent: {instance}-{cluster}-{kindShort}-{project}-{name}
   with parent:    {instance}-{cluster}-{kindShort}-{parent}-{project}-{name}
-Params: .context, .kindShort (egw|veg|np|ap), .name (2..9 characters),
-        .parent (optional, the waypoint name, 2..6 characters; for the
+Params: .context, .kindShort (egw|veg|np|ap|wp), .name (2..9 characters),
+        .parent (optional, the egress name, 2..9 characters; for the
         NetworkPolicies, of which one waypoint has several).
 The longest name the parts can make is 40 characters, well inside the 63 the
 truncation below guards: 2 + 3 + 3 + 9 + 9 + 9 plus five dashes.
@@ -107,8 +106,8 @@ truncation below guards: 2 + 3 + 3 + 9 + 9 + 9 plus five dashes.
 {{- $cluster := include "egress-gateway.helpers.tag" (dict "label" "global.identity.cluster" "value" $identity.cluster) -}}
 {{- $project := include "egress-gateway.helpers.shortToken" (dict "label" "global.identity.project" "value" $identity.project "max" 9) -}}
 {{- $kind := required "kindShort is required" .kindShort | toString | lower -}}
-{{- if not (has $kind (list "egw" "veg" "np" "ap")) -}}
-{{- fail (printf "kindShort must be one of egw|veg|np|ap, got %q" $kind) -}}
+{{- if not (has $kind (list "egw" "veg" "np" "ap" "wp")) -}}
+{{- fail (printf "kindShort must be one of egw|veg|np|ap|wp, got %q" $kind) -}}
 {{- end -}}
 {{- $name := include "egress-gateway.helpers.shortToken" (dict "label" "name" "value" .name) -}}
 {{- if .parent -}}
@@ -147,30 +146,18 @@ the VIP). Returns the validated value. Parameter: the root context.
 {{- $mode -}}
 {{- end -}}
 
-{{/*
-The namespace of the senders: senders.namespace, required in both modes. It
-exists before this release and is created by an ordinary namespace order.
-Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.sendersNamespace" -}}
-{{- include "egress-gateway.helpers.namespaceToken" (dict "label" "senders.namespace" "value" (.Values.senders | default dict).namespace) -}}
-{{- end -}}
-
-{{/*
-Every namespace of the senders, as JSON (callers fromJson it): senders.namespace
-first, then senders.additionalNamespaces. The first one is the primary: the
-gateway stands in it when it stands next to the senders. A repeated name is
-refused. Parameter: the root context.
-*/}}
+{{/* Validated sender namespace list, as JSON. */}}
 {{- define "egress-gateway.helpers.sendersNamespaces" -}}
-{{- $senders := .Values.senders | default dict -}}
-{{- $primary := include "egress-gateway.helpers.sendersNamespace" . -}}
-{{- $all := list $primary -}}
-{{- range $index, $value := ($senders.additionalNamespaces | default list) -}}
-{{- $name := include "egress-gateway.helpers.namespaceToken" (dict "label" (printf "senders.additionalNamespaces[%d]" $index) "value" $value) -}}
-{{- if has $name $all -}}
-{{- fail (printf "senders.additionalNamespaces[%d] %q is already listed: each namespace of the senders is named once, senders.namespace included" $index $name) -}}
+{{- $values := (.Values.senders | default dict).namespace -}}
+{{- if not (kindIs "slice" $values) -}}
+{{- fail "senders.namespace must be a non-empty list of namespace names" -}}
 {{- end -}}
+{{- if not $values -}}{{- fail "senders.namespace must contain at least one namespace" -}}{{- end -}}
+{{- $all := list -}}
+{{- range $index, $value := $values -}}
+{{- if not (kindIs "string" $value) -}}{{- fail "senders.namespace items must be strings" -}}{{- end -}}
+{{- $name := include "egress-gateway.helpers.namespaceToken" (dict "label" (printf "senders.namespace[%d]" $index) "value" $value) -}}
+{{- if has $name $all -}}{{- fail (printf "senders.namespace[%d] %q is already listed" $index $name) -}}{{- end -}}
 {{- $all = append $all $name -}}
 {{- end -}}
 {{- $all | toJson -}}
@@ -190,57 +177,7 @@ Params: .context, .purpose, .label (for the message).
 {{- printf "%s-%s-ns-%s" $project $cluster $purpose | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{/*
-The waypoint namespace (NS 2), named after global.namespacePurpose: global is
-what the waypointNamespace subchart and the waypoint under it read, so one
-value names the namespace for all three charts. Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.waypointNamespace" -}}
-{{- $purpose := (.Values.global | default dict).namespacePurpose | default "" | toString -}}
-{{- if not $purpose -}}
-{{- fail "global.namespacePurpose is required: the purpose part of the waypoint namespace name, for example egw-eg" -}}
-{{- end -}}
-{{- include "egress-gateway.helpers.namespaceName" (dict "context" . "purpose" $purpose "label" "global.namespacePurpose") -}}
-{{- end -}}
-
-{{/*
-Where the egress gateway stands in mode mesh. Returns "true" (for if-tests)
-when it stands in the namespace of the senders: mode mesh with the
-waypointNamespace subchart switched off. The chart then renders the Gateway
-and its ConfigMap itself (gateway.yaml), in senders.namespace, and the
-namespace of the gateway is the namespace of the senders everywhere else
-(ServiceEntry, NetworkPolicy, AuthorizationPolicy, VpcEgressGateway). With
-the subchart on, the gateway stands in a namespace of its own (NS 2) and the
-waypoint subchart under the namespace subchart renders it. In mode direct
-there is no gateway at all. Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.gatewayInSenders" -}}
-{{- $mode := include "egress-gateway.helpers.mode" . -}}
-{{- $wpNs := .Values.waypointNamespace | default dict -}}
-{{- if and (eq $mode "mesh") (eq (include "egress-gateway.helpers.app.enabled" $wpNs) "") -}}
-true
-{{- end -}}
-{{- end -}}
-
-{{/*
-The namespace the egress gateway stands in (mode mesh): the senders namespace
-when the gateway lives next to the senders, the waypoint namespace (NS 2)
-otherwise. Every resource that names the namespace of the gateway goes
-through here. Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.gatewayNamespace" -}}
-{{- if eq (include "egress-gateway.helpers.gatewayInSenders" .) "true" -}}
-{{- include "egress-gateway.helpers.sendersNamespace" . -}}
-{{- else -}}
-{{- include "egress-gateway.helpers.waypointNamespace" . -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-The VpcEgressGateway namespace (NS 3), named after vegNamespace.namespace.name.
-That field is the subchart's own override of global.namespacePurpose, which is
-why the two namespaces can share one global. Parameter: the root context.
-*/}}
+{{/* Namespace of the VpcEgressGateway, created by the vegNamespace subchart. */}}
 {{- define "egress-gateway.helpers.vegNamespace" -}}
 {{- $purpose := ((.Values.vegNamespace | default dict).namespace | default dict).name | default "" | toString -}}
 {{- if not $purpose -}}
@@ -249,43 +186,9 @@ why the two namespaces can share one global. Parameter: the root context.
 {{- include "egress-gateway.helpers.namespaceName" (dict "context" . "purpose" $purpose "label" "vegNamespace.namespace.name") -}}
 {{- end -}}
 
-{{/*
-The one waypoint of the release, as JSON: the single enabled item of
-waypointNamespace.waypoint.waypoints. The list describes the gateway wherever
-it stands: with the waypointNamespace subchart on, the waypoint subchart under
-it renders the item in NS 2 and this chart only needs its name and its allowed
-namespaces; with the subchart off (mode mesh), this chart renders the item
-itself in the senders namespace (gateway.yaml). Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.waypoint" -}}
-{{- $sub := ((.Values.waypointNamespace | default dict).waypoint | default dict).waypoints | default list -}}
-{{- $found := list -}}
-{{- range $item := $sub -}}
-{{- if eq (include "egress-gateway.helpers.app.enabled" $item) "true" -}}
-{{- $found = append $found $item -}}
-{{- end -}}
-{{- end -}}
-{{- if ne (len $found) 1 -}}
-{{- fail (printf "waypointNamespace.waypoint.waypoints must hold exactly one enabled waypoint, the egress gateway of this release (name, allowedNamespaces with senders.namespace, hpa, resources), got %d" (len $found)) -}}
-{{- end -}}
-{{- index $found 0 | toJson -}}
-{{- end -}}
-
-{{/*
-Full name of the egress Gateway, built the way the waypoint chart builds it:
-{instance}-{cluster}-wp-{project}-{name}, name 2..6 characters. Every resource
-that points at the gateway (ServiceEntry labels, VpcEgressGateway selectors,
-NetworkPolicy, AuthorizationPolicy) goes through here. Parameter: the root
-context.
-*/}}
+{{/* Gateway name follows the egress name, identically in each sender namespace. */}}
 {{- define "egress-gateway.helpers.gatewayFullname" -}}
-{{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson -}}
-{{- $identity := include "egress-gateway.helpers.identity" . | fromJson -}}
-{{- $instance := include "egress-gateway.helpers.tag" (dict "label" "global.identity.instance" "value" $identity.instance) -}}
-{{- $cluster := include "egress-gateway.helpers.tag" (dict "label" "global.identity.cluster" "value" $identity.cluster) -}}
-{{- $project := include "egress-gateway.helpers.shortToken" (dict "label" "global.identity.project" "value" $identity.project "max" 9) -}}
-{{- $name := include "egress-gateway.helpers.shortToken" (dict "label" "waypointNamespace.waypoint.waypoints[].name" "value" $waypoint.name "max" 6) -}}
-{{- printf "%s-%s-wp-%s-%s" $instance $cluster $project $name | trunc 63 | trimSuffix "-" -}}
+{{- include "egress-gateway.helpers.app.fullname" (dict "kindShort" "wp" "name" .Values.vpcEgressGateway.name "context" .) -}}
 {{- end -}}
 
 {{/*
@@ -325,6 +228,12 @@ with a readable message instead of a manifest that is wrong in the cluster.
 Parameter: the root context. Renders nothing.
 */}}
 {{- define "egress-gateway.helpers.validate" -}}
+{{- range $key := list "waypointNamespace" "waypoint" -}}
+{{- if hasKey $.Values $key -}}{{- fail (printf "%s is no longer supported: mesh creates a fixed waypoint in every senders.namespace" $key) -}}{{- end -}}
+{{- end -}}
+{{- range $key := list "additionalNamespaces" "additionalSubnets" -}}
+{{- if hasKey ($.Values.senders | default dict) $key -}}{{- fail (printf "senders.%s is no longer supported: use senders.namespace or senders.subnet lists" $key) -}}{{- end -}}
+{{- end -}}
 {{- $mode := include "egress-gateway.helpers.mode" . -}}
 {{- $sendersAll := include "egress-gateway.helpers.sendersNamespaces" . | fromJsonArray -}}
 {{- $veg := .Values.vpcEgressGateway | default dict -}}
@@ -333,11 +242,15 @@ Parameter: the root context. Renders nothing.
 {{- fail "vpcEgressGateway.externalIPs is required: the addresses the traffic leaves with, one replica per address" -}}
 {{- end -}}
 {{- $vegNs := .Values.vegNamespace | default dict -}}
-{{- /* This chart names both namespaces itself; an override would make the namespace subcharts create others (and global would give both the same one). */ -}}
-{{- if (.Values.global | default dict).namespaceOverride -}}
-{{- fail "global.namespaceOverride is not supported here: it would name the waypoint namespace and the VpcEgressGateway namespace alike, name them by global.namespacePurpose and vegNamespace.namespace.name" -}}
+{{- $fixedSubnet := dict "enabled" false "namespaceBinding" (dict "enabled" true) "subnet" (dict "name" "" "reservedIps" 0 "cidrBlock" "") -}}
+{{- if ne (toJson $vegNs.subnet) (toJson $fixedSubnet) -}}
+{{- fail "vegNamespace.subnet is not configurable: remove custom subnet settings; the VEG namespace uses ovn-default" -}}
 {{- end -}}
-{{- range $key := list "waypointNamespace" "vegNamespace" -}}
+{{- /* The namespace name must agree with the vegNamespace subchart. */ -}}
+{{- if (.Values.global | default dict).namespaceOverride -}}
+{{- fail "global.namespaceOverride is not supported here: use vegNamespace.namespace.name" -}}
+{{- end -}}
+{{- range $key := list "vegNamespace" -}}
 {{- if ((index $.Values $key | default dict).namespace | default dict).namespaceOverride -}}
 {{- fail (printf "%s.namespace.namespaceOverride is not supported here: the chart builds that namespace name itself from identity and the purpose" $key) -}}
 {{- end -}}
@@ -353,43 +266,12 @@ Parameter: the root context. Renders nothing.
 {{- fail "vegNamespace.namespace.role must be egress: the cluster policies tell the VpcEgressGateway namespace apart by that label" -}}
 {{- end -}}
 {{- if has $vegNsName $sendersAll -}}
-{{- fail (printf "%q is the namespace the VpcEgressGateway is created in, but it is named among the senders (senders.namespace, senders.additionalNamespaces): the senders live in namespaces of their own, ordered separately" $vegNsName) -}}
+{{- fail (printf "%q is the namespace the VpcEgressGateway is created in, but it is named among the senders (senders.namespace): the senders live in namespaces of their own, ordered separately" $vegNsName) -}}
 {{- end -}}
-{{- $wpNs := .Values.waypointNamespace | default dict -}}
-{{- $wpEnabled := eq (include "egress-gateway.helpers.app.enabled" $wpNs) "true" -}}
 {{- $networkPolicy := .Values.networkPolicy | default dict -}}
 {{- $authorizationPolicy := .Values.authorizationPolicy | default dict -}}
 {{- if eq $mode "mesh" -}}
-{{- $waypoint := include "egress-gateway.helpers.waypoint" . | fromJson -}}
 {{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
-{{- if $wpEnabled -}}
-{{/* The gateway stands in a namespace of its own (NS 2), rendered by the waypoint subchart. */}}
-{{- if ($wpNs.namespace | default dict).name -}}
-{{- fail "waypointNamespace.namespace.name is not read: the waypoint namespace is named after global.namespacePurpose, which the waypoint subchart reads too" -}}
-{{- end -}}
-{{- $wpMesh := $wpNs.serviceMesh | default dict -}}
-{{- if or (ne (toString ($wpMesh.enabled | default false) | lower) "true") (ne (toString ($wpMesh.waypoint | default false) | lower) "true") (eq (toString ($wpMesh.never | default false) | lower) "true") -}}
-{{- fail "waypointNamespace.serviceMesh must have enabled: true and waypoint: true (and no never): the waypoint namespace is always in the mesh and renders the egress gateway" -}}
-{{- end -}}
-{{- $wpNsName := include "egress-gateway.helpers.waypointNamespace" . -}}
-{{- if eq $wpNsName $vegNsName -}}
-{{- fail (printf "global.namespacePurpose and vegNamespace.namespace.name both name %q: the waypoint and the VpcEgressGateway live in two different namespaces" $wpNsName) -}}
-{{- end -}}
-{{- if has $wpNsName $sendersAll -}}
-{{- fail (printf "%q is the namespace the waypoint is created in, but it is named among the senders (senders.namespace, senders.additionalNamespaces): the senders live in namespaces of their own, ordered separately, or switch waypointNamespace.enabled off to put the gateway next to the senders" $wpNsName) -}}
-{{- end -}}
-{{- $allowed := list -}}
-{{- range $namespace := ($waypoint.allowedNamespaces | default list) -}}
-{{- $allowed = append $allowed ($namespace | toString | trim | lower) -}}
-{{- end -}}
-{{- /* Every senders namespace binds: each holds its own copy of the ServiceEntries (serviceEntry.yaml), and the waypoint subchart builds the listener Selector from allowedNamespaces alone. */ -}}
-{{- range $senders := $sendersAll -}}
-{{- if not (has $senders $allowed) -}}
-{{- fail (printf "senders namespace %q must be listed in waypointNamespace.waypoint.waypoints[].allowedNamespaces (senders.namespace and every senders.additionalNamespaces): the ServiceEntries of that namespace bind to the waypoint, and it admits a binding from another namespace only when its listener allows it" $senders) -}}
-{{- end -}}
-{{- end -}}
-{{- end -}}
-{{/* With the subchart off the gateway stands in the senders namespace and this chart renders it (gateway.yaml): no namespace of its own to check, and the listener admits its own namespace and the other senders namespaces without allowedNamespaces. */}}
 {{- $entries := list -}}
 {{- range $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}
@@ -407,9 +289,6 @@ Parameter: the root context. Renders nothing.
 {{- end -}}
 {{- end -}}
 {{- else -}}
-{{- if $wpEnabled -}}
-{{- fail "mode direct has no waypoint: set waypointNamespace.enabled to false, the senders are outside the mesh and their whole subnet leaves through the VIP" -}}
-{{- end -}}
 {{- if .Values.serviceEntries -}}
 {{- fail "mode direct takes no serviceEntries: without a waypoint there is nothing to bind a ServiceEntry to, the whole external traffic of the senders leaves through the VIP" -}}
 {{- end -}}
@@ -420,7 +299,7 @@ Parameter: the root context. Renders nothing.
 {{- fail "mode direct has no authorization policy: it targets the waypoint, which does not exist here; set authorizationPolicy.enabled to false" -}}
 {{- end -}}
 {{- $scope := include "egress-gateway.helpers.scope" . -}}
-{{- if eq $scope "namespace" -}}
+{{- if eq $scope "subnet" -}}
 {{- $_ := include "egress-gateway.helpers.sendersSubnets" . -}}
 {{- else -}}
 {{- $_ := include "egress-gateway.helpers.egressLabel" . -}}
@@ -429,49 +308,33 @@ Parameter: the root context. Renders nothing.
 {{- end -}}
 
 {{/*
-What the VpcEgressGateway captures in mode direct: namespace (the whole subnet
+What the VpcEgressGateway captures in mode direct: subnet (the whole subnet
 of the senders) or label (only the pods carrying vpcEgressGateway.label).
 Returns the validated value. Parameter: the root context.
 */}}
 {{- define "egress-gateway.helpers.scope" -}}
-{{- $scope := (.Values.vpcEgressGateway | default dict).scope | default "namespace" | toString | lower -}}
-{{- if not (has $scope (list "namespace" "label")) -}}
-{{- fail (printf "vpcEgressGateway.scope must be namespace or label, got %q" $scope) -}}
+{{- $scope := (.Values.vpcEgressGateway | default dict).scope | default "subnet" | toString | lower -}}
+{{- if not (has $scope (list "subnet" "label")) -}}
+{{- fail (printf "vpcEgressGateway.scope must be subnet or label, got %q" $scope) -}}
 {{- end -}}
 {{- $scope -}}
 {{- end -}}
 
-{{/*
-The subnet of the senders (mode direct, scope namespace): senders.subnet, the
-name of the kube-ovn Subnet resource of the senders namespace, for example
-nbox-dev-subnet-app. Parameter: the root context.
-*/}}
-{{- define "egress-gateway.helpers.sendersSubnet" -}}
-{{- $value := (.Values.senders | default dict).subnet | default "" | toString | trim | lower -}}
-{{- if not $value -}}
-{{- fail "senders.subnet is required in mode direct with scope namespace: the Subnet of the senders namespace, for example nbox-dev-subnet-app" -}}
-{{- end -}}
-{{- if or (gt (len $value) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $value)) -}}
-{{- fail (printf "senders.subnet must be a Subnet name (DNS-like lowercase), got %q" $value) -}}
-{{- end -}}
-{{- $value -}}
-{{- end -}}
-
-{{/*
-Every subnet of the senders (mode direct, scope namespace), as JSON: the
-required senders.subnet first, then senders.additionalSubnets, for senders
-namespaces that sit in other subnets. A repeated name is refused. Parameter:
-the root context.
-*/}}
+{{/* Validated Subnet name list for direct subnet scope, as JSON. */}}
 {{- define "egress-gateway.helpers.sendersSubnets" -}}
-{{- $all := list (include "egress-gateway.helpers.sendersSubnet" .) -}}
-{{- range $index, $value := ((.Values.senders | default dict).additionalSubnets | default list) -}}
-{{- $name := $value | toString | trim | lower -}}
-{{- if or (gt (len $name) 63) (not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name)) -}}
-{{- fail (printf "senders.additionalSubnets[%d] must be a Subnet name (DNS-like lowercase), got %q" $index $name) -}}
+{{- $values := (.Values.senders | default dict).subnet -}}
+{{- if not (kindIs "slice" $values) -}}
+{{- fail "senders.subnet must be a non-empty list of Subnet names in mode direct with scope subnet" -}}
 {{- end -}}
+{{- if not $values -}}
+{{- fail "senders.subnet must contain at least one Subnet in mode direct with scope subnet" -}}
+{{- end -}}
+{{- $all := list -}}
+{{- range $index, $value := $values -}}
+{{- if not (kindIs "string" $value) -}}{{- fail "senders.subnet items must be strings" -}}{{- end -}}
+{{- $name := include "egress-gateway.helpers.namespaceToken" (dict "label" (printf "senders.subnet[%d]" $index) "value" $value) -}}
 {{- if has $name $all -}}
-{{- fail (printf "senders.additionalSubnets[%d] %q is already listed: each subnet is named once, senders.subnet included" $index $name) -}}
+{{- fail (printf "senders.subnet[%d] %q is already listed" $index $name) -}}
 {{- end -}}
 {{- $all = append $all $name -}}
 {{- end -}}

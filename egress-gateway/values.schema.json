@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/egress-gateway/values.schema.json",
   "title": "egress-gateway Helm chart values",
-  "description": "Editor-oriented schema for the egress-gateway chart: an egress with a fixed external address in one of two modes. mesh: the senders sit in ambient, a waypoint (subchart waypoint under the namespace subchart waypointNamespace) lets the hosts named in serviceEntries out through a kube-ovn VpcEgressGateway. direct: the senders are outside the mesh, the whole external traffic of their subnet leaves through the VpcEgressGateway. The VpcEgressGateway always gets a namespace of its own (subchart vegNamespace), never in the mesh.",
+  "description": "Выход с известными внешними адресами. В mesh каждый namespace отправителей получает локальный waypoint. В direct выполняется SNAT указанных подсетей или выбор подов по метке. Namespace выхода создаётся по умолчанию и использует ovn-default.",
   "type": "object",
   "additionalProperties": false,
   "propertyOrder": [
@@ -14,7 +14,6 @@
     "vpcEgressGateway",
     "networkPolicy",
     "authorizationPolicy",
-    "waypointNamespace",
     "vegNamespace",
     "gatewayScheduling",
     "enabled"
@@ -24,7 +23,6 @@
     "senders",
     "vpcEgressGateway"
   ],
-  "$comment": "allOf связывает режим с namespace гейтвея. В режиме direct waypointNamespace.enabled обязан быть false: шаблоны и так останавливают выпуск (mode direct has no waypoint), но там это выясняется в кластере, через несколько минут после заказа. В схеме то же правило отвечает сразу: форма портала проверяет values схемой чарта до отправки. В режиме mesh оба значения допустимы: true - гейтвей в своём неймспейсе, false - в неймспейсе отправителей.",
   "allOf": [
     {
       "if": {
@@ -47,20 +45,6 @@
           },
           "authorizationPolicy": {
             "ui:widget": "hidden"
-          },
-          "waypointNamespace": {
-            "properties": {
-              "enabled": {
-                "const": false
-              },
-              "waypoint": {
-                "properties": {
-                  "waypoints": {
-                    "ui:widget": "hidden"
-                  }
-                }
-              }
-            }
           }
         }
       },
@@ -69,9 +53,6 @@
           "senders": {
             "properties": {
               "subnet": {
-                "ui:widget": "hidden"
-              },
-              "additionalSubnets": {
                 "ui:widget": "hidden"
               }
             }
@@ -88,38 +69,63 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "const": "direct"
+          },
+          "vpcEgressGateway": {
+            "properties": {
+              "scope": {
+                "const": "subnet"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "senders": {
+            "required": [
+              "subnet"
+            ],
+            "properties": {
+              "subnet": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "properties": {
     "global": {
       "title": "Общие настройки",
-      "description": "Задайте теги окружения и назначение неймспейса гейтвея для всех ресурсов заказа.",
+      "description": "Теги окружения и проекта для ресурсов заказа.",
       "type": "object",
       "propertyOrder": [
-        "identity",
-        "namespacePurpose"
+        "identity"
       ],
       "properties": {
         "identity": {
           "title": "Окружение и проект",
           "description": "Выберите место размещения и владельца заказа один раз для всех его ресурсов.",
           "$ref": "#/definitions/identity"
-        },
-        "namespacePurpose": {
-          "title": "Назначение неймспейса гейтвея",
-          "description": "Укажите слово для общей части имени неймспейса гейтвея, например egw-eg в nbox-dev-ns-egw-eg.",
-          "$ref": "#/definitions/purposeToken",
-          "default": "egw-eg"
         }
       },
       "required": [
-        "identity",
-        "namespacePurpose"
+        "identity"
       ]
     },
     "generic": {
       "title": "Метки и аннотации",
-      "description": "Применяются к ресурсам выхода и правилам доступа, но не к неймспейсам и гейтвею. В форме скрыто.",
+      "description": "Общие метки и аннотации ресурсов чарта, включая waypoint. У сабчарта namespace свои настройки.",
       "ui:widget": "hidden",
       "$ref": "#/definitions/generic"
     },
@@ -139,7 +145,7 @@
     },
     "senders": {
       "title": "Ваши сервисы",
-      "description": "Укажите, откуда нужен выход наружу: неймспейс должен быть создан отдельным заказом.",
+      "description": "Существующие неймспейсы сервисов. В mesh каждый получает локальный waypoint, в direct со scope label из них выбираются поды. Для direct со scope subnet задайте имена подсетей отдельно.",
       "$ref": "#/definitions/senders"
     },
     "serviceEntries": {
@@ -176,17 +182,41 @@
       "description": "Только в режиме mesh. Разрешает доступ к гейтвею только вашим сервисам, а не всему кластеру.",
       "$ref": "#/definitions/authorizationPolicy"
     },
-    "waypointNamespace": {
-      "title": "Неймспейс гейтвея",
-      "description": "В mesh включите для отдельного неймспейса, выключите для неймспейса сервисов. В direct выключите. В форме скрыто.",
-      "type": "object",
-      "ui:widget": "hidden"
-    },
     "vegNamespace": {
       "title": "Неймспейс выхода",
-      "description": "Настройки окружения VpcEgressGateway: всегда вне сетки, с уровнем безопасности privileged. В форме скрыто.",
+      "description": "Namespace выхода создаётся по умолчанию вне сетки, с уровнем безопасности privileged, в дефолтной подсети ovn-default. Создание своей подсети запрещено.",
       "type": "object",
-      "ui:widget": "hidden"
+      "ui:widget": "hidden",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "subnet": {
+          "type": "object",
+          "ui:widget": "hidden",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "const": false,
+              "default": false
+            },
+            "namespaceBinding": {
+              "const": {
+                "enabled": true
+              }
+            },
+            "subnet": {
+              "const": {
+                "name": "",
+                "reservedIps": 0,
+                "cidrBlock": ""
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
     },
     "gatewayScheduling": {
       "title": "Размещение выхода",
@@ -232,12 +262,6 @@
       "minLength": 2,
       "maxLength": 9
     },
-    "purposeToken": {
-      "type": "string",
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
-      "minLength": 2,
-      "maxLength": 12
-    },
     "port": {
       "type": "integer",
       "minimum": 1,
@@ -247,11 +271,6 @@
       "type": "string",
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "minLength": 1,
-      "maxLength": 63
-    },
-    "subnetName": {
-      "type": "string",
-      "pattern": "^$|^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
       "maxLength": 63
     },
     "labelKey": {
@@ -463,35 +482,25 @@
       "additionalProperties": false,
       "propertyOrder": [
         "namespace",
-        "additionalNamespaces",
-        "subnet",
-        "additionalSubnets"
+        "subnet"
       ],
       "properties": {
         "namespace": {
-          "title": "Неймспейс сервисов",
-          "description": "Укажите существующий неймспейс, из которого сервисы будут выходить наружу, например nbox-dev-ns-app. Если гейтвей размещается рядом с сервисами, он будет создан в этом неймспейсе.",
-          "$ref": "#/definitions/namespaceName"
-        },
-        "additionalNamespaces": {
-          "title": "Другие неймспейсы сервисов",
-          "description": "Добавьте существующие неймспейсы, сервисам из которых нужен выход через этот гейтвей, не повторяя значения и не указывая основной неймспейс. При включённом переключателе «Создавать неймспейс гейтвея» добавьте каждый из них также в список разрешённых неймспейсов гейтвея.",
+          "title": "Неймспейсы сервисов",
+          "description": "Перечислите существующие неймспейсы без повторений. В mesh они должны быть подключены к ambient.",
           "type": "array",
+          "minItems": 1,
           "uniqueItems": true,
           "items": {
             "$ref": "#/definitions/namespaceName"
           }
         },
         "subnet": {
-          "title": "Подсеть сервисов",
-          "description": "Только без сетки. Укажите подсеть, например nbox-dev-subnet-app: весь её внешний трафик пойдёт через выход.",
-          "$ref": "#/definitions/subnetName"
-        },
-        "additionalSubnets": {
-          "title": "Другие подсети сервисов",
-          "description": "Без сетки при выборе всей подсети здесь указываются подсети остальных неймспейсов сервисов, если они не входят в основную подсеть.",
+          "title": "Подсети сервисов",
+          "description": "Только direct со scope subnet. Список имён ресурсов Subnet, весь внешний трафик которых пойдёт через выход. Имена не зависят от имён namespace.",
           "type": "array",
           "uniqueItems": true,
+          "default": [],
           "items": {
             "$ref": "#/definitions/namespaceName"
           }
@@ -600,14 +609,14 @@
           "description": "Только без сетки. Выберите, что направить через выход: всю подсеть ваших сервисов или только поды с меткой.",
           "type": "string",
           "enum": [
-            "namespace",
+            "subnet",
             "label"
           ],
           "enumNames": [
-            "Вся подсеть сервисов (namespace)",
+            "Подсети сервисов (subnet)",
             "Поды с меткой (label)"
           ],
-          "default": "namespace"
+          "default": "subnet"
         },
         "label": {
           "title": "Ключ метки",

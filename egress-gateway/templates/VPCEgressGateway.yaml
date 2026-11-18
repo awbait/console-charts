@@ -1,37 +1,3 @@
-{{/*
-VpcEgressGateway (kube-ovn) - one per release, in the namespace the vegNamespace
-subchart creates (never in the mesh: ambient interception breaks a transit
-pod). Several externalIPs give several replicas of one gateway, not several
-gateways.
-
-Hardcoded in the template (not configurable via values):
-  vpc, externalSubnet (egress-vip). trafficPolicy is not written: it only acts
-  with BFD, which is not enabled.
-
-Scheduling of the gateway workload (nodeSelector in the kube-ovn form, a list
-of matchLabels/matchExpressions/matchFields terms, and tolerations in the pod
-form) comes from gatewayScheduling. The chart default is empty, so the
-scheduler picks the node; the platform sets its rules in the values of its
-installation. A field named in vpcEgressGateway itself replaces the default
-as a whole; an explicit empty value switches it off. The CRD has no affinity
-field, kube-ovn spreads the replicas by itself.
-
-What the gateway captures depends on the mode:
-  mesh            selectors: the pods of the egress Gateway in the namespace
-                  it stands in, NS 2 or the senders namespace (namespaceSelector
-                  + podSelector in ONE item, they are ANDed inside an item and
-                  ORed between items). SNAT for
-                  selected pods is done by the init script of the gateway pod,
-                  so no policies are written: a policy on the senders subnet
-                  would capture the application pods too, including the
-                  answers to their kubelet probes.
-  direct, scope namespace
-                  policies: SNAT for the whole Subnet of the senders
-                  (senders.subnet and senders.additionalSubnets).
-  direct, scope label
-                  selectors: the pods of every senders namespace carrying the
-                  label vpcEgressGateway.label with the name of this gateway.
-*/}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
 {{- $root := . }}
@@ -53,6 +19,7 @@ metadata:
 spec:
   vpc: ovn-cluster
   replicas: {{ len $veg.externalIPs }}
+  internalSubnet: ovn-default
   externalSubnet: egress-vip
   externalIPs:
     {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" $veg.externalIPs "context" $root) | nindent 4 }}
@@ -64,23 +31,21 @@ spec:
   tolerations:
     {{- include "egress-gateway.helpers.tplvalues.render" (dict "value" . "context" $root) | nindent 4 }}
   {{- end }}
-  {{- if eq $mode "mesh" }}
-  selectors:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ include "egress-gateway.helpers.gatewayNamespace" $root | quote }}
-      podSelector:
-        matchLabels:
-          {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" (include "egress-gateway.helpers.gatewayFullname" $root)) | nindent 10 }}
-  {{- else if eq (include "egress-gateway.helpers.scope" $root) "label" }}
+  {{- if or (eq $mode "mesh") (eq (include "egress-gateway.helpers.scope" $root) "label") }}
   selectors:
     {{- range $sender := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: {{ $sender | quote }}
+      {{- if eq $mode "mesh" }}
+      podSelector:
+        matchLabels:
+          {{- include "egress-gateway.helpers.gatewayWorkloadSelectorLabels" (dict "gatewayResourceName" (include "egress-gateway.helpers.gatewayFullname" $root)) | nindent 10 }}
+      {{- else }}
       podSelector:
         matchLabels:
           {{ include "egress-gateway.helpers.egressLabel" $root }}: {{ $vegFullname | quote }}
+      {{- end }}
     {{- end }}
   {{- else }}
   policies:

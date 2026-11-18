@@ -161,6 +161,12 @@ resourceQuotas:
       ceph-rbd: false
       ceph-rbd-vm: false
       ceph-rgw: false
+      topolvm-mu-ml: false
+      topolvm-mu-ext4: false
+      topolvm-ri-ext4: false
+      cephfs-cold: false
+      infinibox-block: false
+      infinibox-fs: false
       cephfs-hot: false
 
   # Имя ресурса ResourceQuota. Пусто - "default".
@@ -190,6 +196,10 @@ resourceQuotas:
   #   ceph-rbd-vm - сетевой диск для виртуальных машин,
   #   ceph-rgw   - класс объектного хранилища Ceph (RGW),
   #   cephfs-hot - общая файловая система CephFS на быстром пуле.
+  # Дополнительные классы: topolvm-mu-ml (DEV-ECPK для dev-llmaas, dev-solver,
+  # dev-mlops), topolvm-mu-ext4 / topolvm-ri-ext4 (локальные диски ext4),
+  # cephfs-cold (холодный пул CephFS), infinibox-block / infinibox-fs (techsec-dev).
+  # Выбирайте только классы, доступные в целевом кластере.
   # Квота считает объём, запрошенный PVC этого класса.
   storage:
     topolvm-mu: "100Gi"
@@ -197,6 +207,12 @@ resourceQuotas:
     ceph-rbd: "50Gi"
     ceph-rbd-vm: "100Gi"
     ceph-rgw: ""
+    topolvm-mu-ml: ""
+    topolvm-mu-ext4: ""
+    topolvm-ri-ext4: ""
+    cephfs-cold: ""
+    infinibox-block: ""
+    infinibox-fs: ""
     cephfs-hot: "20Gi"
 
 # ----------------------------------------------------------------------------
