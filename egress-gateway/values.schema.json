@@ -184,39 +184,9 @@
     },
     "vegNamespace": {
       "title": "Неймспейс выхода",
-      "description": "Namespace выхода создаётся по умолчанию вне сетки, с уровнем безопасности privileged, в дефолтной подсети ovn-default. Создание своей подсети запрещено.",
+      "description": "Настройки окружения VpcEgressGateway: всегда вне сетки, с уровнем безопасности privileged. В форме скрыто.",
       "type": "object",
-      "ui:widget": "hidden",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "default": true
-        },
-        "subnet": {
-          "type": "object",
-          "ui:widget": "hidden",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "const": false,
-              "default": false
-            },
-            "namespaceBinding": {
-              "const": {
-                "enabled": true
-              }
-            },
-            "subnet": {
-              "const": {
-                "name": "",
-                "reservedIps": 0,
-                "cidrBlock": ""
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      }
+      "ui:widget": "hidden"
     },
     "gatewayScheduling": {
       "title": "Размещение выхода",
