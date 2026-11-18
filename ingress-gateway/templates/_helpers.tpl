@@ -724,6 +724,57 @@ Parameters: .kind (canonical), .name.
 {{- end -}}
 
 {{/*
+Validate the native HTTPRoute retry fields, including when schema validation is skipped.
+Parameters: .rule, .kind (canonical), .path.
+*/}}
+{{- define "ingress-gateway.helpers.app.validateRouteRetry" -}}
+{{- if hasKey .rule "retry" -}}
+{{- $path := .path -}}
+{{- if ne .kind "HTTPRoute" -}}
+{{- fail (printf "%s is not supported for %s; use HTTPRoute" $path .kind) -}}
+{{- end -}}
+{{- $retry := .rule.retry -}}
+{{- if not (kindIs "map" $retry) -}}
+{{- fail (printf "%s must be an object" $path) -}}
+{{- end -}}
+{{- range $field, $value := $retry -}}
+{{- if not (has $field (list "attempts" "backoff" "codes")) -}}
+{{- fail (printf "%s.%s is not supported; use attempts, backoff or codes" $path $field) -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $retry "attempts" -}}
+{{- if not (regexMatch "^[0-9]+$" (toJson $retry.attempts)) -}}
+{{- fail (printf "%s.attempts must be a non-negative integer" $path) -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $retry "backoff" -}}
+{{- if not (kindIs "string" $retry.backoff) -}}
+{{- fail (printf "%s.backoff must be a Gateway API duration such as 500ms or 1s" $path) -}}
+{{- end -}}
+{{- if not (regexMatch "^([0-9]{1,5}(h|m|s|ms)){1,4}$" $retry.backoff) -}}
+{{- fail (printf "%s.backoff must be a Gateway API duration such as 500ms or 1s" $path) -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $retry "codes" -}}
+{{- if not (kindIs "slice" $retry.codes) -}}
+{{- fail (printf "%s.codes must be a list of unique HTTP status codes from 400 to 599" $path) -}}
+{{- end -}}
+{{- $seen := dict -}}
+{{- range $code := $retry.codes -}}
+{{- if not (regexMatch "^[45][0-9]{2}$" (toJson $code)) -}}
+{{- fail (printf "%s.codes must contain only integer HTTP status codes from 400 to 599" $path) -}}
+{{- end -}}
+{{- $key := toJson $code -}}
+{{- if hasKey $seen $key -}}
+{{- fail (printf "%s.codes contains duplicate HTTP status code %s" $path $key) -}}
+{{- end -}}
+{{- $_ := set $seen $key true -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Generic rendering of templated values. Parameters: .value, .context.
 */}}
 {{- define "ingress-gateway.helpers.tplvalues.render" -}}
