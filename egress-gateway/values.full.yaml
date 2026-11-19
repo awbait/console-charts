@@ -14,7 +14,7 @@ generic:
   annotations:
     owner: platform-team
     monitoring: 'true'
-# mesh: домены через локальные waypoint. direct: SNAT без сервисной сетки.
+# mesh: домены и фиксированные IPv4 через локальные waypoint. direct: SNAT без сервисной сетки.
 mode: mesh
 # Namespace существуют заранее. В mesh список задаёт размещение waypoint,
 # в direct со scope label ограничивает выбор подов. список subnet
@@ -27,7 +27,9 @@ senders:
     - nbox-dev-subnet-app
     - custom-egress-subnet
 # Только mesh: каждая включённая запись создаётся в каждом namespace отправителей.
-# Имя и домен обязательны. По умолчанию port: 443, protocol: TLS, enabled: true.
+# Имя и hostname с доменом либо конкретным IPv4 обязательны. IP без CIDR
+# и ведущих нулей, 0.0.0.0 не поддерживается. По умолчанию port: 443,
+# protocol: TLS, enabled: true. Домен или IP нельзя повторять даже с другим портом.
 serviceEntries:
   - name: nx
     hostname: repository.solution.test
@@ -36,6 +38,12 @@ serviceEntries:
     port: 8443
     protocol: TLS
     enabled: true
+  # Фиксированный IPv4: STATIC ServiceEntry в каждом namespace отправителей.
+  # Приложение обращается прямо к IP и порту, служебное имя чарт создаёт сам.
+  - name: vm
+    hostname: 10.20.30.40
+    port: 22
+    protocol: TCP
 # Один выход на релиз, replicas равен числу externalIPs. vpc: ovn-cluster,
 # internalSubnet: ovn-default и externalSubnet: egress-vip зафиксированы. Имя 2..9 символов задаёт и имя waypoint.
 # В direct scope subnet: SNAT для всех указанных Subnet, scope label:
@@ -79,7 +87,10 @@ gatewayScheduling:
   tolerations: []
 # Только mesh. В каждом namespace: вход waypoint из своего namespace на 15008,
 # выход к istiod:15012, DNS:1053 TCP/UDP и внешним endpoints.
-# endpoints обязателен при enabled: true. address: IP или CIDR, port: TCP-порт.
+# IPv4 и порты включённых serviceEntries добавляются автоматически, одиночный
+# IP становится /32. endpoints дополняет их, совпадения адреса и порта убираются.
+# Для доменов адреса задаются вручную. Нужен хотя бы один ручной endpoint или
+# включённая IPv4-запись. address: IP или CIDR, port: TCP-порт.
 # senders: true добавляет подам namespace выход к локальному waypoint на 15008.
 networkPolicy:
   enabled: true

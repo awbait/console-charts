@@ -1,4 +1,5 @@
-# Mesh: локальные waypoint в namespace отправителей, один общий выход.
+# Mesh: локальные waypoint в двух namespace отправителей, один общий выход.
+# В каждом namespace создаются записи для домена и фиксированного IPv4/TCP.
 global:
   identity:
     instance: ed
@@ -12,12 +13,17 @@ senders:
 serviceEntries:
   - name: nx
     hostname: repository.solution.test
+  - name: vm
+    hostname: 10.20.30.40
+    port: 22
+    protocol: TCP
 vpcEgressGateway:
   name: vip
   externalIPs:
     - 10.193.101.10
 networkPolicy:
   enabled: true
+  # IP и порт записи vm добавляются автоматически. Для домена nx нужен адрес ниже.
   endpoints:
     - address: 10.40.20.50
       port: 443

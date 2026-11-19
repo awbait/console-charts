@@ -7,13 +7,13 @@
 | Секция | Что создаётся | Когда использовать |
 |---|---|---|
 | `senders.namespace` | В mesh: Gateway и ConfigMap в каждом указанном namespace | Сервисы в ambient |
-| `serviceEntries` | Копия каждой включённой ServiceEntry в каждом namespace отправителей | Внешние домены в mesh |
+| `serviceEntries` | Копия каждой включённой ServiceEntry в каждом namespace отправителей | Внешние домены и фиксированные IPv4 в mesh |
 | `networkPolicy` | Правила входа и выхода каждого waypoint и выхода отправителей к нему | Ограничение трафика в mesh |
 | `authorizationPolicy` | AuthorizationPolicy на каждый локальный Gateway | Доступ только из его namespace |
 | `vpcEgressGateway` | Один VpcEgressGateway и необязательный LimitRange | В обоих режимах |
 | `vegNamespace` | Namespace выхода и квота | В обоих режимах |
 
-В mesh ServiceEntry привязана к waypoint своего namespace. Все waypoint направляют внешний трафик через общий выход. Только домены из `serviceEntries` идут этим путём, остальной трафик не меняется.
+В mesh ServiceEntry привязана к waypoint своего namespace. Все waypoint направляют внешний трафик через общий выход. Только домены и IP из `serviceEntries` идут этим путём, остальной трафик не меняется.
 
 В direct waypoint, ServiceEntry и политики не создаются. При `scope: subnet` выход выполняет SNAT для каждой подсети из списка `senders.subnet`. Это имена ресурсов Subnet, они не обязаны совпадать с именами namespace. Список namespace не ограничивает захват подсети: в неё могут входить и другие namespace. При `scope: label` выбираются поды из `senders.namespace` с нужной меткой.
 
@@ -54,7 +54,7 @@ Namespace выхода по умолчанию создаёт сабчарт `ve
 | `mode` | Нет, по умолчанию mesh | mesh или direct |
 | `senders.namespace` | Да | Непустой список существующих namespace без повторов |
 | `senders.subnet` | direct, scope subnet | Непустой список имён Subnet без повторов |
-| `serviceEntries[].name`, `.hostname` | mesh | Имя записи и внешний домен |
+| `serviceEntries[].name`, `.hostname` | mesh | Имя записи и внешний домен или фиксированный IPv4 |
 | `serviceEntries[].port`, `.protocol` | Нет | По умолчанию 443 и TLS, также доступны HTTP и TCP |
 | `serviceEntries[].enabled` | Нет | false исключает запись |
 | `vpcEgressGateway.name` | Да, по умолчанию vip | Имя выхода, 2..9 символов |
@@ -65,14 +65,40 @@ Namespace выхода по умолчанию создаёт сабчарт `ve
 | `vpcEgressGateway.nodeSelector`, `.tolerations` | Нет | Заменяют одноимённые правила gatewayScheduling целиком, пустой список отключает их |
 | `vpcEgressGateway.limitRange` | Нет | Ресурсы контейнеров без собственных requests и limits в namespace выхода |
 | `networkPolicy.enabled` | Нет | Включает политики каждого waypoint |
-| `networkPolicy.endpoints` | При включённых политиках | Разрешённые внешние адреса или CIDR и TCP-порты |
+| `networkPolicy.endpoints` | Для доменов при включённых политиках | Дополнительные внешние адреса или CIDR и TCP-порты. IP и порт включённой IPv4-записи добавляются автоматически |
 | `networkPolicy.senders` | Нет, по умолчанию true | Добавляет правило выхода подов namespace к локальному waypoint на 15008 |
 | `authorizationPolicy.enabled` | Нет | Разрешает доступ к каждому waypoint только из его namespace |
 | `vegNamespace.namespace.name` | Да, по умолчанию veg-vip | Назначение namespace выхода |
 
 Waypoint не имеет пользовательских настроек. Для каждого зафиксированы: обработка сервисов, HBONE 15008, ClusterIP, приём привязок только своего namespace, HPA от 2 до 5 реплик с целью CPU 80%. На реплику запрашиваются 100m CPU и 128Mi памяти, лимиты составляют 2000m CPU и 1024Mi. Суммарная потребность растёт с числом namespace.
 
-При включённых сетевых правилах каждому waypoint разрешён выход к istiod на 15012, DNS в kube-system на 1053 по TCP/UDP и к указанным endpoints. Вход на 15008 разрешён из его namespace. Правило `senders` дополняет существующие политики платформы, а не заменяет их.
+При включённых сетевых правилах каждому waypoint разрешён выход к istiod на 15012, DNS в kube-system на 1053 по TCP/UDP и к указанным endpoints и IPv4-записям. Вход на 15008 разрешён из его namespace. Правило `senders` дополняет существующие политики платформы, а не заменяет их.
+
+### Домены и фиксированные IPv4
+
+В `serviceEntries[].hostname` укажите домен или конкретный IPv4 без CIDR
+и ведущих нулей. IPv6 и неопределённый адрес `0.0.0.0` не поддерживаются.
+Для домена и IP доступны `TLS`, `HTTP` и `TCP`, по умолчанию `TLS`.
+Домен и IP нельзя повторять в нескольких включённых записях, даже если
+порты различаются.
+
+Для домена используется `resolution: DNS`. Для IPv4 чарт создаёт
+`resolution: STATIC`, `addresses` и `endpoints` с указанным адресом.
+Приложение обращается прямо к IP и порту. Служебное имя в `hosts`
+генерируется из окружения, проекта, namespace релиза, имени релиза и записи.
+Разрешать это имя через внешний DNS не требуется. Во всех namespace
+отправителей копия записи привязана к локальному waypoint. Поле
+`exportTo: ["."]` само по себе не гарантирует изоляцию в ambient,
+доступ ограничивают настройки waypoint и политики.
+
+При включённых сетевых правилах IP и порт записи добавляются в разрешённые
+назначения каждого waypoint автоматически. Ручные `networkPolicy.endpoints`
+дополняют эти назначения. Одиночные IP превращаются в `/32`, совпадающие
+адреса и порты не повторяются. Для доменов адреса и порты задаются вручную,
+DNS при рендеринге чарта не запрашивается. Нужен хотя бы один ручной
+endpoint или включённая IPv4-запись. Пример с двумя namespace, доменом
+и IPv4/TCP приведён в `values.mesh-senders.yaml`. Перед эксплуатацией
+проверьте трафик через waypoint и VpcEgressGateway на стенде.
 
 Namespace выхода использует дефолтную подсеть `ovn-default`. Собственная Subnet не создаётся, её параметры в этом чарте не настраиваются. Включение `vegNamespace.subnet.enabled` запрещено. В кластере `ovn-default` должна быть дефолтной подсетью VPC `ovn-cluster`, а namespace выхода не должен быть привязан к другой Subnet. Для подов VpcEgressGateway также зафиксировано `spec.internalSubnet: ovn-default`. Внешние IP используют отдельную `spec.externalSubnet: egress-vip`.
 
@@ -87,16 +113,17 @@ Namespace выхода использует дефолтную подсеть `o
 - Namespace выхода выключен, его роль отличается от egress или serviceMesh.never не равен true.
 - Заданы настройки собственной подсети namespace выхода или включено её создание через vegNamespace.subnet.enabled.
 - Задано переопределение имени namespace через global.namespaceOverride или vegNamespace.namespace.namespaceOverride.
-- В mesh нет включённых внешних сервисов, у них отсутствуют имя или домен, повторяется имя или домен, неверны порт или протокол.
+- В mesh нет включённых внешних сервисов, у них отсутствуют имя или hostname с доменом либо IPv4, повторяется имя, домен или IP, неверны порт или протокол.
+- IPv4 указан с CIDR, ведущими нулями, неверными октетами или как `0.0.0.0`.
 - В direct переданы serviceEntries или включены networkPolicy либо authorizationPolicy.
 - В direct неверен scope, для scope subnet не указана Subnet, имена подсетей неверны или повторяются, для scope label неверен ключ метки.
-- При включённых сетевых правилах отсутствуют endpoints или обязательные адрес и порт.
+- При включённых сетевых правилах отсутствуют ручные endpoints и включённые IPv4-записи либо не указаны обязательные адрес и порт ручного endpoint.
 
 Схема дополнительно проверяет типы, диапазоны и неизвестные поля. Сабчарт namespace проверяет свои квоты и параметры подсети.
 
 ## Файлы чарта
 
-`values.yaml` содержит дефолты без данных заказа. Для рендера добавьте теги, namespace отправителей, внешние IP и, в mesh, внешние сервисы. `values.minimal.yaml` показывает mesh с одним namespace, `values.mesh-senders.yaml` с двумя, `values.direct.yaml` показывает SNAT по подсети. `values.full.yaml` содержит полный пример параметров. `values.schema.json` задаёт проверку и форму, `view.schema.json` описывает её представление.
+`values.yaml` содержит дефолты без данных заказа. Для рендера добавьте теги, namespace отправителей, внешние IP и, в mesh, внешние сервисы. `values.minimal.yaml` показывает mesh с одним namespace, `values.mesh-senders.yaml` с двумя namespace, доменом и фиксированным IPv4/TCP, `values.direct.yaml` показывает SNAT по подсети. `values.full.yaml` содержит полный пример параметров. `values.schema.json` задаёт проверку и форму, `view.schema.json` описывает её представление.
 
 ## Переход с 9.x
 

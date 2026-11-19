@@ -8,7 +8,8 @@
 {{- range $index, $entry := $root.Values.serviceEntries }}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" }}
 {{- $seName := required (printf "serviceEntries[%d].name is required" $index) $entry.name }}
-{{- $hostname := required (printf "serviceEntries[%d].hostname is required" $index) $entry.hostname }}
+{{- $destination := include "egress-gateway.helpers.serviceEntryDestination" (dict "entry" $entry "index" $index) | fromJson }}
+{{- $hostname := include "egress-gateway.helpers.serviceEntryHost" (dict "entry" $entry "index" $index "context" $root) }}
 {{- $port := include "egress-gateway.helpers.serviceEntryPort" (dict "entry" $entry "index" $index) }}
 {{- $protocol := include "egress-gateway.helpers.serviceEntryProtocol" (dict "entry" $entry "index" $index) }}
 ---
@@ -24,7 +25,15 @@ spec:
   exportTo:
     - "."
   location: MESH_EXTERNAL
+  {{- if eq $destination.kind "IPv4" }}
+  addresses:
+    - {{ $destination.address | quote }}
+  resolution: STATIC
+  endpoints:
+    - address: {{ $destination.address | quote }}
+  {{- else }}
   resolution: DNS
+  {{- end }}
   ports:
     - name: {{ lower $protocol }}
       number: {{ $port }}

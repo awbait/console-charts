@@ -5,10 +5,7 @@
 {{- if and (eq (include "egress-gateway.helpers.mode" $root) "mesh") (eq (include "egress-gateway.helpers.app.enabled" $networkPolicy) "true") }}
 {{- $gwFullname := include "egress-gateway.helpers.gatewayFullname" $root }}
 {{- $waypoint := dict "name" $root.Values.vpcEgressGateway.name }}
-{{- $endpoints := $networkPolicy.endpoints | default list }}
-{{- if not $endpoints }}
-{{- fail "networkPolicy.endpoints is required when networkPolicy.enabled=true: name the address and the port of every external endpoint the gateway has to reach" }}
-{{- end }}
+{{- $endpoints := include "egress-gateway.helpers.effectiveNetworkPolicyEndpoints" $root | fromJsonArray }}
 {{- range $gwNamespace := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
 ---
 apiVersion: networking.k8s.io/v1
