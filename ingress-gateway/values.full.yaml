@@ -158,8 +158,11 @@ gatewayScheduling:
 #                     в кластере под своим именем (см. секцию tls ниже)
 #     allowedRoutes - какие маршруты listener принимает
 #       namespaces.from - Same (по умолчанию): namespace точки входа,
-#                         All: любой namespace. Selector сохранён для
-#                         совместимости и работает как Same, selector игнорируется
+#                         All: любой namespace. Selector: отбор по меткам.
+#       namespaces.selector - обязателен для Selector, {} выбирает все namespace.
+#         matchLabels - точные совпадения меток namespace.
+#         matchExpressions - key, operator (In/NotIn/Exists/DoesNotExist), values.
+#           Для In/NotIn values непустой, для Exists/DoesNotExist пустой или отсутствует.
 #
 # Сертификат для tlsMode: Terminate ищется по hostname в tls.certificates. Домен,
 # который не покрыт ни одной записью, выпускается автоматически: чарт создаёт
@@ -352,7 +355,17 @@ gateways:
         hostname: gtw-test2.example.test
         allowedRoutes:
           namespaces:
-            from: Same
+            from: Selector
+            selector:
+              matchLabels:
+                team: platform
+              matchExpressions:
+                - key: environment
+                  operator: In
+                  values:
+                    - production
+                - key: restricted
+                  operator: DoesNotExist
           kinds:
             - kind: HTTPRoute
 

@@ -650,6 +650,95 @@
         }
       }
     },
+    "namespaceSelector": {
+      "title": "Отбор неймспейсов по меткам",
+      "description": "Все условия применяются одновременно. Пустой объект выбирает все неймспейсы.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "matchLabels": {
+          "title": "Точные совпадения меток",
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "matchExpressions": {
+          "title": "Условия отбора меток",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator"
+            ],
+            "properties": {
+              "key": {
+                "title": "Ключ метки",
+                "type": "string",
+                "minLength": 1
+              },
+              "operator": {
+                "title": "Оператор",
+                "type": "string",
+                "enum": [
+                  "In",
+                  "NotIn",
+                  "Exists",
+                  "DoesNotExist"
+                ]
+              },
+              "values": {
+                "title": "Значения метки",
+                "description": "Для In и NotIn укажите хотя бы одно значение. Для Exists и DoesNotExist оставьте список пустым или не задавайте его.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "operator": {
+                      "enum": [
+                        "In",
+                        "NotIn"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "values"
+                  ],
+                  "properties": {
+                    "values": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "values": {
+                      "maxItems": 0
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
     "gateway": {
       "type": "object",
       "additionalProperties": false,
@@ -1036,7 +1125,7 @@
           "properties": {
             "from": {
               "title": "Область выбора неймспейсов",
-              "description": "Same разрешает маршруты только из неймспейса точки входа, All разрешает любой неймспейс. Selector сохранён для совместимости и работает как Same, отбор по меткам не применяется.",
+              "description": "Same разрешает неймспейс точки входа, All разрешает любой неймспейс, Selector выбирает неймспейсы по меткам. Для Selector обязательно задайте selector. Пустой объект selector разрешает все неймспейсы.",
               "type": "string",
               "default": "Same",
               "enum": [
@@ -1047,16 +1136,34 @@
               "enumNames": [
                 "Неймспейс точки входа (Same)",
                 "Все неймспейсы (All)",
-                "Совместимость: неймспейс точки входа (Selector)"
+                "По меткам неймспейса (Selector)"
               ]
             },
             "selector": {
-              "ui:widget": "hidden",
-              "$ref": "#/definitions/labelSelector"
+              "$ref": "#/definitions/namespaceSelector"
             }
           },
           "required": [
             "from"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "from": {
+                    "const": "Selector"
+                  }
+                },
+                "required": [
+                  "from"
+                ]
+              },
+              "then": {
+                "required": [
+                  "selector"
+                ]
+              }
+            }
           ]
         },
         "kinds": {

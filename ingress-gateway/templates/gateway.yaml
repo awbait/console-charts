@@ -60,11 +60,10 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
-      {{- /* Only explicit All permits cross-namespace routes; legacy Selector keeps Same behavior. */}}
       {{- $ar := $listener.allowedRoutes | default dict }}
       allowedRoutes:
         namespaces:
-          from: {{ ternary "All" "Same" (eq (dig "namespaces" "from" "Same" $ar) "All") }}
+          {{- include "ingress-gateway.helpers.app.routeNamespaces" (dict "value" ($ar.namespaces | default dict) "path" (printf "gateways[%d].listeners[%d].allowedRoutes.namespaces" $index $listenerIndex)) | nindent 10 }}
         {{- with $ar.kinds }}
         kinds:
           {{- toYaml . | nindent 10 }}

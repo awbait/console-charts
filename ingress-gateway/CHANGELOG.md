@@ -23,6 +23,8 @@
 
 ### Added
 
+- `allowedRoutes.namespaces.from: Selector` теперь выбирает неймспейсы по `selector.matchLabels` и `selector.matchExpressions`. Поддерживаются `In`, `NotIn`, `Exists` и `DoesNotExist`. Объект `selector` обязателен, пустой объект `{}` выбирает все неймспейсы. Ранее `Selector` работал как `Same`, теперь отсутствие `selector` останавливает рендер.
+
 - Слушатель может принимать маршруты из любого неймспейса: укажите `gateways[].listeners[].allowedRoutes.namespaces.from: All` или выберите «Все неймспейсы» в форме. По умолчанию сохраняется `Same`, разрешающий только неймспейс точки входа.
 
 ## [12.1.0] - 2026-11-18

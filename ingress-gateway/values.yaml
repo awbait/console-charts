@@ -83,3 +83,5 @@ gatewayScheduling:
 
 # gateways[].listeners[].allowedRoutes.namespaces.from: Same по умолчанию.
 # Укажите All, чтобы разрешить маршруты из любого namespace.
+# Для Selector задайте selector с matchLabels и/или matchExpressions.
+# Явный selector: {} выбирает все namespace.
