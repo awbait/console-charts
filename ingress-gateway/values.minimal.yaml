@@ -52,6 +52,8 @@ xroutes:
               type: PathPrefix
               value: /
         backendRefs:
+          # Повторы не переопределены. Пример retry для HTTPRoute есть
+          # в values.full.yaml.
           # Без sessionAffinity и h2UpgradePolicy DestinationRule не создаётся.
           - name: nginx-service
             port: 80

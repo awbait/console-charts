@@ -40,6 +40,7 @@ The element is skipped when enabled: false.
 {{- /* The gateway of the first parentRef goes into the route name, so one route name can serve two gateways. */ -}}
 {{- $routeParent := include "ingress-gateway.helpers.app.routeParent" (dict "route" $route "index" $index "context" $root) }}
 {{- range $ruleIndex, $rule := $route.rules }}
+{{- include "ingress-gateway.helpers.app.validateRouteRetry" (dict "rule" $rule "kind" $routeKind "path" (printf "xroutes[%d].rules[%d].retry" $index $ruleIndex)) }}
 {{- if and (not $supportsMatches) $rule.matches }}
 {{- fail (printf "xroutes[%d].rules[%d].matches is not supported for %s; for TLSRoute use hostnames (SNI)" $index $ruleIndex $routeKind) }}
 {{- end }}
@@ -115,6 +116,10 @@ spec:
         {{- with $timeouts.backendRequest }}
         backendRequest: {{ . | toString | quote }}
         {{- end }}
+      {{- end }}
+      {{- if hasKey $rule "retry" }}
+      retry:
+        {{- toYaml $rule.retry | nindent 8 }}
       {{- end }}
       {{- /* A RequestRedirect rule is answered by the gateway itself: the Gateway API
            allows one such filter per rule, no URLRewrite next to it and no backendRefs. */ -}}

@@ -89,7 +89,7 @@ data:
     spec:
       allocateLoadBalancerNodePorts: false
       type: LoadBalancer
-      externalTrafficPolicy: {{ $gateway.externalTrafficPolicy | default "Local" }}
+      externalTrafficPolicy: {{ $gateway.externalTrafficPolicy | default "Cluster" }}
       ipFamilies:
         - IPv4
       ipFamilyPolicy: SingleStack
