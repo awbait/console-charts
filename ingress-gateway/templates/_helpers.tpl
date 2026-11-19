@@ -774,6 +774,91 @@ Parameters: .rule, .kind (canonical), .path.
 {{- end -}}
 {{- end -}}
 
+{{/* Validate and render listener route namespace selection. */}}
+{{- define "ingress-gateway.helpers.app.routeNamespaces" -}}
+{{- $ns := .value -}}
+{{- $path := .path -}}
+{{- if not (kindIs "map" $ns) -}}
+{{- fail (printf "%s must be an object" $path) -}}
+{{- end -}}
+{{- range $key, $_ := $ns -}}
+{{- if not (has $key (list "from" "selector")) -}}
+{{- fail (printf "%s has unknown field %s" $path $key) -}}
+{{- end -}}
+{{- end -}}
+{{- $from := "Same" -}}
+{{- if hasKey $ns "from" -}}{{- $from = $ns.from -}}{{- end -}}
+{{- if not (has $from (list "Same" "All" "Selector")) -}}
+{{- fail (printf "%s.from must be Same, All or Selector" $path) -}}
+{{- end -}}
+{{- if eq $from "Selector" -}}
+{{- if not (hasKey $ns "selector") -}}
+{{- fail (printf "%s.selector is required when from is Selector" $path) -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $ns "selector" -}}
+{{- $selector := $ns.selector -}}
+{{- if not (kindIs "map" $selector) -}}
+{{- fail (printf "%s.selector must be an object" $path) -}}
+{{- end -}}
+{{- range $key, $_ := $selector -}}
+{{- if not (has $key (list "matchLabels" "matchExpressions")) -}}
+{{- fail (printf "%s.selector has unknown field %s" $path $key) -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $selector "matchLabels" -}}
+{{- if not (kindIs "map" $selector.matchLabels) -}}
+{{- fail (printf "%s.selector.matchLabels must be an object of string values" $path) -}}
+{{- end -}}
+{{- range $key, $value := $selector.matchLabels -}}
+{{- if or (eq $key "") (not (kindIs "string" $value)) -}}
+{{- fail (printf "%s.selector.matchLabels must have nonempty keys and string values" $path) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if hasKey $selector "matchExpressions" -}}
+{{- if not (kindIs "slice" $selector.matchExpressions) -}}
+{{- fail (printf "%s.selector.matchExpressions must be a list" $path) -}}
+{{- end -}}
+{{- range $index, $expr := $selector.matchExpressions -}}
+{{- $exprPath := printf "%s.selector.matchExpressions[%d]" $path $index -}}
+{{- if not (kindIs "map" $expr) -}}
+{{- fail (printf "%s must be an object" $exprPath) -}}
+{{- end -}}
+{{- range $key, $_ := $expr -}}
+{{- if not (has $key (list "key" "operator" "values")) -}}
+{{- fail (printf "%s has unknown field %s" $exprPath $key) -}}
+{{- end -}}
+{{- end -}}
+{{- if not (kindIs "string" $expr.key) -}}
+{{- fail (printf "%s.key must be a nonempty string" $exprPath) -}}
+{{- end -}}
+{{- if eq $expr.key "" -}}{{- fail (printf "%s.key must be a nonempty string" $exprPath) -}}{{- end -}}
+{{- if not (has $expr.operator (list "In" "NotIn" "Exists" "DoesNotExist")) -}}
+{{- fail (printf "%s.operator must be In, NotIn, Exists or DoesNotExist" $exprPath) -}}
+{{- end -}}
+{{- $values := list -}}
+{{- if hasKey $expr "values" -}}
+{{- if not (kindIs "slice" $expr.values) -}}{{- fail (printf "%s.values must be a list of strings" $exprPath) -}}{{- end -}}
+{{- $values = $expr.values -}}
+{{- range $value := $values -}}
+{{- if not (kindIs "string" $value) -}}{{- fail (printf "%s.values must contain strings" $exprPath) -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if has $expr.operator (list "In" "NotIn") -}}
+{{- if eq (len $values) 0 -}}{{- fail (printf "%s.values must be nonempty for In or NotIn" $exprPath) -}}{{- end -}}
+{{- else -}}
+{{- if ne (len $values) 0 -}}{{- fail (printf "%s.values must be empty or omitted for Exists or DoesNotExist" $exprPath) -}}{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+from: {{ $from }}
+{{- if eq $from "Selector" }}
+selector: {{ toYaml $ns.selector | nindent 2 }}
+{{- end -}}
+{{- end -}}
+
 {{/*
 Generic rendering of templated values. Parameters: .value, .context.
 */}}
