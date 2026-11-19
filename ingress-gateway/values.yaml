@@ -80,3 +80,6 @@ gatewayScheduling:
 # значений по умолчанию. Без них DestinationRule не создаётся.
 # retry у HTTP-правил тоже необязателен: чарт не добавляет его автоматически.
 # Пример со всеми параметрами - в values.full.yaml.
+
+# gateways[].listeners[].allowedRoutes.namespaces.from: Same по умолчанию.
+# Укажите All, чтобы разрешить маршруты из любого namespace.

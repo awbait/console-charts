@@ -60,11 +60,11 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
-      {{- /* namespaces is hidden from users and pinned to "Same" for now; only kinds is user-supplied. */}}
+      {{- /* Only explicit All permits cross-namespace routes; legacy Selector keeps Same behavior. */}}
       {{- $ar := $listener.allowedRoutes | default dict }}
       allowedRoutes:
         namespaces:
-          from: Same
+          from: {{ ternary "All" "Same" (eq (dig "namespaces" "from" "Same" $ar) "All") }}
         {{- with $ar.kinds }}
         kinds:
           {{- toYaml . | nindent 10 }}

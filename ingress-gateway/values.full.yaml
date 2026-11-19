@@ -157,6 +157,9 @@ gatewayScheduling:
 #     certificateRefs - готовый секрет с сертификатом, если он уже лежит
 #                     в кластере под своим именем (см. секцию tls ниже)
 #     allowedRoutes - какие маршруты listener принимает
+#       namespaces.from - Same (по умолчанию): namespace точки входа,
+#                         All: любой namespace. Selector сохранён для
+#                         совместимости и работает как Same, selector игнорируется
 #
 # Сертификат для tlsMode: Terminate ищется по hostname в tls.certificates. Домен,
 # который не покрыт ни одной записью, выпускается автоматически: чарт создаёт
@@ -223,7 +226,7 @@ gateways:
         protocol: HTTP
         allowedRoutes:
           namespaces:
-            from: Same
+            from: All
           kinds:
             - kind: HTTPRoute
 
