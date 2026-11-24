@@ -273,7 +273,7 @@ Parameter: the root context. Renders nothing.
 {{- if eq $mode "mesh" -}}
 {{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
 {{- $hpa := (.Values.waypoint | default dict).hpa | default dict -}}
-{{- if and (eq (include "egress-gateway.helpers.app.enabled" $hpa) "true") (gt (int ($hpa.minReplicas | default 2)) (int ($hpa.maxReplicas | default 5))) -}}
+{{- if and (eq (toString ($hpa.enabled | default false) | lower) "true") (gt (int ($hpa.minReplicas | default 2)) (int ($hpa.maxReplicas | default 5))) -}}
 {{- fail "waypoint.hpa.minReplicas must not exceed waypoint.hpa.maxReplicas" -}}
 {{- end -}}
 {{- $entries := list -}}

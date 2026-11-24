@@ -227,7 +227,7 @@
       "description": "Только mesh. Общие ресурсы и автомасштабирование всех вейпоинтов в неймспейсах ваших сервисов.",
       "default": {
         "hpa": {
-          "enabled": true,
+          "enabled": false,
           "minReplicas": 2,
           "maxReplicas": 5,
           "averageUtilization": 80
@@ -238,8 +238,8 @@
             "memory": "128Mi"
           },
           "limits": {
-            "cpu": "2000m",
-            "memory": "1024Mi"
+            "cpu": "500m",
+            "memory": "256Mi"
           }
         }
       },
@@ -764,9 +764,9 @@
       "properties": {
         "enabled": {
           "title": "Включить",
-          "description": "Создавать HPA для каждого вейпоинта. При обновлении false не удаляет уже созданный HPA. Для фиксированного числа реплик задайте одинаковые минимум и максимум.",
+          "description": "Создавать HPA для каждого вейпоинта. По умолчанию выключено. При обновлении false не удаляет уже созданный HPA. Для фиксированного числа реплик оставьте HPA включённым (enabled: true) и задайте одинаковые минимум и максимум.",
           "type": "boolean",
-          "default": true
+          "default": false
         },
         "minReplicas": {
           "title": "Минимум экземпляров",
@@ -792,7 +792,7 @@
         }
       },
       "default": {
-        "enabled": true,
+        "enabled": false,
         "minReplicas": 2,
         "maxReplicas": 5,
         "averageUtilization": 80
@@ -820,8 +820,8 @@
           "description": "Выше этого вейпоинт не поднимется.",
           "$ref": "#/definitions/resourceQuantityMap",
           "default": {
-            "cpu": "2000m",
-            "memory": "1024Mi"
+            "cpu": "500m",
+            "memory": "256Mi"
           }
         }
       },
@@ -831,8 +831,8 @@
           "memory": "128Mi"
         },
         "limits": {
-          "cpu": "2000m",
-          "memory": "1024Mi"
+          "cpu": "500m",
+          "memory": "256Mi"
         }
       }
     },
@@ -870,7 +870,7 @@
           "description": "Одинаковые границы и целевая загрузка CPU для каждого вейпоинта. Минимум не должен превышать максимум.",
           "$ref": "#/definitions/waypointHpa",
           "default": {
-            "enabled": true,
+            "enabled": false,
             "minReplicas": 2,
             "maxReplicas": 5,
             "averageUtilization": 80
@@ -886,8 +886,8 @@
               "memory": "128Mi"
             },
             "limits": {
-              "cpu": "2000m",
-              "memory": "1024Mi"
+              "cpu": "500m",
+              "memory": "256Mi"
             }
           }
         }

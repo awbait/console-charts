@@ -36,7 +36,7 @@ metadata:
   namespace: {{ $namespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 data:
-  {{- if eq (include "egress-gateway.helpers.app.enabled" $hpa) "true" }}
+  {{- if eq (toString ($hpa.enabled | default false) | lower) "true" }}
   horizontalPodAutoscaler: |
     spec:
       minReplicas: {{ $hpa.minReplicas | default 2 }}

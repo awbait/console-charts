@@ -13,6 +13,7 @@ senders:
 # Одна настройка применяется к waypoint в обоих namespace.
 waypoint:
   hpa:
+    enabled: true
     minReplicas: 3
     maxReplicas: 6
     averageUtilization: 70

@@ -27,12 +27,15 @@ senders:
     - nbox-dev-subnet-app
     - custom-egress-subnet
 # Только mesh. Общие настройки всех waypoint в senders.namespace.
-# HPA масштабирует каждый waypoint независимо. CPU считается от requests.cpu.
+# HPA выключен по умолчанию. При включении масштабирует каждый waypoint независимо.
+# CPU считается от requests.cpu. Ресурсы ниже - стартовый профиль для 15 RPS,
+# уточняйте его по метрикам реального трафика.
 # enabled: false не удаляет существующий HPA при обновлении.
-# Для фиксированного числа реплик задайте minReplicas равным maxReplicas.
+# Для фиксированного числа реплик включите HPA (enabled: true)
+# и задайте minReplicas равным maxReplicas.
 waypoint:
   hpa:
-    enabled: true
+    enabled: false
     minReplicas: 2
     maxReplicas: 5
     averageUtilization: 80
@@ -41,8 +44,8 @@ waypoint:
       cpu: 100m
       memory: 128Mi
     limits:
-      cpu: 2000m
-      memory: 1024Mi
+      cpu: 500m
+      memory: 256Mi
 # Только mesh: каждая включённая запись создаётся в каждом namespace отправителей.
 # Имя и hostname с доменом либо конкретным IPv4 обязательны. IP без CIDR
 # и ведущих нулей, 0.0.0.0 не поддерживается. По умолчанию port: 443,
