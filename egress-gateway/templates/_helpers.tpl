@@ -228,8 +228,8 @@ with a readable message instead of a manifest that is wrong in the cluster.
 Parameter: the root context. Renders nothing.
 */}}
 {{- define "egress-gateway.helpers.validate" -}}
-{{- range $key := list "waypointNamespace" "waypoint" -}}
-{{- if hasKey $.Values $key -}}{{- fail (printf "%s is no longer supported: mesh creates a fixed waypoint in every senders.namespace" $key) -}}{{- end -}}
+{{- range $key := list "waypointNamespace" -}}
+{{- if hasKey $.Values $key -}}{{- fail (printf "%s is no longer supported: mesh creates a local waypoint in every senders.namespace" $key) -}}{{- end -}}
 {{- end -}}
 {{- range $key := list "additionalNamespaces" "additionalSubnets" -}}
 {{- if hasKey ($.Values.senders | default dict) $key -}}{{- fail (printf "senders.%s is no longer supported: use senders.namespace or senders.subnet lists" $key) -}}{{- end -}}
@@ -272,6 +272,10 @@ Parameter: the root context. Renders nothing.
 {{- $authorizationPolicy := .Values.authorizationPolicy | default dict -}}
 {{- if eq $mode "mesh" -}}
 {{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
+{{- $hpa := (.Values.waypoint | default dict).hpa | default dict -}}
+{{- if and (eq (include "egress-gateway.helpers.app.enabled" $hpa) "true") (gt (int ($hpa.minReplicas | default 2)) (int ($hpa.maxReplicas | default 5))) -}}
+{{- fail "waypoint.hpa.minReplicas must not exceed waypoint.hpa.maxReplicas" -}}
+{{- end -}}
 {{- $entries := list -}}
 {{- range $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}

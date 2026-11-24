@@ -31,7 +31,7 @@ Namespace {{ $namespace }}:
 
 Каждая ServiceEntry использует waypoint своего namespace. Выход собирает трафик всех этих waypoint.
 Через выход с известного адреса уходят только перечисленные домены и IP, остальной трафик отправителей идёт как прежде.
-Каждый waypoint масштабируется от 2 до 5 реплик при целевой загрузке CPU 80%.
+Настройки ресурсов и автомасштабирования из waypoint применяются ко всем waypoint одинаково.
 Namespace отправителей должны быть подключены к ambient и иметь квоту для waypoint.
 {{- else if eq (include "egress-gateway.helpers.scope" .) "subnet" }}
 SNAT для подсетей: {{ include "egress-gateway.helpers.sendersSubnets" . | fromJsonArray | join ", " }}.

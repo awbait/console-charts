@@ -51,6 +51,7 @@
         "mode",
         "senders",
         "vegNamespace/namespace/name",
+        "waypoint",
         "serviceEntries",
         "vpcEgressGateway",
         "networkPolicy",
@@ -110,6 +111,11 @@
       "include": [
         "authorizationPolicy"
       ]
+    },
+    "waypoint": {
+      "include": [
+        "waypoint"
+      ]
     }
   },
   "actions": [
@@ -122,6 +128,11 @@
       "in": "info",
       "view": "senders",
       "label": "Настроить отправителей"
+    },
+    {
+      "in": "info",
+      "view": "waypoint",
+      "label": "Настроить вейпоинты"
     },
     {
       "in": "tab:networkRules",

@@ -1,9 +1,11 @@
-{{/* A fixed service waypoint and its infrastructure in every sender namespace. */}}
+{{/* A service waypoint with shared infrastructure settings in every sender namespace. */}}
 {{- if eq (include "egress-gateway.helpers.chartEnabled" .) "true" }}
 {{- include "egress-gateway.helpers.validate" . -}}
 {{- if eq (include "egress-gateway.helpers.mode" .) "mesh" }}
 {{- $root := . }}
 {{- $fullname := include "egress-gateway.helpers.gatewayFullname" $root }}
+{{- $waypoint := .Values.waypoint | default dict }}
+{{- $hpa := $waypoint.hpa | default dict }}
 {{- range $namespace := (include "egress-gateway.helpers.sendersNamespaces" $root | fromJsonArray) }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
@@ -34,17 +36,19 @@ metadata:
   namespace: {{ $namespace | quote }}
   {{- include "egress-gateway.helpers.app.metadata" (dict "context" $root) | nindent 2 }}
 data:
+  {{- if eq (include "egress-gateway.helpers.app.enabled" $hpa) "true" }}
   horizontalPodAutoscaler: |
     spec:
-      minReplicas: 2
-      maxReplicas: 5
+      minReplicas: {{ $hpa.minReplicas | default 2 }}
+      maxReplicas: {{ $hpa.maxReplicas | default 5 }}
       metrics:
         - type: Resource
           resource:
             name: cpu
             target:
               type: Utilization
-              averageUtilization: 80
+              averageUtilization: {{ $hpa.averageUtilization | default 80 }}
+  {{- end }}
   deployment: |
     spec:
       template:
@@ -52,15 +56,12 @@ data:
           securityContext:
             seccompProfile:
               type: RuntimeDefault
+          {{- with $waypoint.resources }}
           containers:
             - name: istio-proxy
               resources:
-                requests:
-                  cpu: 100m
-                  memory: 128Mi
-                limits:
-                  cpu: 2000m
-                  memory: 1024Mi
+                {{- toYaml . | nindent 16 }}
+          {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
