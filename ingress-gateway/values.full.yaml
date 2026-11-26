@@ -636,24 +636,14 @@ xroutes:
             cors:
               allowOrigins:
                 - https://example.ru
-          - type: CORS
-            cors:
               allowCredentials: true
-          - type: CORS
-            cors:
               allowMethods:
                 - GET
                 - POST
-          - type: CORS
-            cors:
               allowHeaders:
                 - authorization
-          - type: CORS
-            cors:
               exposeHeaders:
                 - x-request-id
-          - type: CORS
-            cors:
               maxAge: 600
         backendRefs:
           - name: public-api

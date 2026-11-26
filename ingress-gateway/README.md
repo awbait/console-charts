@@ -370,6 +370,12 @@ Operator прочитает запись и будет поддерживать 
 | `hostnames[]`  | для HTTP, GRPC и TLS          | Домены маршрута. Для TLS используются имена SNI.                          |
 | `rules[]`      | да                            | Правила маршрута. `backendRefs` обязателен, кроме правила с перенаправлением. `matches` и `filters` доступны только для HTTP и GRPC, `timeouts` и `retry` только для HTTP. |
 
+Для HTTP-маршрута параметры CORS задаются вместе в одном фильтре
+`type: CORS`, внутри блока `cors`: `allowOrigins`, `allowMethods`,
+`allowHeaders`, `exposeHeaders`, `maxAge` и `allowCredentials`.
+Укажите хотя бы один параметр. Пример со всеми параметрами есть
+в `values.full.yaml`.
+
 Правило с фильтром `RequestRedirect` точка входа обрабатывает сама: в нём
 один такой фильтр, в его `requestRedirect` любой набор из `statusCode`,
 `scheme`, `hostname`, `port` и `path`, а `backendRefs` и `URLRewrite`

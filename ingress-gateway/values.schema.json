@@ -1982,7 +1982,7 @@
       ]
     },
     "corsFilter": {
-      "title": "Доступ с других доменов",
+      "title": "CORS",
       "description": "Разрешает браузеру обращаться к сервису с другого домена.",
       "type": "object",
       "additionalProperties": false,
@@ -1994,139 +1994,82 @@
           "ui:widget": "hidden"
         },
         "cors": {
-          "title": "Параметр доступа",
-          "description": "Выберите один параметр доступа с других доменов.",
-          "oneOf": [
-            {
+          "title": "CORS",
+          "description": "Укажите один или несколько параметров доступа с других доменов.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "allowOrigins": {
               "title": "Разрешённые источники",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "allowOrigins": {
-                  "title": "Разрешённые источники",
-                  "description": "Укажите источник, например https://example.ru, или * для любого источника.",
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "title": "Адрес источника",
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              },
-              "required": [
-                "allowOrigins"
-              ]
+              "description": "Укажите источник, например https://example.ru, или * для любого источника.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "title": "Адрес источника",
+                "type": "string",
+                "minLength": 1
+              }
             },
-            {
+            "allowCredentials": {
               "title": "Передача данных авторизации",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "allowCredentials": {
-                  "title": "Передача данных авторизации",
-                  "description": "Разрешает передавать куки и заголовки авторизации. Для этого варианта всегда включено.",
-                  "type": "boolean",
-                  "const": true,
-                  "default": true
-                }
-              },
-              "required": [
-                "allowCredentials"
-              ]
+              "description": "Разрешает передавать куки и заголовки авторизации.",
+              "type": "boolean",
+              "const": true,
+              "default": true
             },
-            {
+            "allowMethods": {
               "title": "Разрешённые методы",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "allowMethods": {
-                  "title": "Разрешённые методы",
-                  "description": "Значение * разрешает любой метод.",
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "title": "Метод запроса",
-                    "type": "string",
-                    "enum": [
-                      "GET",
-                      "HEAD",
-                      "POST",
-                      "PUT",
-                      "DELETE",
-                      "CONNECT",
-                      "OPTIONS",
-                      "TRACE",
-                      "PATCH",
-                      "*"
-                    ]
-                  }
-                }
-              },
-              "required": [
-                "allowMethods"
-              ]
+              "description": "Значение * разрешает любой метод.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "title": "Метод запроса",
+                "type": "string",
+                "enum": [
+                  "GET",
+                  "HEAD",
+                  "POST",
+                  "PUT",
+                  "DELETE",
+                  "CONNECT",
+                  "OPTIONS",
+                  "TRACE",
+                  "PATCH",
+                  "*"
+                ]
+              }
             },
-            {
+            "allowHeaders": {
               "title": "Разрешённые заголовки",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "allowHeaders": {
-                  "title": "Разрешённые заголовки",
-                  "description": "Заголовки, которые браузеру разрешено отправлять в запросе.",
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "title": "Имя заголовка",
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              },
-              "required": [
-                "allowHeaders"
-              ]
+              "description": "Заголовки, которые браузеру разрешено отправлять в запросе.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "title": "Имя заголовка",
+                "type": "string",
+                "minLength": 1
+              }
             },
-            {
+            "exposeHeaders": {
               "title": "Доступные странице заголовки",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "exposeHeaders": {
-                  "title": "Доступные странице заголовки",
-                  "description": "Заголовки ответа, которые браузер позволит прочитать коду страницы.",
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "title": "Имя заголовка",
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              },
-              "required": [
-                "exposeHeaders"
-              ]
+              "description": "Заголовки ответа, которые браузер позволит прочитать коду страницы.",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "title": "Имя заголовка",
+                "type": "string",
+                "minLength": 1
+              }
             },
-            {
+            "maxAge": {
               "title": "Срок хранения разрешения",
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "maxAge": {
-                  "title": "Срок хранения разрешения",
-                  "description": "Время в секундах, в течение которого браузер хранит разрешение и не запрашивает его повторно.",
-                  "type": "integer",
-                  "minimum": 1,
-                  "default": 600
-                }
-              },
-              "required": [
-                "maxAge"
-              ]
+              "description": "Время в секундах, в течение которого браузер хранит разрешение и не запрашивает его повторно.",
+              "type": "integer",
+              "minimum": 1,
+              "default": 600
             }
-          ]
+          }
         }
       },
       "required": [
