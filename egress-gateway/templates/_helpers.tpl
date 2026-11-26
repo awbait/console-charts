@@ -228,8 +228,11 @@ with a readable message instead of a manifest that is wrong in the cluster.
 Parameter: the root context. Renders nothing.
 */}}
 {{- define "egress-gateway.helpers.validate" -}}
-{{- range $key := list "waypointNamespace" "waypoint" -}}
-{{- if hasKey $.Values $key -}}{{- fail (printf "%s is no longer supported: mesh creates a fixed waypoint in every senders.namespace" $key) -}}{{- end -}}
+{{- range $key := list "waypointNamespace" -}}
+{{- if hasKey $.Values $key -}}{{- fail (printf "%s is no longer supported: mesh creates a local waypoint in every senders.namespace" $key) -}}{{- end -}}
+{{- end -}}
+{{- if hasKey ($.Values.waypoint | default dict) "waypoints" -}}
+{{- fail "waypoint.waypoints is no longer supported: use shared waypoint.hpa and waypoint.resources" -}}
 {{- end -}}
 {{- range $key := list "additionalNamespaces" "additionalSubnets" -}}
 {{- if hasKey ($.Values.senders | default dict) $key -}}{{- fail (printf "senders.%s is no longer supported: use senders.namespace or senders.subnet lists" $key) -}}{{- end -}}
@@ -272,6 +275,33 @@ Parameter: the root context. Renders nothing.
 {{- $authorizationPolicy := .Values.authorizationPolicy | default dict -}}
 {{- if eq $mode "mesh" -}}
 {{- $_ := include "egress-gateway.helpers.gatewayFullname" . -}}
+{{- $waypoint := .Values.waypoint | default dict -}}
+{{- $hpa := $waypoint.hpa | default dict -}}
+{{- if eq (toString ($hpa.enabled | default false) | lower) "true" -}}
+{{- $minReplicas := 2 -}}
+{{- if hasKey $hpa "minReplicas" -}}{{- $minReplicas = int $hpa.minReplicas -}}{{- end -}}
+{{- $maxReplicas := 5 -}}
+{{- if hasKey $hpa "maxReplicas" -}}{{- $maxReplicas = int $hpa.maxReplicas -}}{{- end -}}
+{{- $avgUtil := 80 -}}
+{{- if hasKey $hpa "averageUtilization" -}}{{- $avgUtil = int $hpa.averageUtilization -}}{{- end -}}
+{{- if lt $minReplicas 1 -}}
+{{- fail "waypoint.hpa.minReplicas must be at least 1" -}}
+{{- end -}}
+{{- if lt $maxReplicas 1 -}}
+{{- fail "waypoint.hpa.maxReplicas must be at least 1" -}}
+{{- end -}}
+{{- if gt $minReplicas $maxReplicas -}}
+{{- fail "waypoint.hpa.minReplicas must not exceed waypoint.hpa.maxReplicas" -}}
+{{- end -}}
+{{- if or (lt $avgUtil 1) (gt $avgUtil 100) -}}
+{{- fail "waypoint.hpa.averageUtilization must be between 1 and 100" -}}
+{{- end -}}
+{{- $resources := $waypoint.resources | default dict -}}
+{{- $requests := $resources.requests | default dict -}}
+{{- if not ($requests.cpu | default "" | toString | trim) -}}
+{{- fail "waypoint.resources.requests.cpu is required when waypoint.hpa.enabled is true" -}}
+{{- end -}}
+{{- end -}}
 {{- $entries := list -}}
 {{- range $entry := (.Values.serviceEntries | default list) -}}
 {{- if eq (include "egress-gateway.helpers.app.enabled" $entry) "true" -}}

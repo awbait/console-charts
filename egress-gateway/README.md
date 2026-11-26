@@ -7,6 +7,7 @@
 | Секция | Что создаётся | Когда использовать |
 |---|---|---|
 | `senders.namespace` | В mesh: Gateway и ConfigMap в каждом указанном namespace | Сервисы в ambient |
+| `waypoint` | Общие настройки ресурсов и HPA всех локальных waypoint | В mesh |
 | `serviceEntries` | Копия каждой включённой ServiceEntry в каждом namespace отправителей | Внешние домены и фиксированные IPv4 в mesh |
 | `networkPolicy` | Правила входа и выхода каждого waypoint и выхода отправителей к нему | Ограничение трафика в mesh |
 | `authorizationPolicy` | AuthorizationPolicy на каждый локальный Gateway | Доступ только из его namespace |
@@ -54,6 +55,8 @@ Namespace выхода по умолчанию создаёт сабчарт `ve
 | `mode` | Нет, по умолчанию mesh | mesh или direct |
 | `senders.namespace` | Да | Непустой список существующих namespace без повторов |
 | `senders.subnet` | direct, scope subnet | Непустой список имён Subnet без повторов |
+| `waypoint.hpa` | Нет | Общие enabled, minReplicas, maxReplicas и averageUtilization для каждого waypoint |
+| `waypoint.resources` | Нет | Общие requests и limits CPU и памяти на реплику каждого waypoint |
 | `serviceEntries[].name`, `.hostname` | mesh | Имя записи и внешний домен или фиксированный IPv4 |
 | `serviceEntries[].port`, `.protocol` | Нет | По умолчанию 443 и TLS, также доступны HTTP и TCP |
 | `serviceEntries[].enabled` | Нет | false исключает запись |
@@ -86,7 +89,11 @@ LimitRange пересчитайте квоты. Изменённые ранее 
 над новыми значениями по умолчанию. Квота задаёт бюджет, а фактическое размещение
 зависит от доступных узлов и правил kube-ovn.
 
-Waypoint не имеет пользовательских настроек. Для каждого зафиксированы: обработка сервисов, HBONE 15008, ClusterIP, приём привязок только своего namespace, HPA от 2 до 5 реплик с целью CPU 80%. На реплику запрашиваются 100m CPU и 128Mi памяти, лимиты составляют 2000m CPU и 1024Mi. Суммарная потребность растёт с числом namespace.
+В `waypoint` задаются общие настройки для всех namespace из `senders.namespace`. При включённом HPA каждый waypoint масштабируется независимо, но получает одинаковые границы HPA, целевую загрузку CPU и ресурсы на реплику. По умолчанию HPA выключен. При его включении используются от 2 до 5 реплик с целью CPU 80%. На реплику запрашиваются 100m CPU и 128Mi памяти, лимиты составляют 500m CPU и 256Mi. Это стартовый профиль для нагрузки около 15 RPS: уточняйте ресурсы по метрикам и наблюдению реального трафика. Суммарная потребность растёт с числом namespace.
+
+`waypoint.hpa.enabled: false` не запрашивает создание HPA при новой установке. При обновлении уже созданный Istio HPA автоматически не удаляется. Чтобы зафиксировать число реплик без ручного удаления HPA, оставьте HPA включённым (`waypoint.hpa.enabled: true`) и задайте одинаковые `minReplicas` и `maxReplicas`. Для масштабирования по CPU в кластере нужен источник метрик ресурсов (например, metrics-server), а у контейнера должен быть положительный `waypoint.resources.requests.cpu`. Изменённые настройки для двух namespace показаны в `values.mesh-senders.yaml`. В direct блок `waypoint` не используется.
+
+Для каждого waypoint по-прежнему зафиксированы обработка сервисов, HBONE 15008, ClusterIP и приём привязок только своего namespace. Его имя берётся из `vpcEgressGateway.name`, отдельные настройки по namespace не поддерживаются.
 
 При включённых сетевых правилах каждому waypoint разрешён выход к istiod на 15012, DNS в kube-system на 1053 по TCP/UDP и к указанным endpoints и IPv4-записям. Вход на 15008 разрешён из его namespace. Правило `senders` дополняет существующие политики платформы, а не заменяет их.
 
@@ -124,11 +131,12 @@ Namespace выхода использует дефолтную подсеть `o
 - mode отличается от mesh и direct.
 - senders.namespace не является непустым списком допустимых имён namespace или содержит повторы.
 - Namespace отправителей совпадает с namespace выхода.
-- Переданы удалённые waypointNamespace, waypoint, senders.additionalNamespaces или senders.additionalSubnets.
+- Переданы удалённые waypointNamespace, waypoint.waypoints, senders.additionalNamespaces или senders.additionalSubnets.
 - Не задано имя выхода, список внешних IP пуст или не задано назначение namespace выхода.
 - Namespace выхода выключен, его роль отличается от egress или serviceMesh.never не равен true.
 - Заданы настройки собственной подсети namespace выхода или включено её создание через vegNamespace.subnet.enabled.
 - Задано переопределение имени namespace через global.namespaceOverride или vegNamespace.namespace.namespaceOverride.
+- В mesh при включённом HPA нарушены границы waypoint.hpa (minReplicas или maxReplicas меньше 1, minReplicas превышает maxReplicas, averageUtilization вне диапазона от 1 до 100) или не задан waypoint.resources.requests.cpu.
 - В mesh нет включённых внешних сервисов, у них отсутствуют имя или hostname с доменом либо IPv4, повторяется имя, домен или IP, неверны порт или протокол.
 - IPv4 указан с CIDR, ведущими нулями, неверными октетами или как `0.0.0.0`.
 - В direct переданы serviceEntries или включены networkPolicy либо authorizationPolicy.
@@ -143,6 +151,6 @@ Namespace выхода использует дефолтную подсеть `o
 
 ## Переход с 9.x
 
-**BREAKING:** преобразуйте senders.namespace из строки в список и перенесите в него все значения senders.additionalNamespaces. Удалите waypointNamespace целиком и global.namespacePurpose. Настройки waypoint больше не принимаются. Преобразуйте senders.subnet в список и добавьте в него все значения senders.additionalSubnets. Удалите senders.additionalSubnets. Имена подсетей и поведение SNAT сохраняются. Замените `vpcEgressGateway.scope: namespace` на `scope: subnet`. Удалите прежние параметры `vegNamespace.subnet`: собственная подсеть namespace выхода больше не создаётся.
+**BREAKING:** преобразуйте senders.namespace из строки в список и перенесите в него все значения senders.additionalNamespaces. Удалите waypointNamespace целиком и global.namespacePurpose. Вместо прежнего списка `waypoint.waypoints` используйте общие `waypoint.hpa` и `waypoint.resources`. Имя, размещение и область перехвата waypoint задаются чартом. Преобразуйте senders.subnet в список и добавьте в него все значения senders.additionalSubnets. Удалите senders.additionalSubnets. Имена подсетей и поведение SNAT сохраняются. Замените `vpcEgressGateway.scope: namespace` на `scope: subnet`. Удалите прежние параметры `vegNamespace.subnet`: собственная подсеть namespace выхода больше не создаётся.
 
 При обновлении старого mesh-релиза прежний отдельный namespace waypoint и его ресурсы перестают входить в релиз. Новые waypoint появляются в namespace отправителей, их имена выводятся из имени выхода. Сначала проверьте квоты, сетевые политики и содержимое старого служебного namespace: обновление может удалить управляемый релизом namespace вместе с оставшимися объектами. Безопасный переход и трафик нужно проверить на стенде до обновления рабочего релиза.

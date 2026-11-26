@@ -8,6 +8,7 @@ mode: mesh
 senders:
   namespace:
     - nbox-dev-ns-app
+# Общие HPA и ресурсы waypoint наследуются из values.yaml.
 serviceEntries:
   - name: nx
     hostname: repository.solution.test
