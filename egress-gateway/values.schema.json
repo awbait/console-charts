@@ -280,21 +280,6 @@
         "type": "string"
       }
     },
-    "resourceList": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "cpu": {
-          "type": [
-            "string",
-            "number"
-          ]
-        },
-        "memory": {
-          "type": "string"
-        }
-      }
-    },
     "nodeSelectorRequirement": {
       "type": "object",
       "additionalProperties": false,
@@ -654,12 +639,12 @@
             "defaultRequest": {
               "title": "Запросы по умолчанию",
               "description": "Запросы для контейнеров без своих значений: по умолчанию 100m процессора и 128Mi памяти.",
-              "$ref": "#/definitions/resourceList"
+              "$ref": "#/definitions/resourceQuantityMap"
             },
             "default": {
               "title": "Лимиты по умолчанию",
               "description": "Лимиты для контейнеров без своих значений: по умолчанию 500m процессора и 256Mi памяти.",
-              "$ref": "#/definitions/resourceList"
+              "$ref": "#/definitions/resourceQuantityMap"
             }
           }
         }
@@ -847,7 +832,8 @@
             "string",
             "number"
           ],
-          "minLength": 1
+          "minLength": 1,
+          "exclusiveMinimum": 0
         },
         "memory": {
           "title": "Память",

@@ -115,12 +115,12 @@ Namespace выхода использует дефолтную подсеть `o
 - mode отличается от mesh и direct.
 - senders.namespace не является непустым списком допустимых имён namespace или содержит повторы.
 - Namespace отправителей совпадает с namespace выхода.
-- Переданы удалённые waypointNamespace, senders.additionalNamespaces или senders.additionalSubnets.
+- Переданы удалённые waypointNamespace, waypoint.waypoints, senders.additionalNamespaces или senders.additionalSubnets.
 - Не задано имя выхода, список внешних IP пуст или не задано назначение namespace выхода.
 - Namespace выхода выключен, его роль отличается от egress или serviceMesh.never не равен true.
 - Заданы настройки собственной подсети namespace выхода или включено её создание через vegNamespace.subnet.enabled.
 - Задано переопределение имени namespace через global.namespaceOverride или vegNamespace.namespace.namespaceOverride.
-- В mesh при включённом HPA waypoint.hpa.minReplicas превышает waypoint.hpa.maxReplicas.
+- В mesh при включённом HPA нарушены границы waypoint.hpa (minReplicas или maxReplicas меньше 1, minReplicas превышает maxReplicas, averageUtilization вне диапазона от 1 до 100) или не задан waypoint.resources.requests.cpu.
 - В mesh нет включённых внешних сервисов, у них отсутствуют имя или hostname с доменом либо IPv4, повторяется имя, домен или IP, неверны порт или протокол.
 - IPv4 указан с CIDR, ведущими нулями, неверными октетами или как `0.0.0.0`.
 - В direct переданы serviceEntries или включены networkPolicy либо authorizationPolicy.
