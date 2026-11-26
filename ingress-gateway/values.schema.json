@@ -639,14 +639,92 @@
         }
       }
     },
-    "labelSelector": {
+    "namespaceSelector": {
+      "title": "Отбор неймспейсов по меткам",
+      "description": "Все условия применяются одновременно. Пустой объект выбирает все неймспейсы.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "matchLabels": {
-          "title": "Метки для отбора",
-          "description": "Метки, по которым выбираются поды или неймспейсы.",
-          "$ref": "#/definitions/stringMap"
+          "title": "Точные совпадения меток",
+          "type": "object",
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "matchExpressions": {
+          "title": "Условия отбора меток",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "operator"
+            ],
+            "properties": {
+              "key": {
+                "title": "Ключ метки",
+                "type": "string",
+                "minLength": 1
+              },
+              "operator": {
+                "title": "Оператор",
+                "type": "string",
+                "enum": [
+                  "In",
+                  "NotIn",
+                  "Exists",
+                  "DoesNotExist"
+                ]
+              },
+              "values": {
+                "title": "Значения метки",
+                "description": "Для In и NotIn укажите хотя бы одно значение. Для Exists и DoesNotExist оставьте список пустым или не задавайте его.",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "operator": {
+                      "enum": [
+                        "In",
+                        "NotIn"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operator"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "values"
+                  ],
+                  "properties": {
+                    "values": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "values": {
+                      "maxItems": 0
+                    }
+                  }
+                }
+              }
+            ]
+          }
         }
       }
     },
@@ -1027,8 +1105,7 @@
       "properties": {
         "namespaces": {
           "title": "Неймспейсы маршрутов",
-          "description": "Поле сохранено для совместимости и не влияет на доступ. Подключить можно только маршруты из неймспейса точки входа.",
-          "ui:widget": "hidden",
+          "description": "Выберите, из каких неймспейсов слушатель принимает маршруты. По умолчанию разрешён только неймспейс точки входа.",
           "default": {
             "from": "Same"
           },
@@ -1037,21 +1114,52 @@
           "properties": {
             "from": {
               "title": "Область выбора неймспейсов",
-              "description": "Значение Same обозначает неймспейс точки входа, All допускает любой неймспейс, Selector задаёт отбор по меткам. В этом сервисе всегда используется неймспейс точки входа независимо от выбранного значения.",
+              "description": "Определяет, из каких неймспейсов слушатель принимает маршруты. При выборе отбора по меткам обязательно задайте объект selector. Пустой объект selector разрешает все неймспейсы.",
               "type": "string",
               "default": "Same",
               "enum": [
                 "Same",
                 "All",
                 "Selector"
+              ],
+              "enumNames": [
+                "Неймспейс точки входа (Same)",
+                "Все неймспейсы (All)",
+                "По меткам неймспейса (Selector)"
               ]
             },
             "selector": {
-              "$ref": "#/definitions/labelSelector"
+              "$ref": "#/definitions/namespaceSelector"
             }
           },
           "required": [
             "from"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "from": {
+                    "const": "Selector"
+                  }
+                },
+                "required": [
+                  "from"
+                ]
+              },
+              "then": {
+                "required": [
+                  "selector"
+                ]
+              },
+              "else": {
+                "properties": {
+                  "selector": {
+                    "ui:widget": "hidden"
+                  }
+                }
+              }
+            }
           ]
         },
         "kinds": {

@@ -60,11 +60,10 @@ spec:
           {{- end }}
         {{- end }}
       {{- end }}
-      {{- /* namespaces is hidden from users and pinned to "Same" for now; only kinds is user-supplied. */}}
       {{- $ar := $listener.allowedRoutes | default dict }}
       allowedRoutes:
         namespaces:
-          from: Same
+          {{- include "ingress-gateway.helpers.app.routeNamespaces" (dict "value" ($ar.namespaces | default dict) "path" (printf "gateways[%d].listeners[%d].allowedRoutes.namespaces" $index $listenerIndex)) | nindent 10 }}
         {{- with $ar.kinds }}
         kinds:
           {{- toYaml . | nindent 10 }}
