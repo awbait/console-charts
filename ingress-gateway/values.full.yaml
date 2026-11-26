@@ -636,6 +636,7 @@ xroutes:
             cors:
               allowOrigins:
                 - https://example.ru
+              # Необязательное поле, по умолчанию false. Разрешает ответы на запросы с учётными данными.
               allowCredentials: true
               allowMethods:
                 - GET
