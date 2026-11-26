@@ -74,10 +74,14 @@ vegNamespace:
     never: true
     waypoint: false
   resourceQuotas:
+    # Бюджет на 30 подов VEG при стандартных ресурсах LimitRange.
     limits:
-      cpu: '2'
-      memory: 2Gi
-    podsAmount: 10
+      cpu: '15'
+      memory: 7680Mi
+    requests:
+      cpu: '3'
+      memory: 3840Mi
+    podsAmount: 30
   # Внутренний флаг сабчарта, зафиксирован в false. Подсеть не создаётся.
   subnet:
     enabled: false
