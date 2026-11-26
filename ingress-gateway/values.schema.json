@@ -639,17 +639,6 @@
         }
       }
     },
-    "labelSelector": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "matchLabels": {
-          "title": "Метки для отбора",
-          "description": "Метки, по которым выбираются поды или неймспейсы.",
-          "$ref": "#/definitions/stringMap"
-        }
-      }
-    },
     "namespaceSelector": {
       "title": "Отбор неймспейсов по меткам",
       "description": "Все условия применяются одновременно. Пустой объект выбирает все неймспейсы.",
@@ -1125,7 +1114,7 @@
           "properties": {
             "from": {
               "title": "Область выбора неймспейсов",
-              "description": "Same разрешает неймспейс точки входа, All разрешает любой неймспейс, Selector выбирает неймспейсы по меткам. Для Selector обязательно задайте selector. Пустой объект selector разрешает все неймспейсы.",
+              "description": "Определяет, из каких неймспейсов слушатель принимает маршруты. При выборе отбора по меткам обязательно задайте объект selector. Пустой объект selector разрешает все неймспейсы.",
               "type": "string",
               "default": "Same",
               "enum": [
@@ -1162,6 +1151,13 @@
                 "required": [
                   "selector"
                 ]
+              },
+              "else": {
+                "properties": {
+                  "selector": {
+                    "ui:widget": "hidden"
+                  }
+                }
               }
             }
           ]

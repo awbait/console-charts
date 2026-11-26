@@ -855,7 +855,12 @@ Parameters: .rule, .kind (canonical), .path.
 {{- end -}}
 from: {{ $from }}
 {{- if eq $from "Selector" }}
-selector: {{ toYaml $ns.selector | nindent 2 }}
+{{- if empty $ns.selector }}
+selector: {}
+{{- else }}
+selector:
+{{- toYaml $ns.selector | nindent 2 }}
+{{- end }}
 {{- end -}}
 {{- end -}}
 

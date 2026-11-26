@@ -23,7 +23,7 @@
 
 ### Changed
 
-- Сабчарт `ingress-gateway` обновлён до `12.2.0`: встроенной точке входа можно разрешить маршруты из любого неймспейса через `ingressGateway.gateways[].listeners[].allowedRoutes.namespaces.from: All`. По умолчанию сохраняется `Same`.
+- Сабчарт `ingress-gateway` обновлён до `12.2.0`: встроенной точке входа можно разрешить маршруты из любого неймспейса (`ingressGateway.gateways[].listeners[].allowedRoutes.namespaces.from: All`) или выбирать неймспейсы по меткам (`from: Selector` с `selector.matchLabels` и `selector.matchExpressions`). По умолчанию сохраняется `Same`.
 
 ## [0.11.1] - 2026-11-18
 
